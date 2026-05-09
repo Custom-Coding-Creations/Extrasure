@@ -1,7 +1,9 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getCustomerById, getTechnicianById, jobs, technicians } from "@/lib/admin-data";
+import { getAdminState } from "@/lib/admin-store";
 
-export default function AdminSchedulePage() {
+export default async function AdminSchedulePage() {
+  const state = await getAdminState();
+
   return (
     <AdminShell
       title="Scheduling and Dispatch"
@@ -11,9 +13,9 @@ export default function AdminSchedulePage() {
         <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5 lg:col-span-2">
           <h2 className="text-2xl text-[#1b2f25]">Upcoming Jobs</h2>
           <ul className="mt-4 space-y-3">
-            {jobs.map((job) => {
-              const customer = getCustomerById(job.customerId);
-              const tech = getTechnicianById(job.technicianId);
+            {state.jobs.map((job) => {
+              const customer = state.customers.find((item) => item.id === job.customerId);
+              const tech = state.technicians.find((item) => item.id === job.technicianId);
 
               return (
                 <li key={job.id} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4 text-sm text-[#33453a]">
@@ -33,7 +35,7 @@ export default function AdminSchedulePage() {
         <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
           <h2 className="text-2xl text-[#1b2f25]">Technician Capacity</h2>
           <ul className="mt-4 space-y-3">
-            {technicians.map((tech) => (
+            {state.technicians.map((tech) => (
               <li key={tech.id} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3 text-sm">
                 <p className="font-semibold text-[#20372c]">{tech.name}</p>
                 <p className="text-[#445349]">{tech.status.replaceAll("_", " ")}</p>

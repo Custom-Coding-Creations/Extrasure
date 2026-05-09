@@ -1,12 +1,8 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import {
-  customers,
-  getCustomerById,
-  getOverviewKpis,
-  getTechnicianById,
-  jobs,
-  payments,
-} from "@/lib/admin-data";
+  getAdminState,
+  getOverviewKpisFromState,
+} from "@/lib/admin-store";
 
 function toneClass(tone: "positive" | "neutral" | "attention") {
   if (tone === "positive") {
@@ -20,11 +16,12 @@ function toneClass(tone: "positive" | "neutral" | "attention") {
   return "text-[#4a5f53]";
 }
 
-export default function AdminOverviewPage() {
-  const kpis = getOverviewKpis();
-  const recentJobs = jobs.slice(0, 4);
-  const failedPayments = payments.filter((payment) => payment.status === "failed");
-  const leadCount = customers.filter((customer) => customer.lifecycle === "lead").length;
+export default async function AdminOverviewPage() {
+  const state = await getAdminState();
+  const kpis = getOverviewKpisFromState(state);
+  const recentJobs = state.jobs.slice(0, 4);
+  const failedPayments = state.payments.filter((payment) => payment.status === "failed");
+  const leadCount = state.customers.filter((customer) => customer.lifecycle === "lead").length;
 
   return (
     <AdminShell
@@ -46,8 +43,8 @@ export default function AdminOverviewPage() {
           <h2 className="text-2xl text-[#1b2f25]">Live Dispatch Snapshot</h2>
           <ul className="mt-4 space-y-3 text-sm">
             {recentJobs.map((job) => {
-              const customer = getCustomerById(job.customerId);
-              const tech = getTechnicianById(job.technicianId);
+              const customer = state.customers.find((item) => item.id === job.customerId);
+              const tech = state.technicians.find((item) => item.id === job.technicianId);
 
               return (
                 <li key={job.id} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">

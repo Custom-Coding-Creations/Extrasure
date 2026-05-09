@@ -1,14 +1,16 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { inventory } from "@/lib/admin-data";
+import { getAdminState } from "@/lib/admin-store";
 
-export default function AdminInventoryPage() {
+export default async function AdminInventoryPage() {
+  const state = await getAdminState();
+
   return (
     <AdminShell
       title="Inventory and Chemical Tracking"
       subtitle="Track stock levels, reorder thresholds, and field readiness for treatment materials and compliance logs."
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {inventory.map((item) => {
+        {state.inventory.map((item) => {
           const needsReorder = item.quantity <= item.reorderPoint;
 
           return (

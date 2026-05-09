@@ -1,7 +1,9 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { adminUsers } from "@/lib/admin-data";
+import { getAdminState } from "@/lib/admin-store";
 
-export default function AdminSettingsPage() {
+export default async function AdminSettingsPage() {
+  const state = await getAdminState();
+
   return (
     <AdminShell
       title="Security and Access Controls"
@@ -10,7 +12,7 @@ export default function AdminSettingsPage() {
       <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
         <h2 className="text-2xl text-[#1b2f25]">Role and MFA Status</h2>
         <ul className="mt-4 space-y-3 text-sm">
-          {adminUsers.map((user) => (
+          {state.adminUsers.map((user) => (
             <li key={user.id} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">
               <p className="font-semibold text-[#20372c]">{user.name}</p>
               <p className="capitalize text-[#445349]">Role: {user.role.replace("_", " ")}</p>

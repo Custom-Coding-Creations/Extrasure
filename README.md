@@ -55,6 +55,10 @@ Launch dashboard routes:
 - `/admin/automations` (workflow events)
 - `/admin/settings` (role and 2FA status)
 
+Owner login route:
+
+- `/owner-login`
+
 Current admin API routes:
 
 - `GET /api/admin/dashboard`
@@ -63,6 +67,18 @@ Current admin API routes:
 - `POST /api/admin/stripe/webhook` (signature-required scaffold endpoint)
 
 The admin module currently uses in-app sample data to establish UI and workflow architecture. Persisted storage, live Stripe actions, and QuickBooks sync should be connected in the next implementation phase.
+
+Current implementation detail: admin state now persists in `.data/admin-state.json` and is shared across admin pages and API endpoints.
+
+## Admin Authentication Variables
+
+Set these for owner login and signed admin sessions:
+
+- `ADMIN_AUTH_SECRET`
+- `ADMIN_LOGIN_EMAIL`
+- `ADMIN_LOGIN_PASSWORD`
+- `ADMIN_LOGIN_NAME` (optional, defaults to `Owner`)
+- `ADMIN_LOGIN_ROLE` (optional, defaults to `owner`)
 
 ## Stripe Environment Variables
 

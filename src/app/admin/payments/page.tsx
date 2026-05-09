@@ -1,5 +1,5 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getInvoiceById, invoices, payments } from "@/lib/admin-data";
+import { getAdminState } from "@/lib/admin-store";
 
 function paymentTone(status: string) {
   if (status === "succeeded") {
@@ -17,11 +17,13 @@ function paymentTone(status: string) {
   return "text-[#4a5f53]";
 }
 
-export default function AdminPaymentsPage() {
-  const collectionTotal = payments
+export default async function AdminPaymentsPage() {
+  const state = await getAdminState();
+
+  const collectionTotal = state.payments
     .filter((payment) => payment.status === "succeeded")
     .reduce((total, payment) => total + payment.amount, 0);
-  const failedTotal = payments
+  const failedTotal = state.payments
     .filter((payment) => payment.status === "failed")
     .reduce((total, payment) => total + payment.amount, 0);
 
@@ -56,8 +58,8 @@ export default function AdminPaymentsPage() {
             </tr>
           </thead>
           <tbody>
-            {payments.map((payment) => {
-              const invoice = getInvoiceById(payment.invoiceId);
+            {state.payments.map((payment) => {
+              const invoice = state.invoices.find((item) => item.id === payment.invoiceId);
 
               return (
                 <tr key={payment.id} className="border-b border-[#ecdfc3] last:border-0">
@@ -85,7 +87,7 @@ export default function AdminPaymentsPage() {
           <li>Enable webhook events: checkout.session.completed, payment_intent.payment_failed, charge.refunded.</li>
           <li>Route failed payments into retry + reminder automation.</li>
         </ul>
-        <p className="mt-4 text-xs text-[#5d7267]">Open invoices in scope: {invoices.filter((item) => item.status !== "paid").length}</p>
+        <p className="mt-4 text-xs text-[#5d7267]">Open invoices in scope: {state.invoices.filter((item) => item.status !== "paid").length}</p>
       </section>
     </AdminShell>
   );

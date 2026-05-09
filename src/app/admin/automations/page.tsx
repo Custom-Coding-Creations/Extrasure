@@ -1,7 +1,9 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { automationEvents } from "@/lib/admin-data";
+import { getAdminState } from "@/lib/admin-store";
 
-export default function AdminAutomationsPage() {
+export default async function AdminAutomationsPage() {
+  const state = await getAdminState();
+
   return (
     <AdminShell
       title="Automation Center"
@@ -18,7 +20,7 @@ export default function AdminAutomationsPage() {
             </tr>
           </thead>
           <tbody>
-            {automationEvents.map((event) => (
+            {state.automationEvents.map((event) => (
               <tr key={event.id} className="border-b border-[#ecdfc3] last:border-0">
                 <td className="px-4 py-3 font-semibold text-[#1b2f25]">{event.type.replaceAll("_", " ")}</td>
                 <td className="px-4 py-3 text-[#33453a]">{event.target}</td>

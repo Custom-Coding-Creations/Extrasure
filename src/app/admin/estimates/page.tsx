@@ -1,15 +1,17 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { estimates, getCustomerById } from "@/lib/admin-data";
+import { getAdminState } from "@/lib/admin-store";
 
-export default function AdminEstimatesPage() {
+export default async function AdminEstimatesPage() {
+  const state = await getAdminState();
+
   return (
     <AdminShell
       title="Estimate Builder and Approvals"
       subtitle="Generate line-item estimates, monitor approval status, and convert approved work into scheduled jobs and invoices."
     >
       <div className="grid gap-4 md:grid-cols-3">
-        {estimates.map((estimate) => {
-          const customer = getCustomerById(estimate.customerId);
+        {state.estimates.map((estimate) => {
+          const customer = state.customers.find((item) => item.id === estimate.customerId);
 
           return (
             <article key={estimate.id} className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">

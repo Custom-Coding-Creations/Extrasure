@@ -1,5 +1,5 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getCustomerById, invoices } from "@/lib/admin-data";
+import { getAdminState } from "@/lib/admin-store";
 
 function statusClass(status: string) {
   if (status === "paid") {
@@ -17,7 +17,9 @@ function statusClass(status: string) {
   return "bg-[#ece2ca] text-[#33453a]";
 }
 
-export default function AdminInvoicesPage() {
+export default async function AdminInvoicesPage() {
+  const state = await getAdminState();
+
   return (
     <AdminShell
       title="Invoices and Billing Cycles"
@@ -36,8 +38,8 @@ export default function AdminInvoicesPage() {
             </tr>
           </thead>
           <tbody>
-            {invoices.map((invoice) => {
-              const customer = getCustomerById(invoice.customerId);
+            {state.invoices.map((invoice) => {
+              const customer = state.customers.find((item) => item.id === invoice.customerId);
 
               return (
                 <tr key={invoice.id} className="border-b border-[#ecdfc3] last:border-0">

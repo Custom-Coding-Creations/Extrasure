@@ -1,18 +1,21 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { customers, invoices, jobs, payments, technicians } from "@/lib/admin-data";
+import { getAdminState } from "@/lib/admin-store";
 
-export default function AdminReportsPage() {
-  const totalRevenue = payments
+export default async function AdminReportsPage() {
+  const state = await getAdminState();
+
+  const totalRevenue = state.payments
     .filter((payment) => payment.status === "succeeded")
     .reduce((sum, payment) => sum + payment.amount, 0);
-  const averageTicket = invoices.length
-    ? Math.round(invoices.reduce((sum, invoice) => sum + invoice.amount, 0) / invoices.length)
+  const averageTicket = state.invoices.length
+    ? Math.round(state.invoices.reduce((sum, invoice) => sum + invoice.amount, 0) / state.invoices.length)
     : 0;
-  const completedJobs = jobs.filter((job) => job.status === "completed").length;
-  const activePlans = customers.filter((customer) => customer.activePlan !== "none").length;
-  const utilization = technicians.length
+  const completedJobs = state.jobs.filter((job) => job.status === "completed").length;
+  const activePlans = state.customers.filter((customer) => customer.activePlan !== "none").length;
+  const utilization = state.technicians.length
     ? Math.round(
-        technicians.reduce((sum, tech) => sum + tech.utilizationPercent, 0) / technicians.length,
+        state.technicians.reduce((sum, tech) => sum + tech.utilizationPercent, 0) /
+          state.technicians.length,
       )
     : 0;
 

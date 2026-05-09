@@ -1,7 +1,9 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { customers } from "@/lib/admin-data";
+import { getAdminState } from "@/lib/admin-store";
 
-export default function AdminCustomersPage() {
+export default async function AdminCustomersPage() {
+  const state = await getAdminState();
+
   return (
     <AdminShell
       title="CRM and Account Health"
@@ -19,7 +21,7 @@ export default function AdminCustomersPage() {
             </tr>
           </thead>
           <tbody>
-            {customers.map((customer) => (
+            {state.customers.map((customer) => (
               <tr key={customer.id} className="border-b border-[#ecdfc3] last:border-0">
                 <td className="px-4 py-3 font-semibold text-[#1b2f25]">
                   {customer.name}
