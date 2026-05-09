@@ -1,6 +1,7 @@
 import "server-only";
 
 import Stripe from "stripe";
+import type { StripeConfig } from "stripe";
 
 const globalForStripe = globalThis as unknown as {
   stripe: Stripe | undefined;
@@ -27,7 +28,7 @@ export function getStripeWebhookSecret() {
 export function getStripe(): Stripe {
   if (!globalForStripe.stripe) {
     globalForStripe.stripe = new Stripe(getRequiredEnv("STRIPE_SECRET_KEY"), {
-      apiVersion: "2026-04-22.dahlia" as Stripe.StripeConfig["apiVersion"],
+      apiVersion: "2026-04-22.dahlia" as StripeConfig["apiVersion"],
     });
   }
 
