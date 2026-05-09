@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   let payload: PaymentActionPayload;
 
   try {
-    payload = (await request.json()) as RetryPayload;
+    payload = (await request.json()) as PaymentActionPayload;
   } catch {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
