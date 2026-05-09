@@ -63,6 +63,12 @@ export type Payment = {
   status: "succeeded" | "failed" | "pending" | "refunded";
   amount: number;
   createdAt: string;
+  stripeCheckoutSessionId?: string | null;
+  stripePaymentIntentId?: string | null;
+  stripeChargeId?: string | null;
+  stripeRefundId?: string | null;
+  failureCode?: string | null;
+  refundedAt?: string | null;
 };
 
 export type AutomationEvent = {

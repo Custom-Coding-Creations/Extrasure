@@ -152,10 +152,14 @@ export async function getAdminState(): Promise<AdminState> {
       invoices: dbInvoices.map((invoice) => ({
         ...invoice,
         dueDate: toDateOnly(invoice.dueDate),
+        paidAt: invoice.paidAt ? toIso(invoice.paidAt) : null,
+        refundedAt: invoice.refundedAt ? toIso(invoice.refundedAt) : null,
+        paymentStatusUpdatedAt: invoice.paymentStatusUpdatedAt ? toIso(invoice.paymentStatusUpdatedAt) : null,
       })),
       payments: dbPayments.map((payment) => ({
         ...payment,
         createdAt: toIso(payment.createdAt),
+        refundedAt: payment.refundedAt ? toIso(payment.refundedAt) : null,
       })),
       automationEvents: dbAutomationEvents.map((event) => ({
         ...event,
