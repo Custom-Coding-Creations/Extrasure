@@ -105,7 +105,7 @@ export async function createInvoiceCheckoutSession(invoiceId: string) {
           unit_amount: toUnitAmount(invoice.amount),
           ...(isRecurring
             ? {
-                recurring: getBillingInterval(invoice.billingCycle),
+                recurring: getBillingInterval(invoice.billingCycle as "monthly" | "quarterly" | "annual"),
               }
             : {}),
         },
