@@ -355,7 +355,7 @@ async function handleRefundEvent(charge: Stripe.Charge) {
     return;
   }
 
-  const refundId = charge.refunds.data[0]?.id ?? null;
+  const refundId = charge.refunds?.data[0]?.id ?? null;
   const refundedAt = new Date();
   await prisma.$transaction([
     prisma.payment.update({
