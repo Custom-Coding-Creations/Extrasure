@@ -104,6 +104,9 @@ model Customer {
   activePlan      ActivePlan
   lifecycle       Lifecycle
   lastServiceDate DateTime
+  stripeCustomerId String?    @unique
+  stripeSubscriptionId String?
+  stripeSubscriptionStatus String?
 }
 
 model Technician {
@@ -140,6 +143,15 @@ model Invoice {
   dueDate      DateTime
   status       InvoiceStatus
   billingCycle BillingCycle
+  stripeCustomerId String?
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId String?
+  stripeSubscriptionId String?
+  stripeInvoiceId String?
+  checkoutUrl String?
+  paidAt DateTime?
+  refundedAt DateTime?
+  paymentStatusUpdatedAt DateTime?
 }
 
 model Payment {
@@ -149,6 +161,12 @@ model Payment {
   status    PaymentStatus
   amount    Int
   createdAt DateTime
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId String?
+  stripeChargeId String?
+  stripeRefundId String?
+  failureCode String?
+  refundedAt DateTime?
 }
 
 model AutomationEvent {
@@ -166,4 +184,13 @@ model InventoryItem {
   quantity    Int
   reorderPoint Int
   lastUpdated DateTime
+}
+
+model StripeWebhookEvent {
+  id          String   @id
+  type        String
+  livemode    Boolean
+  payloadJson String
+  createdAt   DateTime
+  processedAt DateTime @default(now())
 }

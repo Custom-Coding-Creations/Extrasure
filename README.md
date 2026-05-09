@@ -16,6 +16,8 @@ npm install
 cp .env.example .env.local
 ```
 
+For Prisma and Stripe local development, mirror the needed values into `.env` as well because Prisma CLI reads from `.env`.
+
 3. Start development server:
 
 ```bash
@@ -31,6 +33,38 @@ npm run dev
 ```
 
 Open http://localhost:3000.
+
+## Stripe Setup
+
+1. Install the Stripe CLI and authenticate:
+
+```bash
+stripe login
+```
+
+2. Start local webhook forwarding:
+
+```bash
+stripe listen --forward-to localhost:3000/api/admin/stripe/webhook
+```
+
+3. Copy the generated `whsec_...` signing secret into `STRIPE_WEBHOOK_SECRET`.
+
+4. Ensure these variables are set locally and in Vercel for deployment:
+
+- `SITE_URL` or `NEXT_PUBLIC_SITE_URL`
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+5. Recommended test flows:
+
+- Pay an open invoice from `/admin/payments`
+- Start autopay for a recurring invoice from `/admin/payments`
+- Open the Stripe billing portal from `/admin/payments`
+- Refund a successful payment from `/admin/payments`
+
+Webhook processing is the source of truth for payment success/failure and subscription updates.
 
 ## Lead Routing API
 
@@ -92,7 +126,7 @@ Current admin API routes:
 - `POST /api/admin/payments` (queues retry intent in scaffold mode)
 - `POST /api/admin/stripe/webhook` (signature-required scaffold endpoint)
 
-The admin module now persists through Prisma with a local SQLite database by default (`DATABASE_URL="file:./prisma/dev.db"`). Live Stripe actions and QuickBooks sync remain scaffolded for the next implementation phase.
+The admin module now persists through Prisma with a local SQLite database by default (`DATABASE_URL="file:./prisma/dev.db"`). Stripe checkout, billing portal, refund actions, and verified webhook handling are implemented; QuickBooks sync remains for the next implementation phase.
 
 ## Admin Authentication Variables
 

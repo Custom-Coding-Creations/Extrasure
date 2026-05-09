@@ -129,6 +129,26 @@ export async function requireAdminApiSession() {
   return session;
 }
 
+export async function requireAdminRole(roles: Role[]) {
+  const session = await requireAdminSession();
+
+  if (!roles.includes(session.role)) {
+    redirect("/admin");
+  }
+
+  return session;
+}
+
+export async function requireAdminApiRole(roles: Role[]) {
+  const session = await requireAdminApiSession();
+
+  if (!session || !roles.includes(session.role)) {
+    return null;
+  }
+
+  return session;
+}
+
 export function validateOwnerCredentials(email: string, password: string) {
   const expectedEmail = process.env.ADMIN_LOGIN_EMAIL;
   const expectedPassword = process.env.ADMIN_LOGIN_PASSWORD;

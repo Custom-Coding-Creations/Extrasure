@@ -12,6 +12,21 @@ import {
 } from "@/lib/admin-data";
 import { prisma } from "@/lib/prisma";
 
+/** Fallback state using static seed data — used when the database is unavailable (e.g. Vercel cold start with no persistent DB). */
+function getStaticAdminState(): AdminState {
+  return {
+    adminUsers,
+    customers,
+    technicians,
+    jobs,
+    estimates,
+    invoices,
+    payments,
+    automationEvents,
+    inventory,
+  };
+}
+
 type DashboardKpi = ReturnType<typeof getOverviewKpis>[number];
 
 export type AdminState = {
@@ -89,63 +104,71 @@ async function ensureSeededState() {
   ]);
 }
 
-export async function getAdminState() {
-  await ensureSeededState();
+export async function getAdminState(): Promise<AdminState> {
+  try {
+    await ensureSeededState();
+  } catch {
+    return getStaticAdminState();
+  }
 
-  const [
-    dbAdminUsers,
-    dbCustomers,
-    dbTechnicians,
-    dbJobs,
-    dbEstimates,
-    dbInvoices,
-    dbPayments,
-    dbAutomationEvents,
-    dbInventory,
-  ] = await Promise.all([
-    prisma.adminUser.findMany({ orderBy: { id: "asc" } }),
-    prisma.customer.findMany({ orderBy: { id: "asc" } }),
-    prisma.technician.findMany({ orderBy: { id: "asc" } }),
-    prisma.job.findMany({ orderBy: { scheduledAt: "asc" } }),
-    prisma.estimate.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.invoice.findMany({ orderBy: { dueDate: "asc" } }),
-    prisma.payment.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.automationEvent.findMany({ orderBy: { scheduledFor: "desc" } }),
-    prisma.inventoryItem.findMany({ orderBy: { id: "asc" } }),
-  ]);
+  try {
+    const [
+      dbAdminUsers,
+      dbCustomers,
+      dbTechnicians,
+      dbJobs,
+      dbEstimates,
+      dbInvoices,
+      dbPayments,
+      dbAutomationEvents,
+      dbInventory,
+    ] = await Promise.all([
+      prisma.adminUser.findMany({ orderBy: { id: "asc" } }),
+      prisma.customer.findMany({ orderBy: { id: "asc" } }),
+      prisma.technician.findMany({ orderBy: { id: "asc" } }),
+      prisma.job.findMany({ orderBy: { scheduledAt: "asc" } }),
+      prisma.estimate.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.invoice.findMany({ orderBy: { dueDate: "asc" } }),
+      prisma.payment.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.automationEvent.findMany({ orderBy: { scheduledFor: "desc" } }),
+      prisma.inventoryItem.findMany({ orderBy: { id: "asc" } }),
+    ]);
 
-  return {
-    adminUsers: dbAdminUsers,
-    customers: dbCustomers.map((customer) => ({
-      ...customer,
-      lastServiceDate: toDateOnly(customer.lastServiceDate),
-    })),
-    technicians: dbTechnicians,
-    jobs: dbJobs.map((job) => ({
-      ...job,
-      scheduledAt: toIso(job.scheduledAt),
-    })),
-    estimates: dbEstimates.map((estimate) => ({
-      ...estimate,
-      createdAt: toDateOnly(estimate.createdAt),
-    })),
-    invoices: dbInvoices.map((invoice) => ({
-      ...invoice,
-      dueDate: toDateOnly(invoice.dueDate),
-    })),
-    payments: dbPayments.map((payment) => ({
-      ...payment,
-      createdAt: toIso(payment.createdAt),
-    })),
-    automationEvents: dbAutomationEvents.map((event) => ({
-      ...event,
-      scheduledFor: toIso(event.scheduledFor),
-    })),
-    inventory: dbInventory.map((item) => ({
-      ...item,
-      lastUpdated: toDateOnly(item.lastUpdated),
-    })),
-  } satisfies AdminState;
+    return {
+      adminUsers: dbAdminUsers,
+      customers: dbCustomers.map((customer) => ({
+        ...customer,
+        lastServiceDate: toDateOnly(customer.lastServiceDate),
+      })),
+      technicians: dbTechnicians,
+      jobs: dbJobs.map((job) => ({
+        ...job,
+        scheduledAt: toIso(job.scheduledAt),
+      })),
+      estimates: dbEstimates.map((estimate) => ({
+        ...estimate,
+        createdAt: toDateOnly(estimate.createdAt),
+      })),
+      invoices: dbInvoices.map((invoice) => ({
+        ...invoice,
+        dueDate: toDateOnly(invoice.dueDate),
+      })),
+      payments: dbPayments.map((payment) => ({
+        ...payment,
+        createdAt: toIso(payment.createdAt),
+      })),
+      automationEvents: dbAutomationEvents.map((event) => ({
+        ...event,
+        scheduledFor: toIso(event.scheduledFor),
+      })),
+      inventory: dbInventory.map((item) => ({
+        ...item,
+        lastUpdated: toDateOnly(item.lastUpdated),
+      })),
+    } satisfies AdminState;
+  } catch {
+    return getStaticAdminState();
+  }
 }
 
 export async function saveAdminState(state: AdminState) {

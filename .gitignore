@@ -43,4 +43,6 @@ next-env.d.ts
 # local persistence
 prisma/dev.db
 prisma/dev.db-journal
+prisma/prisma/dev.db
+prisma/prisma/dev.db-journal
 .data/
