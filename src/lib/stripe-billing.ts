@@ -311,7 +311,7 @@ async function handleStripeInvoiceEvent(invoice: Stripe.Invoice, status: "paid" 
       status,
       stripeInvoiceId: invoice.id,
       stripeCustomerId: typeof invoice.customer === "string" ? invoice.customer : null,
-      stripeSubscriptionId: typeof invoice.subscription === "string" ? invoice.subscription : null,
+      stripeSubscriptionId: (() => { const sub = invoice.parent?.subscription_details?.subscription; return typeof sub === "string" ? sub : (sub?.id ?? null); })(),
       paidAt: status === "paid" ? new Date() : null,
       paymentStatusUpdatedAt: new Date(),
     },
