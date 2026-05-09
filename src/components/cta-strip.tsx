@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TrackedContactLink } from "@/components/tracked-contact-link";
 import { company } from "@/lib/site";
 
 export function CtaStrip() {
@@ -11,9 +12,14 @@ export function CtaStrip() {
           <p className="mt-2 max-w-xl text-sm text-stone-300">Free inspections, honest recommendations, and guaranteed follow-through from a local team.</p>
         </div>
         <div className="mt-5 flex flex-wrap gap-3 sm:mt-0">
-          <a href={company.phoneHref} className="rounded-full bg-[#d48534] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#b86d22]">
+          <TrackedContactLink
+            href={company.phoneHref}
+            eventName="call_click"
+            eventPayload={{ source: "cta_strip" }}
+            className="rounded-full bg-[#d48534] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#b86d22]"
+          >
             {company.ctaPrimary}
-          </a>
+          </TrackedContactLink>
           <Link href="/contact" className="rounded-full border border-stone-400/50 px-5 py-2 text-sm font-semibold text-stone-100 transition hover:bg-stone-100 hover:text-[#163526]">
             {company.ctaSecondary}
           </Link>

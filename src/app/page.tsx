@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { CtaStrip } from "@/components/cta-strip";
+import { LeadForm } from "@/components/lead-form";
+import { TrackedContactLink } from "@/components/tracked-contact-link";
 import { company, serviceAreas, services, testimonials, trustBadges } from "@/lib/site";
 
 export default function Home() {
@@ -17,9 +19,14 @@ export default function Home() {
               ExtraSure Pest Control protects homes, rentals, and businesses across {company.city} and nearby communities with same-day availability, clear communication, and guaranteed follow-through.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <a href={company.phoneHref} className="rounded-full bg-[#d48534] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#b86d22]">
+              <TrackedContactLink
+                href={company.phoneHref}
+                eventName="call_click"
+                eventPayload={{ source: "home_hero" }}
+                className="rounded-full bg-[#d48534] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#b86d22]"
+              >
                 {company.ctaPrimary}
-              </a>
+              </TrackedContactLink>
               <Link href="/contact" className="rounded-full border border-stone-200/60 px-5 py-3 text-sm font-semibold text-stone-100 transition hover:bg-stone-100 hover:text-[#133325]">
                 {company.ctaSecondary}
               </Link>
@@ -36,15 +43,7 @@ export default function Home() {
             <p className="text-xs uppercase tracking-[0.2em] text-[#5f6d63]">Free Inspection Request</p>
             <h2 className="mt-2 text-2xl">Tell Us What You Are Seeing</h2>
             <p className="mt-2 text-sm text-[#445349]">We respond quickly and route every new request to email, SMS, and dispatch tracking.</p>
-            <form className="mt-5 space-y-3">
-              <input className="field" placeholder="Full name" aria-label="Full name" />
-              <input className="field" placeholder="Phone number" aria-label="Phone number" />
-              <input className="field" placeholder="Service address or ZIP" aria-label="Service address or ZIP" />
-              <textarea className="field min-h-24" placeholder="Describe the pest issue" aria-label="Describe the pest issue" />
-              <button type="button" className="w-full rounded-xl bg-[#163526] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#0f251b]">
-                Request Free Inspection
-              </button>
-            </form>
+            <LeadForm source="home_hero_form" includeEmail={false} includeService={false} compact />
           </div>
         </div>
       </section>

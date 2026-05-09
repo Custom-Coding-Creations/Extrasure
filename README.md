@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ExtraSure Pest Control Website
 
-## Getting Started
+Marketing site for ExtraSure Pest Control in Syracuse, NY, built with Next.js App Router and optimized for call-first local lead generation.
 
-First, run the development server:
+## Local Development
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Create environment values:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Start development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Lead Routing API
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Form submissions from homepage and contact page are posted to `POST /api/lead`.
 
-## Learn More
+The API can fan out each lead to multiple webhook destinations:
 
-To learn more about Next.js, take a look at the following resources:
+- `LEAD_EMAIL_WEBHOOK_URL`
+- `LEAD_SMS_WEBHOOK_URL`
+- `LEAD_CRM_WEBHOOK_URL`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Behavior:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. At least one successful route returns `200`.
+2. If all configured routes fail, API returns `502`.
+3. If no routes are configured, the API still returns `200` and logs the lead server-side for local testing.
 
-## Deploy on Vercel
+## Conversion Tracking
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Client events are emitted to `dataLayer` and `gtag` when available:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `call_click`
+- `lead_form_submit_attempt`
+- `lead_form_submit_success`
+- `lead_form_submit_error`
+- `sms_click`
+- `email_click`
+
+## Quality Checks
+
+```bash
+npm run lint
+```
+
+## Deployment
+
+Deploy on Vercel and set webhook environment variables in Project Settings before going live.

@@ -67,9 +67,12 @@ export async function POST(request: NextRequest) {
     }),
   );
 
-  const successful = routeResults
-    .filter((result): result is PromiseFulfilledResult<string> => result.status === "fulfilled")
-    .map((result) => result.value);
+  const successful: string[] = [];
+  for (const result of routeResults) {
+    if (result.status === "fulfilled") {
+      successful.push(result.value);
+    }
+  }
 
   if (successful.length === 0) {
     return NextResponse.json({ error: "Lead routing failed" }, { status: 502 });

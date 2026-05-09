@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TrackedContactLink } from "@/components/tracked-contact-link";
 import { company } from "@/lib/site";
 
 const links = [
@@ -24,12 +25,14 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <a
+        <TrackedContactLink
           href={company.phoneHref}
+          eventName="call_click"
+          eventPayload={{ source: "site_header" }}
           className="rounded-full bg-[#d48534] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#b86d22]"
         >
           {company.ctaPrimary}
-        </a>
+        </TrackedContactLink>
       </div>
     </header>
   );

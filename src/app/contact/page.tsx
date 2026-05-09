@@ -1,3 +1,5 @@
+import { LeadForm } from "@/components/lead-form";
+import { TrackedContactLink } from "@/components/tracked-contact-link";
 import { company } from "@/lib/site";
 
 export default function ContactPage() {
@@ -10,9 +12,28 @@ export default function ContactPage() {
         <section className="paper-panel rounded-2xl border border-[#d3c7ad] p-6">
           <h2 className="text-2xl text-[#203328]">Quick Contact</h2>
           <ul className="mt-4 space-y-2 text-sm text-[#33453a]">
-            <li><strong>Call:</strong> <a href={company.phoneHref}>{company.phoneDisplay}</a></li>
-            <li><strong>Text:</strong> <a href={company.smsHref}>{company.phoneDisplay}</a></li>
-            <li><strong>Email:</strong> <a href={`mailto:${company.email}`}>{company.email}</a></li>
+            <li>
+              <strong>Call:</strong>{" "}
+              <TrackedContactLink href={company.phoneHref} eventName="call_click" eventPayload={{ source: "contact_page" }}>
+                {company.phoneDisplay}
+              </TrackedContactLink>
+            </li>
+            <li>
+              <strong>Text:</strong>{" "}
+              <TrackedContactLink href={company.smsHref} eventName="sms_click" eventPayload={{ source: "contact_page" }}>
+                {company.phoneDisplay}
+              </TrackedContactLink>
+            </li>
+            <li>
+              <strong>Email:</strong>{" "}
+              <TrackedContactLink
+                href={`mailto:${company.email}`}
+                eventName="email_click"
+                eventPayload={{ source: "contact_page" }}
+              >
+                {company.email}
+              </TrackedContactLink>
+            </li>
           </ul>
           <h3 className="mt-5 text-xl text-[#203328]">Business Hours</h3>
           <ul className="mt-3 space-y-1 text-sm text-[#445349]">
@@ -24,27 +45,7 @@ export default function ContactPage() {
         </section>
         <section className="paper-panel rounded-2xl border border-[#d3c7ad] p-6">
           <h2 className="text-2xl text-[#203328]">Inspection Form</h2>
-          <form className="mt-4 space-y-3">
-            <input className="field" placeholder="Full name" aria-label="Full name" />
-            <input className="field" placeholder="Phone number" aria-label="Phone number" />
-            <input className="field" placeholder="Email" aria-label="Email" />
-            <input className="field" placeholder="Address / ZIP" aria-label="Address or ZIP" />
-            <select className="field" aria-label="Service needed" defaultValue="">
-              <option value="" disabled>Select service needed</option>
-              <option>General Pest Prevention</option>
-              <option>Ant Control</option>
-              <option>Rodent Control</option>
-              <option>Bed Bug Treatment</option>
-              <option>Termite Treatment</option>
-              <option>Mosquito/Tick Treatments</option>
-              <option>Wildlife Exclusion</option>
-              <option>Commercial Services</option>
-            </select>
-            <textarea className="field min-h-24" placeholder="Tell us what you are seeing" aria-label="Pest issue details" />
-            <button type="button" className="w-full rounded-xl bg-[#163526] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#0f251b]">
-              Submit Request
-            </button>
-          </form>
+          <LeadForm source="contact_page_form" />
         </section>
       </div>
     </div>
