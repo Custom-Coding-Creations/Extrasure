@@ -4,6 +4,8 @@ import {
   getOverviewKpisFromState,
 } from "@/lib/admin-store";
 
+export const dynamic = "force-dynamic";
+
 function toneClass(tone: "positive" | "neutral" | "attention") {
   if (tone === "positive") {
     return "text-emerald-700";

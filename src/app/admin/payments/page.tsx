@@ -1,6 +1,8 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getAdminState } from "@/lib/admin-store";
 
+export const dynamic = "force-dynamic";
+
 function paymentTone(status: string) {
   if (status === "succeeded") {
     return "text-emerald-700";

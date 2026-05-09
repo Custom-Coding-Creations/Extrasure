@@ -7,74 +7,155 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  owner
+  dispatch
+  technician
+  accountant
+}
+
+enum ActivePlan {
+  monthly
+  quarterly
+  annual
+  none
+}
+
+enum Lifecycle {
+  lead
+  active
+  past_due
+}
+
+enum TechnicianStatus {
+  available
+  in_route
+  on_job
+  off_shift
+}
+
+enum JobStatus {
+  scheduled
+  in_progress
+  completed
+  reschedule_needed
+}
+
+enum EstimateStatus {
+  sent
+  approved
+  declined
+}
+
+enum InvoiceStatus {
+  paid
+  open
+  past_due
+  refunded
+}
+
+enum BillingCycle {
+  one_time
+  monthly
+  quarterly
+  annual
+}
+
+enum PaymentMethod {
+  card
+  ach
+}
+
+enum PaymentStatus {
+  succeeded
+  failed
+  pending
+  refunded
+}
+
+enum AutomationEventType {
+  lead_alert
+  appointment_reminder
+  invoice_reminder
+  failed_payment_retry
+  review_request
+  seasonal_reservice
+}
+
+enum AutomationEventStatus {
+  queued
+  sent
+  failed
+}
+
 model AdminUser {
   id               String  @id
   name             String
-  role             String
+  role             Role
   twoFactorEnabled Boolean @default(false)
 }
 
 model Customer {
-  id              String   @id
+  id              String     @id
   name            String
   phone           String
   email           String
   city            String
-  activePlan      String
-  lifecycle       String
+  activePlan      ActivePlan
+  lifecycle       Lifecycle
   lastServiceDate DateTime
 }
 
 model Technician {
-  id                 String  @id
+  id                 String           @id
   name               String
-  status             String
+  status             TechnicianStatus
   utilizationPercent Int
 }
 
 model Job {
-  id           String   @id
+  id           String    @id
   customerId   String
   service      String
   scheduledAt  DateTime
-  status       String
+  status       JobStatus
   technicianId String
   emergency    Boolean
 }
 
 model Estimate {
-  id         String   @id
+  id         String          @id
   customerId String
   service    String
   amount     Int
-  status     String
+  status     EstimateStatus
   createdAt  DateTime
 }
 
 model Invoice {
-  id           String   @id
+  id           String         @id
   customerId   String
   estimateId   String?
   amount       Int
   dueDate      DateTime
-  status       String
-  billingCycle String
+  status       InvoiceStatus
+  billingCycle BillingCycle
 }
 
 model Payment {
-  id        String   @id
+  id        String        @id
   invoiceId String
-  method    String
-  status    String
+  method    PaymentMethod
+  status    PaymentStatus
   amount    Int
   createdAt DateTime
 }
 
 model AutomationEvent {
-  id           String   @id
-  type         String
+  id           String                  @id
+  type         AutomationEventType
   target       String
-  status       String
+  status       AutomationEventStatus
   scheduledFor DateTime
 }
 

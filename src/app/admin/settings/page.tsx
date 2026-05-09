@@ -1,6 +1,8 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getAdminState } from "@/lib/admin-store";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminSettingsPage() {
   const state = await getAdminState();
 

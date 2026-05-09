@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
     sessionId,
     answer,
     language,
-    confidence: knowledge.confidence,
+    confidence: knowledge.confidence as "low" | "high" | "medium",
     escalateToHuman,
     policyReferences: [],
     suggestLeadCapture: shouldSuggestLeadCapture(message),

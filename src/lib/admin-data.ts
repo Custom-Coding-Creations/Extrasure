@@ -40,7 +40,7 @@ export type Estimate = {
 export type Invoice = {
   id: string;
   customerId: string;
-  estimateId?: string;
+  estimateId: string | null;
   amount: number;
   dueDate: string;
   status: "paid" | "open" | "past_due" | "refunded";
@@ -193,9 +193,9 @@ export const estimates: Estimate[] = [
 
 export const invoices: Invoice[] = [
   { id: "inv_1", customerId: "c_1", estimateId: "e_2", amount: 920, dueDate: "2026-05-15", status: "open", billingCycle: "one_time" },
-  { id: "inv_2", customerId: "c_2", amount: 109, dueDate: "2026-05-08", status: "paid", billingCycle: "monthly" },
-  { id: "inv_3", customerId: "c_3", amount: 780, dueDate: "2026-05-06", status: "past_due", billingCycle: "quarterly" },
-  { id: "inv_4", customerId: "c_5", amount: 249, dueDate: "2026-05-10", status: "open", billingCycle: "annual" },
+  { id: "inv_2", customerId: "c_2", estimateId: null, amount: 109, dueDate: "2026-05-08", status: "paid", billingCycle: "monthly" },
+  { id: "inv_3", customerId: "c_3", estimateId: null, amount: 780, dueDate: "2026-05-06", status: "past_due", billingCycle: "quarterly" },
+  { id: "inv_4", customerId: "c_5", estimateId: null, amount: 249, dueDate: "2026-05-10", status: "open", billingCycle: "annual" },
 ];
 
 export const payments: Payment[] = [

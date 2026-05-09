@@ -152,7 +152,7 @@ export function validateOwnerCredentials(email: string, password: string) {
 
   return {
     ok: true,
-    role: process.env.ADMIN_LOGIN_ROLE,
+    role: (process.env.ADMIN_LOGIN_ROLE as Role) ?? "owner",
     name: process.env.ADMIN_LOGIN_NAME ?? "Owner",
   };
 }

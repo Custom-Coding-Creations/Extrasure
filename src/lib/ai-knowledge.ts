@@ -80,7 +80,7 @@ export function buildKnowledgeContext(userInput: string) {
     .map((match, index) => `${index + 1}. ${match.answer}`)
     .join("\n");
 
-  const confidence = matches[0].score >= 3 ? "high" : "medium";
+  const confidence = matches[0].score >= 3 ? ("high" as const) : ("medium" as const);
 
   return {
     confidence,

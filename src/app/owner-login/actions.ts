@@ -23,10 +23,10 @@ export async function loginOwner(_prevState: LoginState, formData: FormData): Pr
   const result = validateOwnerCredentials(email, password);
 
   if (!result.ok) {
-    return { message: result.message };
+    return { message: result.message ?? "Authentication failed." };
   }
 
-  const token = await createAdminSession(result.name, result.role);
+  const token = await createAdminSession(result.name ?? "Owner", result.role);
   await setAdminSession(token);
 
   redirect("/admin");

@@ -1,6 +1,8 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getAdminState } from "@/lib/admin-store";
 
+export const dynamic = "force-dynamic";
+
 function statusClass(status: string) {
   if (status === "paid") {
     return "bg-emerald-100 text-emerald-800";

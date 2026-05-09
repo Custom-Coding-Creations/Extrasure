@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
   }
 
-  const result = await queuePaymentRetry(payload.invoiceId);
+  const invoiceId = payload.invoiceId as string;
+  const result = await queuePaymentRetry(invoiceId);
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 404 });
