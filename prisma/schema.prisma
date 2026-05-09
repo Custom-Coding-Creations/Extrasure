@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id               String  @id
+  name             String
+  role             String
+  twoFactorEnabled Boolean @default(false)
+}
+
+model Customer {
+  id              String   @id
+  name            String
+  phone           String
+  email           String
+  city            String
+  activePlan      String
+  lifecycle       String
+  lastServiceDate DateTime
+}
+
+model Technician {
+  id                 String  @id
+  name               String
+  status             String
+  utilizationPercent Int
+}
+
+model Job {
+  id           String   @id
+  customerId   String
+  service      String
+  scheduledAt  DateTime
+  status       String
+  technicianId String
+  emergency    Boolean
+}
+
+model Estimate {
+  id         String   @id
+  customerId String
+  service    String
+  amount     Int
+  status     String
+  createdAt  DateTime
+}
+
+model Invoice {
+  id           String   @id
+  customerId   String
+  estimateId   String?
+  amount       Int
+  dueDate      DateTime
+  status       String
+  billingCycle String
+}
+
+model Payment {
+  id        String   @id
+  invoiceId String
+  method    String
+  status    String
+  amount    Int
+  createdAt DateTime
+}
+
+model AutomationEvent {
+  id           String   @id
+  type         String
+  target       String
+  status       String
+  scheduledFor DateTime
+}
+
+model InventoryItem {
+  id          String   @id
+  name        String
+  unit        String
+  quantity    Int
+  reorderPoint Int
+  lastUpdated DateTime
+}

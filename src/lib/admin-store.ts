@@ -1,5 +1,3 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import {
   adminUsers,
   automationEvents,
@@ -12,6 +10,7 @@ import {
   payments,
   technicians,
 } from "@/lib/admin-data";
+import { prisma } from "@/lib/prisma";
 
 type DashboardKpi = ReturnType<typeof getOverviewKpis>[number];
 
@@ -27,50 +26,190 @@ export type AdminState = {
   inventory: typeof inventory;
 };
 
-const STATE_DIR = path.join(process.cwd(), ".data");
-const STATE_FILE = path.join(STATE_DIR, "admin-state.json");
-
-function cloneSeedState(): AdminState {
-  return JSON.parse(
-    JSON.stringify({
-      adminUsers,
-      customers,
-      technicians,
-      jobs,
-      estimates,
-      invoices,
-      payments,
-      automationEvents,
-      inventory,
-    }),
-  ) as AdminState;
+function toIso(date: Date) {
+  return date.toISOString();
 }
 
-async function ensureStateFile() {
-  await mkdir(STATE_DIR, { recursive: true });
+function toDateOnly(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
 
-  try {
-    await readFile(STATE_FILE, "utf8");
-  } catch {
-    await writeFile(STATE_FILE, JSON.stringify(cloneSeedState(), null, 2), "utf8");
+async function ensureSeededState() {
+  const hasData = await prisma.adminUser.count();
+
+  if (hasData > 0) {
+    return;
   }
+
+  await prisma.$transaction([
+    prisma.adminUser.createMany({ data: adminUsers }),
+    prisma.customer.createMany({
+      data: customers.map((customer) => ({
+        ...customer,
+        lastServiceDate: new Date(customer.lastServiceDate),
+      })),
+    }),
+    prisma.technician.createMany({ data: technicians }),
+    prisma.job.createMany({
+      data: jobs.map((job) => ({
+        ...job,
+        scheduledAt: new Date(job.scheduledAt),
+      })),
+    }),
+    prisma.estimate.createMany({
+      data: estimates.map((estimate) => ({
+        ...estimate,
+        createdAt: new Date(estimate.createdAt),
+      })),
+    }),
+    prisma.invoice.createMany({
+      data: invoices.map((invoice) => ({
+        ...invoice,
+        dueDate: new Date(invoice.dueDate),
+      })),
+    }),
+    prisma.payment.createMany({
+      data: payments.map((payment) => ({
+        ...payment,
+        createdAt: new Date(payment.createdAt),
+      })),
+    }),
+    prisma.automationEvent.createMany({
+      data: automationEvents.map((event) => ({
+        ...event,
+        scheduledFor: new Date(event.scheduledFor),
+      })),
+    }),
+    prisma.inventoryItem.createMany({
+      data: inventory.map((item) => ({
+        ...item,
+        lastUpdated: new Date(item.lastUpdated),
+      })),
+    }),
+  ]);
 }
 
 export async function getAdminState() {
-  await ensureStateFile();
-  const raw = await readFile(STATE_FILE, "utf8");
+  await ensureSeededState();
 
-  return JSON.parse(raw) as AdminState;
+  const [
+    dbAdminUsers,
+    dbCustomers,
+    dbTechnicians,
+    dbJobs,
+    dbEstimates,
+    dbInvoices,
+    dbPayments,
+    dbAutomationEvents,
+    dbInventory,
+  ] = await Promise.all([
+    prisma.adminUser.findMany({ orderBy: { id: "asc" } }),
+    prisma.customer.findMany({ orderBy: { id: "asc" } }),
+    prisma.technician.findMany({ orderBy: { id: "asc" } }),
+    prisma.job.findMany({ orderBy: { scheduledAt: "asc" } }),
+    prisma.estimate.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.invoice.findMany({ orderBy: { dueDate: "asc" } }),
+    prisma.payment.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.automationEvent.findMany({ orderBy: { scheduledFor: "desc" } }),
+    prisma.inventoryItem.findMany({ orderBy: { id: "asc" } }),
+  ]);
+
+  return {
+    adminUsers: dbAdminUsers,
+    customers: dbCustomers.map((customer) => ({
+      ...customer,
+      lastServiceDate: toDateOnly(customer.lastServiceDate),
+    })),
+    technicians: dbTechnicians,
+    jobs: dbJobs.map((job) => ({
+      ...job,
+      scheduledAt: toIso(job.scheduledAt),
+    })),
+    estimates: dbEstimates.map((estimate) => ({
+      ...estimate,
+      createdAt: toDateOnly(estimate.createdAt),
+    })),
+    invoices: dbInvoices.map((invoice) => ({
+      ...invoice,
+      dueDate: toDateOnly(invoice.dueDate),
+    })),
+    payments: dbPayments.map((payment) => ({
+      ...payment,
+      createdAt: toIso(payment.createdAt),
+    })),
+    automationEvents: dbAutomationEvents.map((event) => ({
+      ...event,
+      scheduledFor: toIso(event.scheduledFor),
+    })),
+    inventory: dbInventory.map((item) => ({
+      ...item,
+      lastUpdated: toDateOnly(item.lastUpdated),
+    })),
+  } satisfies AdminState;
 }
 
 export async function saveAdminState(state: AdminState) {
-  await ensureStateFile();
-  await writeFile(STATE_FILE, JSON.stringify(state, null, 2), "utf8");
+  await prisma.$transaction(async (tx) => {
+    await tx.payment.deleteMany();
+    await tx.invoice.deleteMany();
+    await tx.estimate.deleteMany();
+    await tx.job.deleteMany();
+    await tx.automationEvent.deleteMany();
+    await tx.inventoryItem.deleteMany();
+    await tx.technician.deleteMany();
+    await tx.customer.deleteMany();
+    await tx.adminUser.deleteMany();
+
+    await tx.adminUser.createMany({ data: state.adminUsers });
+    await tx.customer.createMany({
+      data: state.customers.map((customer) => ({
+        ...customer,
+        lastServiceDate: new Date(customer.lastServiceDate),
+      })),
+    });
+    await tx.technician.createMany({ data: state.technicians });
+    await tx.job.createMany({
+      data: state.jobs.map((job) => ({
+        ...job,
+        scheduledAt: new Date(job.scheduledAt),
+      })),
+    });
+    await tx.estimate.createMany({
+      data: state.estimates.map((estimate) => ({
+        ...estimate,
+        createdAt: new Date(estimate.createdAt),
+      })),
+    });
+    await tx.invoice.createMany({
+      data: state.invoices.map((invoice) => ({
+        ...invoice,
+        dueDate: new Date(invoice.dueDate),
+      })),
+    });
+    await tx.payment.createMany({
+      data: state.payments.map((payment) => ({
+        ...payment,
+        createdAt: new Date(payment.createdAt),
+      })),
+    });
+    await tx.automationEvent.createMany({
+      data: state.automationEvents.map((event) => ({
+        ...event,
+        scheduledFor: new Date(event.scheduledFor),
+      })),
+    });
+    await tx.inventoryItem.createMany({
+      data: state.inventory.map((item) => ({
+        ...item,
+        lastUpdated: new Date(item.lastUpdated),
+      })),
+    });
+  });
 }
 
 export async function queuePaymentRetry(invoiceId: string) {
-  const state = await getAdminState();
-  const invoice = state.invoices.find((item) => item.id === invoiceId);
+  await ensureSeededState();
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
 
   if (!invoice) {
     return {
@@ -82,28 +221,34 @@ export async function queuePaymentRetry(invoiceId: string) {
   const retryEventId = `a_retry_${Date.now()}`;
   const retryPaymentId = `pay_retry_${Date.now()}`;
 
-  state.automationEvents.unshift({
-    id: retryEventId,
-    type: "failed_payment_retry",
-    target: invoiceId,
-    status: "queued",
-    scheduledFor: new Date(Date.now() + 1000 * 60 * 5).toISOString(),
-  });
-
-  state.payments.unshift({
-    id: retryPaymentId,
-    invoiceId,
-    method: "card",
-    status: "pending",
-    amount: invoice.amount,
-    createdAt: new Date().toISOString(),
-  });
-
-  await saveAdminState(state);
+  await prisma.$transaction([
+    prisma.automationEvent.create({
+      data: {
+        id: retryEventId,
+        type: "failed_payment_retry",
+        target: invoiceId,
+        status: "queued",
+        scheduledFor: new Date(Date.now() + 1000 * 60 * 5),
+      },
+    }),
+    prisma.payment.create({
+      data: {
+        id: retryPaymentId,
+        invoiceId,
+        method: "card",
+        status: "pending",
+        amount: invoice.amount,
+        createdAt: new Date(),
+      },
+    }),
+  ]);
 
   return {
     ok: true,
-    invoice,
+    invoice: {
+      ...invoice,
+      dueDate: toDateOnly(invoice.dueDate),
+    },
     retryEventId,
     retryPaymentId,
   } as const;

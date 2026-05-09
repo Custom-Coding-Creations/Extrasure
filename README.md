@@ -19,6 +19,14 @@ cp .env.example .env.local
 3. Start development server:
 
 ```bash
+npm run db:generate
+npm run db:push
+npm run db:seed
+```
+
+4. Start development server:
+
+```bash
 npm run dev
 ```
 
@@ -39,6 +47,24 @@ Behavior:
 1. At least one successful route returns `200`.
 2. If all configured routes fail, API returns `502`.
 3. If no routes are configured, the API still returns `200` and logs the lead server-side for local testing.
+
+## AI Chatbot (Milestone A Foundation)
+
+Website chat requests post to `POST /api/ai/chat`.
+
+Current behavior:
+
+1. Uses approved internal FAQ/service content as context.
+2. Applies guardrails for medical/legal questions, definitive pesticide safety claims, and guaranteed pricing requests.
+3. Always returns human handoff options (call, SMS, contact form).
+4. Supports optional OpenAI response generation when configured.
+5. Logs transcript events to a webhook when configured.
+
+AI environment variables:
+
+- `OPENAI_API_KEY` (optional, enables GPT response generation)
+- `AI_CHAT_MODEL` (optional, default: `gpt-4.1-mini`)
+- `AI_TRANSCRIPT_WEBHOOK_URL` (optional, receives transcript events)
 
 ## Owner Dashboard (Initial Implementation)
 
@@ -66,9 +92,7 @@ Current admin API routes:
 - `POST /api/admin/payments` (queues retry intent in scaffold mode)
 - `POST /api/admin/stripe/webhook` (signature-required scaffold endpoint)
 
-The admin module currently uses in-app sample data to establish UI and workflow architecture. Persisted storage, live Stripe actions, and QuickBooks sync should be connected in the next implementation phase.
-
-Current implementation detail: admin state now persists in `.data/admin-state.json` and is shared across admin pages and API endpoints.
+The admin module now persists through Prisma with a local SQLite database by default (`DATABASE_URL="file:./prisma/dev.db"`). Live Stripe actions and QuickBooks sync remain scaffolded for the next implementation phase.
 
 ## Admin Authentication Variables
 
