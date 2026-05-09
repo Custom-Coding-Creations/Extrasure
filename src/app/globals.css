@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f1e3;
+  --foreground: #1f3025;
+  --brand-forest: #163526;
+  --brand-sand: #efdcb7;
+  --brand-charcoal: #27352f;
+  --brand-accent: #d48534;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-display);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display), serif;
+  letter-spacing: 0.01em;
+}
+
+.paper-panel {
+  background: linear-gradient(160deg, #fff9eb 0%, #f4ebd5 100%);
+}
+
+.field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #a8b4ad;
+  background: #fffcf5;
+  padding: 0.7rem 0.9rem;
+  color: #1f3025;
+}
+
+.field:focus {
+  outline: 2px solid #163526;
+  outline-offset: 1px;
+}
