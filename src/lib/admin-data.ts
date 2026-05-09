@@ -45,6 +45,15 @@ export type Invoice = {
   dueDate: string;
   status: "paid" | "open" | "past_due" | "refunded";
   billingCycle: "one_time" | "monthly" | "quarterly" | "annual";
+  stripeCustomerId?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  stripePaymentIntentId?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripeInvoiceId?: string | null;
+  checkoutUrl?: string | null;
+  paidAt?: string | null;
+  refundedAt?: string | null;
+  paymentStatusUpdatedAt?: string | null;
 };
 
 export type Payment = {
