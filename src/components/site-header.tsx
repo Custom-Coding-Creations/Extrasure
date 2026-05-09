@@ -9,6 +9,7 @@ const links = [
   { href: "/reviews", label: "Reviews" },
   { href: "/faq", label: "FAQ" },
   { href: "/contact", label: "Contact" },
+  { href: "/admin", label: "Owner Dashboard" },
 ];
 
 export function SiteHeader() {
