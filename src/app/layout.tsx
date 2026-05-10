@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Serif_Display, Plus_Jakarta_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SiteChatbot } from "@/components/site-chatbot";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -37,6 +39,8 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <SiteFooter />
         <SiteChatbot />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
