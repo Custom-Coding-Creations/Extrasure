@@ -1,16 +1,18 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getAdminState } from "@/lib/admin-store";
+import { AdminDataNotice } from "@/components/admin/admin-data-notice";
+import { loadAdminPageData } from "@/lib/admin-page-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminInventoryPage() {
-  const state = await getAdminState();
+  const { state, dataError } = await loadAdminPageData();
 
   return (
     <AdminShell
       title="Inventory and Chemical Tracking"
       subtitle="Track stock levels, reorder thresholds, and field readiness for treatment materials and compliance logs."
     >
+      {!state ? <AdminDataNotice message={dataError} /> : (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {state.inventory.map((item) => {
           const needsReorder = item.quantity <= item.reorderPoint;
@@ -30,6 +32,7 @@ export default async function AdminInventoryPage() {
           );
         })}
       </div>
+      )}
     </AdminShell>
   );
 }

@@ -1,16 +1,18 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getAdminState } from "@/lib/admin-store";
+import { AdminDataNotice } from "@/components/admin/admin-data-notice";
+import { loadAdminPageData } from "@/lib/admin-page-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminEstimatesPage() {
-  const state = await getAdminState();
+  const { state, dataError } = await loadAdminPageData();
 
   return (
     <AdminShell
       title="Estimate Builder and Approvals"
       subtitle="Generate line-item estimates, monitor approval status, and convert approved work into scheduled jobs and invoices."
     >
+      {!state ? <AdminDataNotice message={dataError} /> : (
       <div className="grid gap-4 md:grid-cols-3">
         {state.estimates.map((estimate) => {
           const customer = state.customers.find((item) => item.id === estimate.customerId);
@@ -29,6 +31,7 @@ export default async function AdminEstimatesPage() {
           );
         })}
       </div>
+      )}
     </AdminShell>
   );
 }

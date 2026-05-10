@@ -1,16 +1,19 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getAdminState } from "@/lib/admin-store";
+import { AdminDataNotice } from "@/components/admin/admin-data-notice";
+import { loadAdminPageData } from "@/lib/admin-page-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminSettingsPage() {
-  const state = await getAdminState();
+  const { state, dataError } = await loadAdminPageData();
 
   return (
     <AdminShell
       title="Security and Access Controls"
       subtitle="Manage role-based permissions, 2FA readiness, and audit controls for owner-level operations."
     >
+      {!state ? <AdminDataNotice message={dataError} /> : (
+      <>
       <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
         <h2 className="text-2xl text-[#1b2f25]">Role and MFA Status</h2>
         <ul className="mt-4 space-y-3 text-sm">
@@ -35,6 +38,8 @@ export default async function AdminSettingsPage() {
           <li>Confirm webhook signature validation for payment and accounting integrations.</li>
         </ul>
       </section>
+      </>
+      )}
     </AdminShell>
   );
 }

@@ -1,4 +1,5 @@
 import {
+  type Customer,
   adminUsers,
   automationEvents,
   customers,
@@ -12,7 +13,18 @@ import {
 } from "@/lib/admin-data";
 import { prisma } from "@/lib/prisma";
 
-/** Fallback state using static seed data — used when the database is unavailable (e.g. Vercel cold start with no persistent DB). */
+export class AdminDataUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AdminDataUnavailableError";
+  }
+}
+
+function allowAdminMockData() {
+  return process.env.NODE_ENV !== "production";
+}
+
+/** Fallback state using static seed data for local development only. */
 function getStaticAdminState(): AdminState {
   return {
     adminUsers,
@@ -49,11 +61,24 @@ function toDateOnly(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+function toCustomerRecord(customer: Customer) {
+  return {
+    ...customer,
+    lastServiceDate: new Date(customer.lastServiceDate),
+  };
+}
+
 async function ensureSeededState() {
   const hasData = await prisma.adminUser.count();
 
   if (hasData > 0) {
     return;
+  }
+
+  if (!allowAdminMockData()) {
+    throw new AdminDataUnavailableError(
+      "Admin data store is empty in production. Run the database setup and load live operational data before using the dashboard.",
+    );
   }
 
   await prisma.$transaction([
@@ -107,8 +132,18 @@ async function ensureSeededState() {
 export async function getAdminState(): Promise<AdminState> {
   try {
     await ensureSeededState();
-  } catch {
-    return getStaticAdminState();
+  } catch (error) {
+    if (allowAdminMockData()) {
+      return getStaticAdminState();
+    }
+
+    if (error instanceof AdminDataUnavailableError) {
+      throw error;
+    }
+
+    throw new AdminDataUnavailableError(
+      "Admin data is unavailable in production. Verify database connectivity and seed the required records.",
+    );
   }
 
   try {
@@ -171,7 +206,13 @@ export async function getAdminState(): Promise<AdminState> {
       })),
     } satisfies AdminState;
   } catch {
-    return getStaticAdminState();
+    if (allowAdminMockData()) {
+      return getStaticAdminState();
+    }
+
+    throw new AdminDataUnavailableError(
+      "Failed to load admin dashboard data from the production database.",
+    );
   }
 }
 
@@ -232,6 +273,87 @@ export async function saveAdminState(state: AdminState) {
       })),
     });
   });
+}
+
+type CustomerMutationInput = Omit<Customer, "id">;
+
+function validateCustomerInput(input: CustomerMutationInput) {
+  const name = input.name.trim();
+  const phone = input.phone.trim();
+  const email = input.email.trim().toLowerCase();
+  const city = input.city.trim();
+  const lastServiceDate = input.lastServiceDate.trim();
+
+  if (!name || !phone || !email || !city || !lastServiceDate) {
+    throw new Error("Customer name, phone, email, city, and last service date are required.");
+  }
+
+  const parsedLastServiceDate = new Date(lastServiceDate);
+
+  if (Number.isNaN(parsedLastServiceDate.getTime())) {
+    throw new Error("Customer last service date is invalid.");
+  }
+
+  return {
+    name,
+    phone,
+    email,
+    city,
+    activePlan: input.activePlan,
+    lifecycle: input.lifecycle,
+    lastServiceDate,
+  } satisfies CustomerMutationInput;
+}
+
+export async function createCustomer(input: CustomerMutationInput) {
+  await ensureSeededState();
+  const customer = validateCustomerInput(input);
+  const id = `c_${Date.now()}`;
+
+  return prisma.customer.create({
+    data: toCustomerRecord({
+      id,
+      ...customer,
+    }),
+  });
+}
+
+export async function updateCustomer(id: string, input: CustomerMutationInput) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Customer id is required.");
+  }
+
+  const customer = validateCustomerInput(input);
+
+  return prisma.customer.update({
+    where: { id },
+    data: toCustomerRecord({
+      id,
+      ...customer,
+    }),
+  });
+}
+
+export async function deleteCustomer(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Customer id is required.");
+  }
+
+  const [jobCount, estimateCount, invoiceCount] = await Promise.all([
+    prisma.job.count({ where: { customerId: id } }),
+    prisma.estimate.count({ where: { customerId: id } }),
+    prisma.invoice.count({ where: { customerId: id } }),
+  ]);
+
+  if (jobCount > 0 || estimateCount > 0 || invoiceCount > 0) {
+    throw new Error("Customer cannot be deleted while jobs, estimates, or invoices still reference the record.");
+  }
+
+  return prisma.customer.delete({ where: { id } });
 }
 
 export async function queuePaymentRetry(invoiceId: string) {

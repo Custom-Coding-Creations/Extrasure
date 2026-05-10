@@ -1,4 +1,5 @@
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminDataNotice } from "@/components/admin/admin-data-notice";
 import {
   collectInvoiceAction,
   openBillingPortalAction,
@@ -8,7 +9,7 @@ import { GeneratePaymentLinkButton } from "@/components/admin/generate-payment-l
 import { ReconcileInvoiceButton } from "@/components/admin/reconcile-invoice-button";
 import { ReplayWebhookButton } from "@/components/admin/replay-webhook-button";
 import { SubscriptionLifecycleButton } from "@/components/admin/subscription-lifecycle-button";
-import { getAdminState } from "@/lib/admin-store";
+import { loadAdminPageData } from "@/lib/admin-page-data";
 
 export const dynamic = "force-dynamic";
 
@@ -36,9 +37,29 @@ function paymentTone(status: string) {
 }
 
 export default async function AdminPaymentsPage({ searchParams }: PageProps) {
-  const state = await getAdminState();
+  const { state, dataError } = await loadAdminPageData();
   const params = searchParams ? await searchParams : undefined;
   const stripeState = params?.stripe;
+
+  if (!state) {
+    return (
+      <AdminShell
+        title="Payments, Retry, and Refunds"
+        subtitle="Track card and ACH outcomes, trigger retries, and maintain refund controls for billing integrity."
+      >
+        {stripeState ? (
+          <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-4 text-sm text-[#33453a]">
+            {stripeState === "success"
+              ? "Stripe checkout completed. Billing status will finalize after verified webhook processing."
+              : stripeState === "portal_return"
+                ? "Returned from the Stripe billing portal."
+                : "Stripe checkout was canceled before completion."}
+          </section>
+        ) : null}
+        <AdminDataNotice message={dataError} />
+      </AdminShell>
+    );
+  }
 
   const collectionTotal = state.payments
     .filter((payment) => payment.status === "succeeded")

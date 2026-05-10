@@ -1,16 +1,18 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getAdminState } from "@/lib/admin-store";
+import { AdminDataNotice } from "@/components/admin/admin-data-notice";
+import { loadAdminPageData } from "@/lib/admin-page-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminSchedulePage() {
-  const state = await getAdminState();
+  const { state, dataError } = await loadAdminPageData();
 
   return (
     <AdminShell
       title="Scheduling and Dispatch"
       subtitle="Coordinate appointments, emergency slots, and technician assignment with a route-aware daily queue."
     >
+      {!state ? <AdminDataNotice message={dataError} /> : (
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5 lg:col-span-2">
           <h2 className="text-2xl text-[#1b2f25]">Upcoming Jobs</h2>
@@ -47,6 +49,7 @@ export default async function AdminSchedulePage() {
           </ul>
         </section>
       </div>
+      )}
     </AdminShell>
   );
 }

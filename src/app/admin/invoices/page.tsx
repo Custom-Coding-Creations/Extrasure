@@ -1,5 +1,6 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getAdminState } from "@/lib/admin-store";
+import { AdminDataNotice } from "@/components/admin/admin-data-notice";
+import { loadAdminPageData } from "@/lib/admin-page-data";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +21,14 @@ function statusClass(status: string) {
 }
 
 export default async function AdminInvoicesPage() {
-  const state = await getAdminState();
+  const { state, dataError } = await loadAdminPageData();
 
   return (
     <AdminShell
       title="Invoices and Billing Cycles"
       subtitle="Manage one-time and recurring invoice schedules across monthly, quarterly, and annual service plans."
     >
+      {!state ? <AdminDataNotice message={dataError} /> : (
       <div className="overflow-x-auto rounded-2xl border border-[#d3c7ad] bg-[#fff9eb]">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-[#d8cbaf] bg-[#f4e7cb] text-[#24392d]">
@@ -61,6 +63,7 @@ export default async function AdminInvoicesPage() {
           </tbody>
         </table>
       </div>
+      )}
     </AdminShell>
   );
 }

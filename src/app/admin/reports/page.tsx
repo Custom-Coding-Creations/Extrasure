@@ -1,10 +1,22 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getAdminState } from "@/lib/admin-store";
+import { AdminDataNotice } from "@/components/admin/admin-data-notice";
+import { loadAdminPageData } from "@/lib/admin-page-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminReportsPage() {
-  const state = await getAdminState();
+  const { state, dataError } = await loadAdminPageData();
+
+  if (!state) {
+    return (
+      <AdminShell
+        title="Owner Reporting"
+        subtitle="Revenue, retention, scheduling throughput, and technician performance snapshots for daily decision-making."
+      >
+        <AdminDataNotice message={dataError} />
+      </AdminShell>
+    );
+  }
 
   const totalRevenue = state.payments
     .filter((payment) => payment.status === "succeeded")

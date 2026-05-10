@@ -1,8 +1,9 @@
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminDataNotice } from "@/components/admin/admin-data-notice";
 import {
-  getAdminState,
   getOverviewKpisFromState,
 } from "@/lib/admin-store";
+import { loadAdminPageData } from "@/lib/admin-page-data";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,19 @@ function toneClass(tone: "positive" | "neutral" | "attention") {
 }
 
 export default async function AdminOverviewPage() {
-  const state = await getAdminState();
+  const { state, dataError } = await loadAdminPageData();
+
+  if (!state) {
+    return (
+      <AdminShell
+        title="Business Overview"
+        subtitle="Monitor the owner KPIs, job flow, payment risk, and same-day lead activity in one place."
+      >
+        <AdminDataNotice message={dataError} />
+      </AdminShell>
+    );
+  }
+
   const kpis = getOverviewKpisFromState(state);
   const recentJobs = state.jobs.slice(0, 4);
   const failedPayments = state.payments.filter((payment) => payment.status === "failed");
