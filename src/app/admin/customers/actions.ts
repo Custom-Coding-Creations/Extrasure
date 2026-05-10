@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { createCustomer, deleteCustomer, updateCustomer } from "@/lib/admin-store";
+import { recordAuditEvent } from "@/lib/audit-log";
 import type { Customer } from "@/lib/admin-data";
 
 function getCustomerInput(formData: FormData): Omit<Customer, "id"> {
@@ -23,23 +24,45 @@ function revalidateCustomerPaths() {
 }
 
 export async function createCustomerAction(formData: FormData) {
-  await requireAdminRole(["owner", "dispatch"]);
-  await createCustomer(getCustomerInput(formData));
+  const session = await requireAdminRole(["owner", "dispatch"]);
+  const input = getCustomerInput(formData);
+  const customer = await createCustomer(input);
+  await recordAuditEvent({
+    actor: session.name,
+    role: session.role,
+    action: "customer_created",
+    entity: "customer",
+    entityId: customer.id,
+    after: customer,
+  });
   revalidateCustomerPaths();
 }
 
 export async function updateCustomerAction(formData: FormData) {
-  await requireAdminRole(["owner", "dispatch"]);
+  const session = await requireAdminRole(["owner", "dispatch"]);
   const customerId = String(formData.get("customerId") ?? "").trim();
-
-  await updateCustomer(customerId, getCustomerInput(formData));
+  const input = getCustomerInput(formData);
+  await updateCustomer(customerId, input);
+  await recordAuditEvent({
+    actor: session.name,
+    role: session.role,
+    action: "customer_updated",
+    entity: "customer",
+    entityId: customerId,
+  });
   revalidateCustomerPaths();
 }
 
 export async function deleteCustomerAction(formData: FormData) {
-  await requireAdminRole(["owner", "dispatch"]);
+  const session = await requireAdminRole(["owner", "dispatch"]);
   const customerId = String(formData.get("customerId") ?? "").trim();
-
   await deleteCustomer(customerId);
+  await recordAuditEvent({
+    actor: session.name,
+    role: session.role,
+    action: "customer_deleted",
+    entity: "customer",
+    entityId: customerId,
+  });
   revalidateCustomerPaths();
 }

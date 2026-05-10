@@ -1044,6 +1044,93 @@ export async function toggleAdminUserTwoFactor(id: string) {
   });
 }
 
+type TechnicianMutationInput = {
+  name: string;
+  status: "available" | "in_route" | "on_job" | "off_shift";
+};
+
+function validateTechnicianInput(input: TechnicianMutationInput) {
+  const name = input.name.trim();
+
+  if (!name) {
+    throw new Error("Technician name is required.");
+  }
+
+  return {
+    name,
+    status: input.status,
+  } satisfies TechnicianMutationInput;
+}
+
+export async function createTechnician(input: TechnicianMutationInput) {
+  await ensureSeededState();
+  const tech = validateTechnicianInput(input);
+
+  return prisma.technician.create({
+    data: {
+      id: `tech_${Date.now()}`,
+      ...tech,
+      utilizationPercent: 0,
+    },
+  });
+}
+
+export async function updateTechnician(id: string, input: TechnicianMutationInput) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Technician id is required.");
+  }
+
+  const current = await prisma.technician.findUnique({ where: { id } });
+
+  if (!current) {
+    throw new Error("Technician not found.");
+  }
+
+  const tech = validateTechnicianInput(input);
+
+  return prisma.technician.update({
+    where: { id },
+    data: tech,
+  });
+}
+
+export async function deleteTechnician(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Technician id is required.");
+  }
+
+  const current = await prisma.technician.findUnique({ where: { id } });
+
+  if (!current) {
+    throw new Error("Technician not found.");
+  }
+
+  const jobsAssigned = await prisma.job.count({ where: { technicianId: id } });
+
+  if (jobsAssigned > 0) {
+    throw new Error("Cannot delete technician with assigned jobs. Reassign or complete jobs first.");
+  }
+
+  return prisma.technician.delete({ where: { id } });
+}
+
+export async function setTechnicianAvailability(id: string, status: "available" | "in_route" | "on_job" | "off_shift") {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Technician id is required.");
+  }
+
+  return prisma.technician.update({
+    where: { id },
+    data: { status },
+  });
+}
+
 export async function queuePaymentRetry(invoiceId: string) {
   await ensureSeededState();
   const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
@@ -1089,6 +1176,46 @@ export async function queuePaymentRetry(invoiceId: string) {
     retryEventId,
     retryPaymentId,
   } as const;
+}
+
+export function getReportingDateRange(state: AdminState, fromDate: Date, toDate: Date) {
+  return {
+    payments: state.payments.filter((payment) => {
+      const paymentDate = new Date(payment.createdAt);
+      return paymentDate >= fromDate && paymentDate <= toDate;
+    }),
+    jobs: state.jobs.filter((job) => {
+      const jobDate = new Date(job.scheduledAt);
+      return jobDate >= fromDate && jobDate <= toDate;
+    }),
+    invoices: state.invoices.filter((invoice) => {
+      const invoiceDate = new Date(invoice.dueDate);
+      return invoiceDate >= fromDate && invoiceDate <= toDate;
+    }),
+    estimates: state.estimates.filter((estimate) => {
+      const estimateDate = new Date(estimate.createdAt);
+      return estimateDate >= fromDate && estimateDate <= toDate;
+    }),
+  };
+}
+
+export function getDatePreset(preset: "today" | "last_7_days" | "last_30_days") {
+  const toDate = new Date();
+  toDate.setHours(23, 59, 59, 999);
+
+  const fromDate = new Date(toDate);
+
+  if (preset === "today") {
+    fromDate.setHours(0, 0, 0, 0);
+  } else if (preset === "last_7_days") {
+    fromDate.setDate(fromDate.getDate() - 7);
+    fromDate.setHours(0, 0, 0, 0);
+  } else if (preset === "last_30_days") {
+    fromDate.setDate(fromDate.getDate() - 30);
+    fromDate.setHours(0, 0, 0, 0);
+  }
+
+  return { fromDate, toDate };
 }
 
 function toCurrency(value: number) {

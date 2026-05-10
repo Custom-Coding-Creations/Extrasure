@@ -194,3 +194,16 @@ model StripeWebhookEvent {
   createdAt   DateTime
   processedAt DateTime @default(now())
 }
+
+model AuditEvent {
+  id        String   @id
+  actor     String
+  role      String
+  action    String
+  entity    String
+  entityId  String
+  before    String?
+  after     String?
+  timestamp DateTime @default(now())
+}
+

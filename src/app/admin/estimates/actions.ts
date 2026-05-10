@@ -11,6 +11,7 @@ import {
   deleteEstimate,
   updateEstimate,
 } from "@/lib/admin-store";
+import { recordAuditEvent } from "@/lib/audit-log";
 import type { Estimate } from "@/lib/admin-data";
 
 function getEstimateInput(formData: FormData): Omit<Estimate, "id"> {

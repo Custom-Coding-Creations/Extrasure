@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { createInvoice, deleteInvoice, updateInvoice } from "@/lib/admin-store";
+import { recordAuditEvent } from "@/lib/audit-log";
 import type { Invoice } from "@/lib/admin-data";
 
 function getInvoiceInput(formData: FormData): Omit<Invoice, "id"> {
@@ -32,23 +33,42 @@ function revalidateInvoicePaths() {
 }
 
 export async function createInvoiceAction(formData: FormData) {
-  await requireAdminRole(["owner", "accountant", "dispatch"]);
-  await createInvoice(getInvoiceInput(formData));
+  const session = await requireAdminRole(["owner", "accountant", "dispatch"]);
+  const invoice = await createInvoice(getInvoiceInput(formData));
+  await recordAuditEvent({
+    actor: session.name,
+    role: session.role,
+    action: "invoice_created",
+    entity: "invoice",
+    entityId: invoice.id,
+  });
   revalidateInvoicePaths();
 }
 
 export async function updateInvoiceAction(formData: FormData) {
-  await requireAdminRole(["owner", "accountant", "dispatch"]);
+  const session = await requireAdminRole(["owner", "accountant", "dispatch"]);
   const invoiceId = String(formData.get("invoiceId") ?? "").trim();
-
   await updateInvoice(invoiceId, getInvoiceInput(formData));
+  await recordAuditEvent({
+    actor: session.name,
+    role: session.role,
+    action: "invoice_updated",
+    entity: "invoice",
+    entityId: invoiceId,
+  });
   revalidateInvoicePaths();
 }
 
 export async function deleteInvoiceAction(formData: FormData) {
-  await requireAdminRole(["owner", "accountant"]);
+  const session = await requireAdminRole(["owner", "accountant"]);
   const invoiceId = String(formData.get("invoiceId") ?? "").trim();
-
   await deleteInvoice(invoiceId);
+  await recordAuditEvent({
+    actor: session.name,
+    role: session.role,
+    action: "invoice_deleted",
+    entity: "invoice",
+    entityId: invoiceId,
+  });
   revalidateInvoicePaths();
 }
