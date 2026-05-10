@@ -1010,16 +1010,45 @@ async function countOwnerUsers() {
   return prisma.adminUser.count({ where: { role: "owner" } });
 }
 
+function getLinkedTechnicianId(adminUserId: string) {
+  return `tech_admin_${adminUserId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+}
+
+async function syncLinkedTechnician(adminUser: { id: string; name: string; role: AdminUserMutationInput["role"] }) {
+  if (adminUser.role !== "technician") {
+    return;
+  }
+
+  const technicianId = getLinkedTechnicianId(adminUser.id);
+
+  await prisma.technician.upsert({
+    where: { id: technicianId },
+    update: {
+      name: adminUser.name,
+    },
+    create: {
+      id: technicianId,
+      name: adminUser.name,
+      status: "available",
+      utilizationPercent: 0,
+    },
+  });
+}
+
 export async function createAdminUser(input: AdminUserMutationInput) {
   await ensureSeededState();
   const user = validateAdminUserInput(input);
 
-  return prisma.adminUser.create({
+  const createdUser = await prisma.adminUser.create({
     data: {
       id: `u_${Date.now()}`,
       ...user,
     },
   });
+
+  await syncLinkedTechnician(createdUser);
+
+  return createdUser;
 }
 
 export async function updateAdminUser(id: string, input: AdminUserMutationInput) {
@@ -1045,10 +1074,14 @@ export async function updateAdminUser(id: string, input: AdminUserMutationInput)
     }
   }
 
-  return prisma.adminUser.update({
+  const updatedUser = await prisma.adminUser.update({
     where: { id },
     data: user,
   });
+
+  await syncLinkedTechnician(updatedUser);
+
+  return updatedUser;
 }
 
 export async function deleteAdminUser(id: string) {
