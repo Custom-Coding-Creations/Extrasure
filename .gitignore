@@ -47,3 +47,5 @@ prisma/prisma/dev.db
 prisma/prisma/dev.db-journal
 .data/
 stripe.tar.gz
+
+*.tar.gz
