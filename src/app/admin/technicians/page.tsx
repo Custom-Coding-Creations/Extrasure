@@ -10,8 +10,13 @@ import { loadAdminPageData } from "@/lib/admin-page-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminTechniciansPage() {
+export default async function AdminTechniciansPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { state, dataError } = await loadAdminPageData();
+  const { error: actionError } = await searchParams;
 
   if (!state) {
     return (
@@ -29,6 +34,11 @@ export default async function AdminTechniciansPage() {
       title="Technician Management"
       subtitle="Create technician profiles, manage availability, and track utilization for scheduling and route optimization."
     >
+      {actionError && (
+        <div className="rounded-xl border border-[#c0392b] bg-[#fdecea] px-4 py-3 text-sm text-[#c0392b]">
+          {actionError}
+        </div>
+      )}
       <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
         <h2 className="text-2xl text-[#1b2f25]">Create Technician</h2>
         <form action={createTechnicianAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">

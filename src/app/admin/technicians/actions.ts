@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { requireAdminRole } from "@/lib/admin-auth";
 import {
   createTechnician,
@@ -25,6 +27,13 @@ function revalidateTechnicianPaths() {
   revalidatePath("/admin/schedule");
 }
 
+function handleActionError(error: unknown, context: string): never {
+  if (isRedirectError(error)) throw error;
+  console.error(`[admin/technicians] ${context}`, error);
+  const message = error instanceof Error ? error.message : "An unexpected error occurred.";
+  redirect(`/admin/technicians?error=${encodeURIComponent(message)}`);
+}
+
 export async function createTechnicianAction(formData: FormData) {
   try {
     const session = await requireAdminRole(["owner", "dispatch"]);
@@ -37,7 +46,7 @@ export async function createTechnicianAction(formData: FormData) {
       entityId: technician.id,
     });
   } catch (error) {
-    console.error("[admin/technicians] createTechnicianAction failed", error);
+    handleActionError(error, "createTechnicianAction failed");
   }
 
   revalidateTechnicianPaths();
@@ -57,7 +66,7 @@ export async function updateTechnicianAction(formData: FormData) {
       entityId: technicianId,
     });
   } catch (error) {
-    console.error("[admin/technicians] updateTechnicianAction failed", error);
+    handleActionError(error, "updateTechnicianAction failed");
   }
 
   revalidateTechnicianPaths();
@@ -77,7 +86,7 @@ export async function deleteTechnicianAction(formData: FormData) {
       entityId: technicianId,
     });
   } catch (error) {
-    console.error("[admin/technicians] deleteTechnicianAction failed", error);
+    handleActionError(error, "deleteTechnicianAction failed");
   }
 
   revalidateTechnicianPaths();
@@ -99,7 +108,7 @@ export async function setTechnicianStatusAction(formData: FormData) {
       after: { status },
     });
   } catch (error) {
-    console.error("[admin/technicians] setTechnicianStatusAction failed", error);
+    handleActionError(error, "setTechnicianStatusAction failed");
   }
 
   revalidateTechnicianPaths();
