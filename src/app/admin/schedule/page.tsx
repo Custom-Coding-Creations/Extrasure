@@ -99,6 +99,9 @@ export default async function AdminSchedulePage() {
 
         <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
           <h2 className="text-2xl text-[#1b2f25]">Technician Capacity</h2>
+          <p className="mt-2 text-xs text-[#5d7267]">
+            Status values are managed in the Technicians module, and utilization is derived from active scheduled and in-progress jobs.
+          </p>
           <ul className="mt-4 space-y-3">
             {state.technicians.map((tech) => (
               <li key={tech.id} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3 text-sm">

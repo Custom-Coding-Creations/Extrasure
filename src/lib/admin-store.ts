@@ -149,6 +149,7 @@ async function ensureSeededState() {
 
   if (hasData > 0) {
     await syncTechnicianUsersFromAdminUsers();
+    await syncAdminUsersFromTechnicians();
     return;
   }
 
@@ -206,6 +207,7 @@ async function ensureSeededState() {
   ]);
 
   await syncTechnicianUsersFromAdminUsers();
+  await syncAdminUsersFromTechnicians();
 }
 
 export async function getAdminState(): Promise<AdminState> {
@@ -261,7 +263,10 @@ export async function getAdminState(): Promise<AdminState> {
         ...customer,
         lastServiceDate: toDateOnly(customer.lastServiceDate),
       })),
-      technicians: dbTechnicians,
+      technicians: dbTechnicians.map((technician) => ({
+        ...technician,
+        utilizationPercent: deriveUtilizationPercent(dbJobs, technician.id),
+      })),
       jobs: dbJobs.map((job) => ({
         ...job,
         scheduledAt: toIso(job.scheduledAt),
@@ -1038,6 +1043,26 @@ async function syncLinkedTechnician(adminUser: { id: string; name: string; role:
   });
 }
 
+function getLinkedAdminUserId(technicianId: string) {
+  return `admin_tech_${technicianId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+}
+
+async function syncLinkedAdminUser(technician: { id: string; name: string }) {
+  await prisma.adminUser.upsert({
+    where: { id: getLinkedAdminUserId(technician.id) },
+    update: {
+      name: technician.name,
+      role: "technician",
+    },
+    create: {
+      id: getLinkedAdminUserId(technician.id),
+      name: technician.name,
+      role: "technician",
+      twoFactorEnabled: false,
+    },
+  });
+}
+
 async function syncTechnicianUsersFromAdminUsers() {
   const technicianAdmins = await prisma.adminUser.findMany({
     where: { role: "technician" },
@@ -1047,6 +1072,27 @@ async function syncTechnicianUsersFromAdminUsers() {
   for (const adminUser of technicianAdmins) {
     await syncLinkedTechnician(adminUser);
   }
+}
+
+async function syncAdminUsersFromTechnicians() {
+  const dbTechnicians = await prisma.technician.findMany({ orderBy: { id: "asc" } });
+
+  for (const technician of dbTechnicians) {
+    await syncLinkedAdminUser(technician);
+  }
+}
+
+function deriveUtilizationPercent(dbJobs: Array<{ technicianId: string; status: Job["status"] }>, technicianId: string) {
+  const activeJobCount = dbJobs.filter(
+    (job) => job.technicianId === technicianId && (job.status === "scheduled" || job.status === "in_progress"),
+  ).length;
+
+  if (activeJobCount <= 0) {
+    return 0;
+  }
+
+  // Approximate utilization based on a 5-slot active daily capacity.
+  return Math.min(100, Math.round((activeJobCount / 5) * 100));
 }
 
 export async function createAdminUser(input: AdminUserMutationInput) {
@@ -1163,13 +1209,17 @@ export async function createTechnician(input: TechnicianMutationInput) {
   await ensureSeededState();
   const tech = validateTechnicianInput(input);
 
-  return prisma.technician.create({
+  const createdTechnician = await prisma.technician.create({
     data: {
       id: `tech_${Date.now()}`,
       ...tech,
       utilizationPercent: 0,
     },
   });
+
+  await syncLinkedAdminUser(createdTechnician);
+
+  return createdTechnician;
 }
 
 export async function updateTechnician(id: string, input: TechnicianMutationInput) {
@@ -1187,10 +1237,14 @@ export async function updateTechnician(id: string, input: TechnicianMutationInpu
 
   const tech = validateTechnicianInput(input);
 
-  return prisma.technician.update({
+  const updatedTechnician = await prisma.technician.update({
     where: { id },
     data: tech,
   });
+
+  await syncLinkedAdminUser(updatedTechnician);
+
+  return updatedTechnician;
 }
 
 export async function deleteTechnician(id: string) {
@@ -1212,7 +1266,16 @@ export async function deleteTechnician(id: string) {
     throw new Error("Cannot delete technician with assigned jobs. Reassign or complete jobs first.");
   }
 
-  return prisma.technician.delete({ where: { id } });
+  const deletedTechnician = await prisma.technician.delete({ where: { id } });
+
+  await prisma.adminUser.deleteMany({
+    where: {
+      id: getLinkedAdminUserId(id),
+      role: "technician",
+    },
+  });
+
+  return deletedTechnician;
 }
 
 export async function setTechnicianAvailability(id: string, status: "available" | "in_route" | "on_job" | "off_shift") {

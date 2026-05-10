@@ -92,7 +92,7 @@ async function seedOperationalDataIfEmpty() {
   ]);
 
   if (adminUserCount === 0) {
-    await prisma.adminUser.createMany({ data: adminUsers, skipDuplicates: true });
+    await prisma.adminUser.createMany({ data: adminUsers });
   }
 
   if (customerCount === 0) {
@@ -101,12 +101,11 @@ async function seedOperationalDataIfEmpty() {
         ...customer,
         lastServiceDate: toDateTime(customer.lastServiceDate),
       })),
-      skipDuplicates: true,
     });
   }
 
   if (technicianCount === 0) {
-    await prisma.technician.createMany({ data: technicians, skipDuplicates: true });
+    await prisma.technician.createMany({ data: technicians });
   }
 
   if (jobCount === 0) {
@@ -115,7 +114,6 @@ async function seedOperationalDataIfEmpty() {
         ...job,
         scheduledAt: toDateTime(job.scheduledAt),
       })),
-      skipDuplicates: true,
     });
   }
 
@@ -125,7 +123,6 @@ async function seedOperationalDataIfEmpty() {
         ...estimate,
         createdAt: toDateTime(estimate.createdAt),
       })),
-      skipDuplicates: true,
     });
   }
 
@@ -135,7 +132,6 @@ async function seedOperationalDataIfEmpty() {
         ...invoice,
         dueDate: toDateTime(invoice.dueDate),
       })),
-      skipDuplicates: true,
     });
   }
 
@@ -145,7 +141,6 @@ async function seedOperationalDataIfEmpty() {
         ...payment,
         createdAt: toDateTime(payment.createdAt),
       })),
-      skipDuplicates: true,
     });
   }
 
@@ -155,7 +150,6 @@ async function seedOperationalDataIfEmpty() {
         ...event,
         scheduledFor: toDateTime(event.scheduledFor),
       })),
-      skipDuplicates: true,
     });
   }
 
@@ -165,7 +159,6 @@ async function seedOperationalDataIfEmpty() {
         ...item,
         lastUpdated: toDateTime(item.lastUpdated),
       })),
-      skipDuplicates: true,
     });
   }
 }

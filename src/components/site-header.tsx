@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { TrackedContactLink } from "@/components/tracked-contact-link";
 import { company } from "@/lib/site";
 
@@ -14,6 +17,12 @@ const links = [
 ];
 
 export function SiteHeader() {
+  const pathname = usePathname();
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-emerald-900/10 bg-[#0f2a1e]/95 text-stone-100 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-4 py-3 sm:px-6 lg:px-8">
