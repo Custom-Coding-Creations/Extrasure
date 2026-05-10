@@ -42,6 +42,32 @@ function toDateTime(value: string) {
   return new Date(value);
 }
 
+function getLinkedTechnicianId(adminUserId: string) {
+  return `tech_admin_${adminUserId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+}
+
+async function syncTechnicianUsersFromAdminUsers() {
+  const technicianAdmins = await prisma.adminUser.findMany({
+    where: { role: "technician" },
+    orderBy: { id: "asc" },
+  });
+
+  for (const adminUser of technicianAdmins) {
+    await prisma.technician.upsert({
+      where: { id: getLinkedTechnicianId(adminUser.id) },
+      update: {
+        name: adminUser.name,
+      },
+      create: {
+        id: getLinkedTechnicianId(adminUser.id),
+        name: adminUser.name,
+        status: "available",
+        utilizationPercent: 0,
+      },
+    });
+  }
+}
+
 async function seedOperationalDataIfEmpty() {
   const [
     adminUserCount,
@@ -166,6 +192,7 @@ async function main() {
   });
 
   const total = await prisma.adminUser.count();
+  await syncTechnicianUsersFromAdminUsers();
   console.log(`[seed-production] ensured admin user ${id} (${role}); total admin users: ${total}`);
 }
 

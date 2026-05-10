@@ -4,8 +4,32 @@ function isPostgresUrl(value) {
   return value.startsWith("postgresql://") || value.startsWith("postgres://");
 }
 
+function resolveDatabaseUrl() {
+  const directUrl = (process.env.DATABASE_URL ?? "").trim();
+
+  if (directUrl) {
+    return directUrl;
+  }
+
+  const prismaAlias = (process.env.DATABASE_PRISMA_DATABASE_URL ?? "").trim();
+
+  if (prismaAlias) {
+    process.env.DATABASE_URL = prismaAlias;
+    return prismaAlias;
+  }
+
+  const postgresAlias = (process.env.DATABASE_POSTGRES_URL ?? "").trim();
+
+  if (postgresAlias) {
+    process.env.DATABASE_URL = postgresAlias;
+    return postgresAlias;
+  }
+
+  return "";
+}
+
 function resolveSchemaPath() {
-  const databaseUrl = (process.env.DATABASE_URL ?? "").trim();
+  const databaseUrl = resolveDatabaseUrl();
   const isVercelBuild = process.env.VERCEL === "1";
 
   if (isVercelBuild || isPostgresUrl(databaseUrl)) {

@@ -148,6 +148,7 @@ async function ensureSeededState() {
   const hasData = await prisma.adminUser.count();
 
   if (hasData > 0) {
+    await syncTechnicianUsersFromAdminUsers();
     return;
   }
 
@@ -203,6 +204,8 @@ async function ensureSeededState() {
       })),
     }),
   ]);
+
+  await syncTechnicianUsersFromAdminUsers();
 }
 
 export async function getAdminState(): Promise<AdminState> {
@@ -1033,6 +1036,17 @@ async function syncLinkedTechnician(adminUser: { id: string; name: string; role:
       utilizationPercent: 0,
     },
   });
+}
+
+async function syncTechnicianUsersFromAdminUsers() {
+  const technicianAdmins = await prisma.adminUser.findMany({
+    where: { role: "technician" },
+    orderBy: { id: "asc" },
+  });
+
+  for (const adminUser of technicianAdmins) {
+    await syncLinkedTechnician(adminUser);
+  }
 }
 
 export async function createAdminUser(input: AdminUserMutationInput) {
