@@ -29,6 +29,40 @@ function allowAdminMockData() {
   return process.env.NODE_ENV !== "production";
 }
 
+function canBootstrapProductionAdminData() {
+  return process.env.ALLOW_PRODUCTION_ADMIN_BOOTSTRAP === "true";
+}
+
+function usesFileDatabaseUrl() {
+  return process.env.DATABASE_URL?.trim().startsWith("file:") ?? false;
+}
+
+function formatProductionDbError(error: unknown, fallback: string) {
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+
+  const message = error.message.toLowerCase();
+
+  if (message.includes("relation") && message.includes("does not exist")) {
+    return "Production database schema is missing tables. Ensure Vercel build runs the Postgres Prisma schema push before loading the admin dashboard.";
+  }
+
+  if (message.includes("can't reach database server") || message.includes("timed out")) {
+    return "Cannot reach the production database. Verify DATABASE_URL host, network access rules, and SSL settings in Vercel.";
+  }
+
+  if (message.includes("authentication failed") || message.includes("password authentication failed")) {
+    return "Production database authentication failed. Verify DATABASE_URL username/password in Vercel environment variables.";
+  }
+
+  if (message.includes("the URL must start with the protocol".toLowerCase())) {
+    return "Production DATABASE_URL format is invalid. Use a postgres:// or postgresql:// connection string.";
+  }
+
+  return `${fallback} (${error.message})`;
+}
+
 /** Fallback state using static seed data for local development only. */
 function getStaticAdminState(): AdminState {
   return {
@@ -109,6 +143,12 @@ function toEstimateRecord(estimate: Estimate) {
 }
 
 async function ensureSeededState() {
+  if (!allowAdminMockData() && usesFileDatabaseUrl()) {
+    throw new AdminDataUnavailableError(
+      "Production DATABASE_URL is using a file-based SQLite path. Configure a persistent Postgres DATABASE_URL for Vercel before loading the admin dashboard.",
+    );
+  }
+
   const hasData = await prisma.adminUser.count();
 
   if (hasData > 0) {
@@ -116,9 +156,11 @@ async function ensureSeededState() {
   }
 
   if (!allowAdminMockData()) {
-    throw new AdminDataUnavailableError(
-      "Admin data store is empty in production. Run the database setup and load live operational data before using the dashboard.",
-    );
+    if (!canBootstrapProductionAdminData()) {
+      throw new AdminDataUnavailableError(
+        "Admin data store is empty in production. Load operational records (or set ALLOW_PRODUCTION_ADMIN_BOOTSTRAP=true for a one-time bootstrap) before using the dashboard.",
+      );
+    }
   }
 
   await prisma.$transaction([
@@ -173,6 +215,10 @@ export async function getAdminState(): Promise<AdminState> {
   try {
     await ensureSeededState();
   } catch (error) {
+    if (!allowAdminMockData()) {
+      console.error("[admin-store] ensureSeededState failed", error);
+    }
+
     if (allowAdminMockData()) {
       return getStaticAdminState();
     }
@@ -182,7 +228,10 @@ export async function getAdminState(): Promise<AdminState> {
     }
 
     throw new AdminDataUnavailableError(
-      "Admin data is unavailable in production. Verify database connectivity and seed the required records.",
+      formatProductionDbError(
+        error,
+        "Admin data is unavailable in production. Verify database connectivity and seed the required records.",
+      ),
     );
   }
 
@@ -245,13 +294,20 @@ export async function getAdminState(): Promise<AdminState> {
         lastUpdated: toDateOnly(item.lastUpdated),
       })),
     } satisfies AdminState;
-  } catch {
+  } catch (error) {
+    if (!allowAdminMockData()) {
+      console.error("[admin-store] query read failed", error);
+    }
+
     if (allowAdminMockData()) {
       return getStaticAdminState();
     }
 
     throw new AdminDataUnavailableError(
-      "Failed to load admin dashboard data from the production database.",
+      formatProductionDbError(
+        error,
+        "Failed to load admin dashboard data from the production database.",
+      ),
     );
   }
 }

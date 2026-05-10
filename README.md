@@ -133,7 +133,31 @@ Current admin API routes:
 - `POST /api/admin/payments` (collect, refund, billing portal, payment-link generation, retry queue, reconcile)
 - `POST /api/admin/stripe/webhook` (signature-verified Stripe event ingestion)
 
-The admin module now persists through Prisma with a local SQLite database by default (`DATABASE_URL="file:./prisma/dev.db"`). Stripe checkout, billing portal, refund actions, and verified webhook handling are implemented; QuickBooks sync remains for the next implementation phase.
+The admin module uses Prisma with local SQLite for development (`DATABASE_URL="file:./prisma/dev.db"`) and Postgres for Vercel production deployments. Stripe checkout, billing portal, refund actions, and verified webhook handling are implemented; QuickBooks sync remains for the next implementation phase.
+
+## Database Setup (Local + Vercel)
+
+Local development:
+
+- Keep `DATABASE_URL="file:./prisma/dev.db"`.
+- Run `npm run db:push`.
+- Run `npm run db:seed`.
+
+Vercel production:
+
+- Provision a persistent Postgres database (for example, Vercel Postgres).
+- Set `DATABASE_URL` in Vercel Project Settings to the Postgres connection string.
+- Build now auto-selects Prisma schema based on environment:
+	- Vercel or Postgres `DATABASE_URL` -> `prisma/schema.postgresql.prisma`
+	- local `file:` `DATABASE_URL` -> `prisma/schema.prisma`
+- Vercel builds apply `prisma db push` by default (can be disabled with `DISABLE_PRISMA_DB_PUSH_ON_BUILD=true`).
+ - If Vercel Project Settings override the build command, set it to `npm run build` (or clear it to use repository config).
+- If the production DB starts empty and you want a one-time sample bootstrap, set `ALLOW_PRODUCTION_ADMIN_BOOTSTRAP=true`, deploy once, then set it back to `false`.
+
+Important:
+
+- Do not use a file-based SQLite `DATABASE_URL` in Vercel production.
+- The dashboard intentionally avoids automatic mock fallback in production.
 
 ## Admin Authentication Variables
 
@@ -182,4 +206,4 @@ npm test
 
 ## Deployment
 
-Deploy on Vercel and set webhook environment variables in Project Settings before going live.
+Deploy on Vercel and set webhook environment variables plus a Postgres `DATABASE_URL` in Project Settings before going live.

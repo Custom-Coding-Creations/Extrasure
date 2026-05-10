@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  owner
+  dispatch
+  technician
+  accountant
+}
+
+enum ActivePlan {
+  monthly
+  quarterly
+  annual
+  none
+}
+
+enum Lifecycle {
+  lead
+  active
+  past_due
+}
+
+enum TechnicianStatus {
+  available
+  in_route
+  on_job
+  off_shift
+}
+
+enum JobStatus {
+  scheduled
+  in_progress
+  completed
+  reschedule_needed
+}
+
+enum EstimateStatus {
+  sent
+  approved
+  declined
+}
+
+enum InvoiceStatus {
+  paid
+  open
+  past_due
+  refunded
+}
+
+enum BillingCycle {
+  one_time
+  monthly
+  quarterly
+  annual
+}
+
+enum PaymentMethod {
+  card
+  ach
+}
+
+enum PaymentStatus {
+  succeeded
+  failed
+  pending
+  refunded
+}
+
+enum AutomationEventType {
+  lead_alert
+  appointment_reminder
+  invoice_reminder
+  failed_payment_retry
+  review_request
+  seasonal_reservice
+}
+
+enum AutomationEventStatus {
+  queued
+  sent
+  failed
+}
+
+model AdminUser {
+  id               String  @id
+  name             String
+  role             Role
+  twoFactorEnabled Boolean @default(false)
+}
+
+model Customer {
+  id              String     @id
+  name            String
+  phone           String
+  email           String
+  city            String
+  activePlan      ActivePlan
+  lifecycle       Lifecycle
+  lastServiceDate DateTime
+  stripeCustomerId String?    @unique
+  stripeSubscriptionId String?
+  stripeSubscriptionStatus String?
+}
+
+model Technician {
+  id                 String           @id
+  name               String
+  status             TechnicianStatus
+  utilizationPercent Int
+}
+
+model Job {
+  id           String    @id
+  customerId   String
+  service      String
+  scheduledAt  DateTime
+  status       JobStatus
+  technicianId String
+  emergency    Boolean
+}
+
+model Estimate {
+  id         String          @id
+  customerId String
+  service    String
+  amount     Int
+  status     EstimateStatus
+  createdAt  DateTime
+}
+
+model Invoice {
+  id           String         @id
+  customerId   String
+  estimateId   String?
+  amount       Int
+  dueDate      DateTime
+  status       InvoiceStatus
+  billingCycle BillingCycle
+  stripeCustomerId String?
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId String?
+  stripeSubscriptionId String?
+  stripeInvoiceId String?
+  checkoutUrl String?
+  paidAt DateTime?
+  refundedAt DateTime?
+  paymentStatusUpdatedAt DateTime?
+}
+
+model Payment {
+  id        String        @id
+  invoiceId String
+  method    PaymentMethod
+  status    PaymentStatus
+  amount    Int
+  createdAt DateTime
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId String?
+  stripeChargeId String?
+  stripeRefundId String?
+  failureCode String?
+  refundedAt DateTime?
+}
+
+model AutomationEvent {
+  id           String                  @id
+  type         AutomationEventType
+  target       String
+  status       AutomationEventStatus
+  scheduledFor DateTime
+}
+
+model InventoryItem {
+  id          String   @id
+  name        String
+  unit        String
+  quantity    Int
+  reorderPoint Int
+  lastUpdated DateTime
+}
+
+model StripeWebhookEvent {
+  id          String   @id
+  type        String
+  livemode    Boolean
+  payloadJson String
+  createdAt   DateTime
+  processedAt DateTime @default(now())
+}
+
+model AuditEvent {
+  id        String   @id
+  actor     String
+  role      String
+  action    String
+  entity    String
+  entityId  String
+  before    String?
+  after     String?
+  timestamp DateTime @default(now())
+}
+
