@@ -2,6 +2,9 @@ import {
   type Customer,
   type Job,
   type Invoice,
+  type Estimate,
+  type InventoryItem,
+  type AutomationEvent,
   adminUsers,
   automationEvents,
   customers,
@@ -81,6 +84,27 @@ function toInvoiceRecord(invoice: Invoice) {
   return {
     ...invoice,
     dueDate: new Date(invoice.dueDate),
+  };
+}
+
+function toInventoryRecord(item: InventoryItem) {
+  return {
+    ...item,
+    lastUpdated: new Date(item.lastUpdated),
+  };
+}
+
+function toAutomationEventRecord(event: AutomationEvent) {
+  return {
+    ...event,
+    scheduledFor: new Date(event.scheduledFor),
+  };
+}
+
+function toEstimateRecord(estimate: Estimate) {
+  return {
+    ...estimate,
+    createdAt: new Date(estimate.createdAt),
   };
 }
 
@@ -556,6 +580,468 @@ export async function deleteInvoice(id: string) {
   }
 
   return prisma.invoice.delete({ where: { id } });
+}
+
+type EstimateMutationInput = Omit<Estimate, "id">;
+
+function validateEstimateInput(input: EstimateMutationInput) {
+  const customerId = input.customerId.trim();
+  const service = input.service.trim();
+  const amount = Number(input.amount);
+  const createdAt = input.createdAt.trim();
+
+  if (!customerId || !service || !createdAt || !Number.isFinite(amount) || amount < 0) {
+    throw new Error("Estimate customer, service, amount, and created date are required.");
+  }
+
+  const parsedCreatedAt = new Date(createdAt);
+
+  if (Number.isNaN(parsedCreatedAt.getTime())) {
+    throw new Error("Estimate created date is invalid.");
+  }
+
+  return {
+    customerId,
+    service,
+    amount: Math.round(amount),
+    status: input.status,
+    createdAt,
+  } satisfies EstimateMutationInput;
+}
+
+async function assertEstimateCustomerExists(customerId: string) {
+  const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+
+  if (!customer) {
+    throw new Error("Customer not found.");
+  }
+}
+
+export async function createEstimate(input: EstimateMutationInput) {
+  await ensureSeededState();
+  const estimate = validateEstimateInput(input);
+  await assertEstimateCustomerExists(estimate.customerId);
+
+  return prisma.estimate.create({
+    data: toEstimateRecord({
+      id: `e_${Date.now()}`,
+      ...estimate,
+    }),
+  });
+}
+
+export async function updateEstimate(id: string, input: EstimateMutationInput) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Estimate id is required.");
+  }
+
+  const estimate = validateEstimateInput(input);
+  await assertEstimateCustomerExists(estimate.customerId);
+
+  return prisma.estimate.update({
+    where: { id },
+    data: toEstimateRecord({
+      id,
+      ...estimate,
+    }),
+  });
+}
+
+export async function deleteEstimate(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Estimate id is required.");
+  }
+
+  return prisma.estimate.delete({ where: { id } });
+}
+
+export async function approveEstimate(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Estimate id is required.");
+  }
+
+  return prisma.estimate.update({
+    where: { id },
+    data: { status: "approved" },
+  });
+}
+
+export async function declineEstimate(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Estimate id is required.");
+  }
+
+  return prisma.estimate.update({
+    where: { id },
+    data: { status: "declined" },
+  });
+}
+
+export async function convertEstimateToJob(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Estimate id is required.");
+  }
+
+  const estimate = await prisma.estimate.findUnique({ where: { id } });
+
+  if (!estimate) {
+    throw new Error("Estimate not found.");
+  }
+
+  const technician = await prisma.technician.findFirst({ orderBy: { utilizationPercent: "desc" } });
+
+  if (!technician) {
+    throw new Error("No technician available for conversion.");
+  }
+
+  const createdAt = new Date();
+  const scheduledAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+  const job = await prisma.job.create({
+    data: {
+      id: `j_${Date.now()}`,
+      customerId: estimate.customerId,
+      service: estimate.service,
+      scheduledAt,
+      status: "scheduled",
+      technicianId: technician.id,
+      emergency: false,
+    },
+  });
+
+  return {
+    estimate,
+    job,
+    createdAt,
+  };
+}
+
+export async function convertEstimateToInvoice(id: string, dueDate = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14)) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Estimate id is required.");
+  }
+
+  const estimate = await prisma.estimate.findUnique({ where: { id } });
+
+  if (!estimate) {
+    throw new Error("Estimate not found.");
+  }
+
+  const customer = await prisma.customer.findUnique({ where: { id: estimate.customerId } });
+
+  if (!customer) {
+    throw new Error("Customer not found.");
+  }
+
+  const invoice = await prisma.invoice.create({
+    data: {
+      id: `inv_${Date.now()}`,
+      customerId: estimate.customerId,
+      estimateId: estimate.id,
+      amount: estimate.amount,
+      dueDate,
+      status: "open",
+      billingCycle: customer.activePlan === "none" ? "one_time" : customer.activePlan,
+    },
+  });
+
+  return {
+    estimate,
+    invoice,
+  };
+}
+
+type InventoryMutationInput = Omit<InventoryItem, "id">;
+
+function validateInventoryInput(input: InventoryMutationInput) {
+  const name = input.name.trim();
+  const unit = input.unit.trim();
+  const quantity = Number(input.quantity);
+  const reorderPoint = Number(input.reorderPoint);
+  const lastUpdated = input.lastUpdated.trim();
+
+  if (!name || !unit || !lastUpdated || !Number.isFinite(quantity) || !Number.isFinite(reorderPoint)) {
+    throw new Error("Inventory item name, unit, quantity, reorder point, and last updated date are required.");
+  }
+
+  const parsedLastUpdated = new Date(lastUpdated);
+
+  if (Number.isNaN(parsedLastUpdated.getTime())) {
+    throw new Error("Inventory last updated date is invalid.");
+  }
+
+  return {
+    name,
+    unit,
+    quantity: Math.max(0, Math.round(quantity)),
+    reorderPoint: Math.max(0, Math.round(reorderPoint)),
+    lastUpdated,
+  } satisfies InventoryMutationInput;
+}
+
+export async function createInventoryItem(input: InventoryMutationInput) {
+  await ensureSeededState();
+  const item = validateInventoryInput(input);
+
+  return prisma.inventoryItem.create({
+    data: toInventoryRecord({
+      id: `m_${Date.now()}`,
+      ...item,
+    }),
+  });
+}
+
+export async function updateInventoryItem(id: string, input: InventoryMutationInput) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Inventory item id is required.");
+  }
+
+  const item = validateInventoryInput(input);
+
+  return prisma.inventoryItem.update({
+    where: { id },
+    data: toInventoryRecord({
+      id,
+      ...item,
+    }),
+  });
+}
+
+export async function deleteInventoryItem(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Inventory item id is required.");
+  }
+
+  return prisma.inventoryItem.delete({ where: { id } });
+}
+
+export async function adjustInventoryQuantity(id: string, delta: number) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Inventory item id is required.");
+  }
+
+  if (!Number.isFinite(delta) || delta === 0) {
+    throw new Error("Inventory adjustment must be a non-zero number.");
+  }
+
+  const item = await prisma.inventoryItem.findUnique({ where: { id } });
+
+  if (!item) {
+    throw new Error("Inventory item not found.");
+  }
+
+  return prisma.inventoryItem.update({
+    where: { id },
+    data: {
+      quantity: Math.max(0, item.quantity + Math.round(delta)),
+      lastUpdated: new Date(),
+    },
+  });
+}
+
+type AutomationEventMutationInput = Omit<AutomationEvent, "id">;
+
+function validateAutomationEventInput(input: AutomationEventMutationInput) {
+  const target = input.target.trim();
+  const scheduledFor = input.scheduledFor.trim();
+
+  if (!target || !scheduledFor) {
+    throw new Error("Automation event target and scheduled date are required.");
+  }
+
+  const parsedScheduledFor = new Date(scheduledFor);
+
+  if (Number.isNaN(parsedScheduledFor.getTime())) {
+    throw new Error("Automation event scheduled date is invalid.");
+  }
+
+  return {
+    type: input.type,
+    target,
+    status: input.status,
+    scheduledFor,
+  } satisfies AutomationEventMutationInput;
+}
+
+export async function createAutomationEvent(input: AutomationEventMutationInput) {
+  await ensureSeededState();
+  const event = validateAutomationEventInput(input);
+
+  return prisma.automationEvent.create({
+    data: toAutomationEventRecord({
+      id: `a_${Date.now()}`,
+      ...event,
+    }),
+  });
+}
+
+export async function updateAutomationEvent(id: string, input: AutomationEventMutationInput) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Automation event id is required.");
+  }
+
+  const event = validateAutomationEventInput(input);
+
+  return prisma.automationEvent.update({
+    where: { id },
+    data: toAutomationEventRecord({
+      id,
+      ...event,
+    }),
+  });
+}
+
+export async function deleteAutomationEvent(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Automation event id is required.");
+  }
+
+  return prisma.automationEvent.delete({ where: { id } });
+}
+
+export async function setAutomationEventStatus(id: string, status: AutomationEvent["status"]) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Automation event id is required.");
+  }
+
+  return prisma.automationEvent.update({
+    where: { id },
+    data: {
+      status,
+    },
+  });
+}
+
+type AdminUserMutationInput = {
+  name: string;
+  role: "owner" | "dispatch" | "technician" | "accountant";
+  twoFactorEnabled: boolean;
+};
+
+function validateAdminUserInput(input: AdminUserMutationInput) {
+  const name = input.name.trim();
+
+  if (!name) {
+    throw new Error("Admin user name is required.");
+  }
+
+  return {
+    name,
+    role: input.role,
+    twoFactorEnabled: Boolean(input.twoFactorEnabled),
+  } satisfies AdminUserMutationInput;
+}
+
+async function countOwnerUsers() {
+  return prisma.adminUser.count({ where: { role: "owner" } });
+}
+
+export async function createAdminUser(input: AdminUserMutationInput) {
+  await ensureSeededState();
+  const user = validateAdminUserInput(input);
+
+  return prisma.adminUser.create({
+    data: {
+      id: `u_${Date.now()}`,
+      ...user,
+    },
+  });
+}
+
+export async function updateAdminUser(id: string, input: AdminUserMutationInput) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Admin user id is required.");
+  }
+
+  const current = await prisma.adminUser.findUnique({ where: { id } });
+
+  if (!current) {
+    throw new Error("Admin user not found.");
+  }
+
+  const user = validateAdminUserInput(input);
+
+  if (current.role === "owner" && user.role !== "owner") {
+    const ownerCount = await countOwnerUsers();
+
+    if (ownerCount <= 1) {
+      throw new Error("At least one owner account must remain active.");
+    }
+  }
+
+  return prisma.adminUser.update({
+    where: { id },
+    data: user,
+  });
+}
+
+export async function deleteAdminUser(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Admin user id is required.");
+  }
+
+  const current = await prisma.adminUser.findUnique({ where: { id } });
+
+  if (!current) {
+    throw new Error("Admin user not found.");
+  }
+
+  if (current.role === "owner") {
+    const ownerCount = await countOwnerUsers();
+
+    if (ownerCount <= 1) {
+      throw new Error("At least one owner account must remain active.");
+    }
+  }
+
+  return prisma.adminUser.delete({ where: { id } });
+}
+
+export async function toggleAdminUserTwoFactor(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Admin user id is required.");
+  }
+
+  const current = await prisma.adminUser.findUnique({ where: { id } });
+
+  if (!current) {
+    throw new Error("Admin user not found.");
+  }
+
+  return prisma.adminUser.update({
+    where: { id },
+    data: { twoFactorEnabled: !current.twoFactorEnabled },
+  });
 }
 
 export async function queuePaymentRetry(invoiceId: string) {
