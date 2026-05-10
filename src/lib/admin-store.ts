@@ -29,10 +29,6 @@ function allowAdminMockData() {
   return process.env.NODE_ENV !== "production";
 }
 
-function canBootstrapProductionAdminData() {
-  return process.env.ALLOW_PRODUCTION_ADMIN_BOOTSTRAP === "true";
-}
-
 function usesFileDatabaseUrl() {
   return process.env.DATABASE_URL?.trim().startsWith("file:") ?? false;
 }
@@ -156,11 +152,9 @@ async function ensureSeededState() {
   }
 
   if (!allowAdminMockData()) {
-    if (!canBootstrapProductionAdminData()) {
-      throw new AdminDataUnavailableError(
-        "Admin data store is empty in production. Load operational records (or set ALLOW_PRODUCTION_ADMIN_BOOTSTRAP=true for a one-time bootstrap) before using the dashboard.",
-      );
-    }
+    throw new AdminDataUnavailableError(
+      "Admin data store is empty in production. Seed the production database (npm run db:seed:prod) before using the dashboard.",
+    );
   }
 
   await prisma.$transaction([

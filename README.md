@@ -151,8 +151,13 @@ Vercel production:
 	- Vercel or Postgres `DATABASE_URL` -> `prisma/schema.postgresql.prisma`
 	- local `file:` `DATABASE_URL` -> `prisma/schema.prisma`
 - Vercel builds apply `prisma db push` by default (can be disabled with `DISABLE_PRISMA_DB_PUSH_ON_BUILD=true`).
- - If Vercel Project Settings override the build command, set it to `npm run build` (or clear it to use repository config).
-- If the production DB starts empty and you want a one-time sample bootstrap, set `ALLOW_PRODUCTION_ADMIN_BOOTSTRAP=true`, deploy once, then set it back to `false`.
+- Optional first deploy seed (no mock CRM/job/payment records): set `PRISMA_RUN_PRODUCTION_SEED_ON_BUILD=true` to ensure required admin user data exists.
+- If Vercel Project Settings override the build command, set it to `npm run build` (or clear it to use repository config).
+
+Manual production seed:
+
+- Run `npm run db:seed:prod` against the production Postgres `DATABASE_URL`.
+- This seed is non-destructive and only ensures required admin user records exist.
 
 Important:
 

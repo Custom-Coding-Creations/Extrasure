@@ -32,3 +32,8 @@ if (shouldPushSchema) {
   console.log("[prisma] Applying schema with prisma db push");
   run(`npx prisma db push --skip-generate --schema ${schemaPath}`);
 }
+
+if (isVercelBuild && process.env.PRISMA_RUN_PRODUCTION_SEED_ON_BUILD === "true") {
+  console.log("[prisma] PRISMA_RUN_PRODUCTION_SEED_ON_BUILD=true, running production seed");
+  run("npx tsx prisma/seed-production.ts");
+}
