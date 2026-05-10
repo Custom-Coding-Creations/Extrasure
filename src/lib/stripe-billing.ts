@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { createInvoiceAccessToken } from "@/lib/customer-billing-access";
@@ -497,9 +498,307 @@ export async function recordStripeWebhookEvent(event: Stripe.Event) {
     });
 
     return { duplicate: false };
-  } catch {
-    return { duplicate: true };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { duplicate: true };
+    }
+
+    throw error;
   }
+}
+
+export async function reconcileInvoiceFromStripe(invoiceId: string) {
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+
+  if (!invoice) {
+    return {
+      ok: false,
+      error: "Invoice not found",
+    } as const;
+  }
+
+  if (!invoice.stripeCheckoutSessionId && !invoice.stripePaymentIntentId && !invoice.stripeInvoiceId) {
+    return {
+      ok: false,
+      error: "Invoice has no Stripe linkage yet",
+    } as const;
+  }
+
+  let paymentStatus: "succeeded" | "failed" | "pending" = "pending";
+  let paymentIntentId = invoice.stripePaymentIntentId ?? null;
+  const checkoutSessionId = invoice.stripeCheckoutSessionId ?? null;
+  let stripeCustomerId = invoice.stripeCustomerId ?? null;
+  let stripeSubscriptionId = invoice.stripeSubscriptionId ?? null;
+  const stripeInvoiceId = invoice.stripeInvoiceId ?? null;
+  let paidAt: Date | null = null;
+  let amount = invoice.amount;
+  let paymentMethod: "card" | "ach" = "card";
+  let chargeId: string | null = null;
+  let failureCode: string | null = null;
+
+  if (checkoutSessionId) {
+    const session = await stripe.checkout.sessions.retrieve(checkoutSessionId, {
+      expand: ["payment_intent"],
+    });
+
+    paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
+    stripeCustomerId = typeof session.customer === "string" ? session.customer : stripeCustomerId;
+    stripeSubscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id ?? stripeSubscriptionId;
+    amount = Math.round((session.amount_total ?? invoice.amount * 100) / 100);
+
+    const sessionStatus = session.payment_status;
+
+    if (sessionStatus === "paid") {
+      paymentStatus = "succeeded";
+      paidAt = new Date();
+    } else if (sessionStatus === "unpaid") {
+      paymentStatus = "failed";
+    } else {
+      paymentStatus = "pending";
+    }
+  }
+
+  if (paymentIntentId) {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    chargeId = typeof paymentIntent.latest_charge === "string" ? paymentIntent.latest_charge : null;
+    paymentMethod = mapPaymentMethod(paymentIntent.payment_method_types);
+    failureCode = paymentIntent.last_payment_error?.code ?? null;
+    amount = Math.round((paymentIntent.amount ?? amount * 100) / 100);
+
+    if (paymentIntent.status === "succeeded") {
+      paymentStatus = "succeeded";
+      paidAt = new Date();
+    } else if (paymentIntent.status === "requires_payment_method" || paymentIntent.status === "canceled") {
+      paymentStatus = "failed";
+    } else if (paymentIntent.status === "processing") {
+      paymentStatus = "pending";
+    }
+
+    if (!stripeCustomerId && typeof paymentIntent.customer === "string") {
+      stripeCustomerId = paymentIntent.customer;
+    }
+  }
+
+  if (stripeInvoiceId) {
+    const stripeInvoice = await stripe.invoices.retrieve(stripeInvoiceId);
+
+    if (stripeInvoice.status === "paid") {
+      paymentStatus = "succeeded";
+      paidAt = stripeInvoice.status_transitions.paid_at ? new Date(stripeInvoice.status_transitions.paid_at * 1000) : paidAt;
+    } else if (stripeInvoice.status === "open" || stripeInvoice.status === "uncollectible") {
+      paymentStatus = "failed";
+    }
+
+    stripeCustomerId = typeof stripeInvoice.customer === "string" ? stripeInvoice.customer : stripeCustomerId;
+    const sub = stripeInvoice.parent?.subscription_details?.subscription;
+    stripeSubscriptionId = typeof sub === "string" ? sub : sub?.id ?? stripeSubscriptionId;
+  }
+
+  const invoiceStatus =
+    paymentStatus === "succeeded"
+      ? "paid"
+      : paymentStatus === "failed"
+        ? "past_due"
+        : "open";
+
+  const timestamp = new Date();
+  const existingPayment = await prisma.payment.findFirst({
+    where: {
+      OR: [
+        { invoiceId },
+        ...(checkoutSessionId ? [{ stripeCheckoutSessionId: checkoutSessionId }] : []),
+        ...(paymentIntentId ? [{ stripePaymentIntentId: paymentIntentId }] : []),
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status: invoiceStatus,
+        stripeCustomerId,
+        stripeCheckoutSessionId: checkoutSessionId,
+        stripePaymentIntentId: paymentIntentId,
+        stripeSubscriptionId,
+        stripeInvoiceId,
+        paidAt: paymentStatus === "succeeded" ? paidAt ?? timestamp : null,
+        paymentStatusUpdatedAt: timestamp,
+      },
+    });
+
+    const paymentData = {
+      invoiceId,
+      method: paymentMethod,
+      status: paymentStatus,
+      amount,
+      createdAt: timestamp,
+      stripeCheckoutSessionId: checkoutSessionId,
+      stripePaymentIntentId: paymentIntentId,
+      stripeChargeId: chargeId,
+      failureCode,
+      refundedAt: null,
+      stripeRefundId: null,
+    } as const;
+
+    if (existingPayment) {
+      await tx.payment.update({
+        where: { id: existingPayment.id },
+        data: paymentData,
+      });
+    } else {
+      await tx.payment.create({
+        data: {
+          id: randomUUID(),
+          ...paymentData,
+        },
+      });
+    }
+  });
+
+  return {
+    ok: true,
+    invoiceId,
+    invoiceStatus,
+    paymentStatus,
+    paymentIntentId,
+    checkoutSessionId,
+  } as const;
+}
+
+export async function replayWebhookEventById(eventId: string) {
+  const webhookEvent = await prisma.stripeWebhookEvent.findUnique({
+    where: { id: eventId },
+  });
+
+  if (!webhookEvent) {
+    return {
+      ok: false,
+      error: "Webhook event not found",
+    } as const;
+  }
+
+  let event: Stripe.Event;
+
+  try {
+    event = JSON.parse(webhookEvent.payloadJson) as Stripe.Event;
+  } catch {
+    return {
+      ok: false,
+      error: "Stored webhook payload is invalid JSON",
+    } as const;
+  }
+
+  await handleStripeEvent(event);
+
+  await prisma.stripeWebhookEvent.update({
+    where: { id: webhookEvent.id },
+    data: {
+      processedAt: new Date(),
+    },
+  });
+
+  return {
+    ok: true,
+    eventId: webhookEvent.id,
+    eventType: webhookEvent.type,
+  } as const;
+}
+
+export async function replayLatestWebhookForInvoice(invoiceId: string) {
+  const webhookEvent = await prisma.stripeWebhookEvent.findFirst({
+    where: {
+      payloadJson: {
+        contains: invoiceId,
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (!webhookEvent) {
+    return {
+      ok: false,
+      error: "No matching webhook event found for invoice",
+    } as const;
+  }
+
+  return replayWebhookEventById(webhookEvent.id);
+}
+
+type SubscriptionLifecycleAction = "pause" | "resume" | "cancel";
+
+export async function setCustomerSubscriptionLifecycle(
+  customerId: string,
+  action: SubscriptionLifecycleAction,
+) {
+  const customer = await prisma.customer.findUnique({
+    where: { id: customerId },
+  });
+
+  if (!customer || !customer.stripeSubscriptionId) {
+    return {
+      ok: false,
+      error: "Customer does not have a Stripe subscription",
+    } as const;
+  }
+
+  const current = await stripe.subscriptions.retrieve(customer.stripeSubscriptionId);
+
+  if (current.status === "canceled" && action === "resume") {
+    return {
+      ok: false,
+      error: "Canceled subscriptions cannot be resumed. Create a new subscription checkout.",
+    } as const;
+  }
+
+  const updated = await stripe.subscriptions.update(customer.stripeSubscriptionId, {
+    ...(action === "pause"
+      ? {
+          pause_collection: {
+            behavior: "void",
+          },
+          cancel_at_period_end: false,
+        }
+      : action === "resume"
+        ? {
+            pause_collection: null,
+            cancel_at_period_end: false,
+          }
+        : {
+            pause_collection: null,
+            cancel_at_period_end: true,
+          }),
+    metadata: {
+      ...(current.metadata ?? {}),
+      localCustomerId: customer.id,
+      lifecycleAction: action,
+    },
+  });
+
+  const statusLabel =
+    action === "pause"
+      ? "paused"
+      : action === "cancel"
+        ? "canceling"
+        : updated.status;
+
+  await prisma.customer.update({
+    where: { id: customer.id },
+    data: {
+      stripeSubscriptionId: updated.id,
+      stripeSubscriptionStatus: statusLabel,
+    },
+  });
+
+  return {
+    ok: true,
+    customerId: customer.id,
+    subscriptionId: updated.id,
+    status: statusLabel,
+  } as const;
 }
 
 export async function handleStripeEvent(event: Stripe.Event) {

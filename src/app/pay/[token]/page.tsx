@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
-import { decodeInvoiceAccessToken } from "@/lib/customer-billing-access";
+import { notFound, redirect } from "next/navigation";
+import { inspectInvoiceAccessToken } from "@/lib/customer-billing-access";
 import { getCustomerInvoiceSnapshot } from "@/lib/stripe-billing";
 
 export const dynamic = "force-dynamic";
@@ -52,16 +52,57 @@ function statusMessage(invoiceStatus: string, stripeState: string | undefined) {
     } as const;
   }
 
+  if (stripeState === "rate_limited") {
+    return {
+      tone: "warning",
+      text: "Too many billing actions were attempted. Please wait a minute and try again.",
+    } as const;
+  }
+
+  if (stripeState === "subscription_pause") {
+    return {
+      tone: "success",
+      text: "Subscription payments are now paused.",
+    } as const;
+  }
+
+  if (stripeState === "subscription_resume") {
+    return {
+      tone: "success",
+      text: "Subscription has resumed.",
+    } as const;
+  }
+
+  if (stripeState === "subscription_cancel") {
+    return {
+      tone: "warning",
+      text: "Subscription will cancel at the end of the current period.",
+    } as const;
+  }
+
+  if (stripeState === "subscription_error") {
+    return {
+      tone: "warning",
+      text: "Unable to update subscription right now. Please contact support if this persists.",
+    } as const;
+  }
+
   return null;
 }
 
 export default async function TokenPayPage({ params, searchParams }: TokenPayPageProps) {
   const { token } = await params;
-  const payload = decodeInvoiceAccessToken(token);
+  const tokenResult = inspectInvoiceAccessToken(token);
 
-  if (!payload) {
+  if (!tokenResult.ok) {
+    if (tokenResult.reason === "expired") {
+      redirect(`/pay?error=expired&token=${encodeURIComponent(token)}`);
+    }
+
     notFound();
   }
+
+  const payload = tokenResult.payload;
 
   const snapshot = await getCustomerInvoiceSnapshot(payload.invoiceId);
 
@@ -150,6 +191,37 @@ export default async function TokenPayPage({ params, searchParams }: TokenPayPag
               Manage Billing
             </button>
           </form>
+            {snapshot.customer.stripeSubscriptionId && snapshot.invoice.billingCycle !== "one_time" ? (
+              <div className="mt-3 flex flex-wrap gap-3">
+                <form action={`/pay/${token}/subscription`} method="post">
+                  <input type="hidden" name="action" value="pause" />
+                  <button
+                    type="submit"
+                    className="rounded-full border border-[#8c693f] px-4 py-2 text-sm font-semibold text-[#8c693f] transition hover:bg-[#8c693f] hover:text-white"
+                  >
+                    Pause Subscription
+                  </button>
+                </form>
+                <form action={`/pay/${token}/subscription`} method="post">
+                  <input type="hidden" name="action" value="resume" />
+                  <button
+                    type="submit"
+                    className="rounded-full border border-[#3e5f91] px-4 py-2 text-sm font-semibold text-[#3e5f91] transition hover:bg-[#3e5f91] hover:text-white"
+                  >
+                    Resume Subscription
+                  </button>
+                </form>
+                <form action={`/pay/${token}/subscription`} method="post">
+                  <input type="hidden" name="action" value="cancel" />
+                  <button
+                    type="submit"
+                    className="rounded-full border border-[#8a3d22] px-4 py-2 text-sm font-semibold text-[#8a3d22] transition hover:bg-[#8a3d22] hover:text-white"
+                  >
+                    Cancel At Period End
+                  </button>
+                </form>
+              </div>
+            ) : null}
         </div>
       </section>
     </div>

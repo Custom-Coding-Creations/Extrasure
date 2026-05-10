@@ -9,6 +9,9 @@ export type Customer = {
   activePlan: "monthly" | "quarterly" | "annual" | "none";
   lifecycle: "lead" | "active" | "past_due";
   lastServiceDate: string;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripeSubscriptionStatus?: string | null;
 };
 
 export type Technician = {

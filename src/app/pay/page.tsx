@@ -5,12 +5,16 @@ export const dynamic = "force-dynamic";
 type PayPageProps = {
   searchParams?: Promise<{
     error?: string;
+    token?: string;
   }>;
 };
 
 export default async function PayPage({ searchParams }: PayPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const hasError = params?.error === "not_found";
+  const hasExpiredError = params?.error === "expired";
+  const hasRateLimitedError = params?.error === "rate_limited";
+  const priorToken = params?.token;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
@@ -26,8 +30,21 @@ export default async function PayPage({ searchParams }: PayPageProps) {
         </section>
       ) : null}
 
+      {hasExpiredError ? (
+        <section className="mt-6 rounded-2xl border border-[#dec3a9] bg-[#fff4e8] p-4 text-sm text-[#7b3d13]">
+          Your secure payment link expired. Re-enter your invoice details below to generate a fresh link.
+        </section>
+      ) : null}
+
+      {hasRateLimitedError ? (
+        <section className="mt-6 rounded-2xl border border-[#dec3a9] bg-[#fff4e8] p-4 text-sm text-[#7b3d13]">
+          Too many attempts in a short time. Please wait a minute and try again.
+        </section>
+      ) : null}
+
       <section className="paper-panel mt-8 rounded-2xl border border-[#d3c7ad] p-6">
         <form action="/pay/access" method="post" className="space-y-4">
+          {priorToken ? <input type="hidden" name="token" value={priorToken} /> : null}
           <label className="block text-sm font-medium text-[#23392d]" htmlFor="invoiceId">
             Invoice ID
           </label>

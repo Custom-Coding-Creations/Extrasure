@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decodeInvoiceAccessToken } from "@/lib/customer-billing-access";
+import { inspectInvoiceAccessToken } from "@/lib/customer-billing-access";
+import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { createBillingPortalSession, getCustomerInvoiceSnapshot } from "@/lib/stripe-billing";
 import { getBaseUrl } from "@/lib/stripe";
 
@@ -12,11 +13,24 @@ export async function POST(
   context: { params: Promise<{ token: string }> },
 ) {
   const { token } = await context.params;
-  const payload = decodeInvoiceAccessToken(token);
+  const ip = getRequestIp(request);
+  const limit = checkRateLimit(`pay-portal:${token}:${ip}`, 8, 60_000);
 
-  if (!payload) {
+  if (!limit.ok) {
+    return redirectTo(request, `/pay/${token}?stripe=rate_limited`);
+  }
+
+  const result = inspectInvoiceAccessToken(token);
+
+  if (!result.ok) {
+    if (result.reason === "expired") {
+      return redirectTo(request, `/pay?error=expired&token=${encodeURIComponent(token)}`);
+    }
+
     return redirectTo(request, "/pay?error=not_found");
   }
+
+  const payload = result.payload;
 
   const snapshot = await getCustomerInvoiceSnapshot(payload.invoiceId);
 

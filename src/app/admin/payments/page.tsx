@@ -5,6 +5,9 @@ import {
   refundPaymentAction,
 } from "@/app/admin/payments/actions";
 import { GeneratePaymentLinkButton } from "@/components/admin/generate-payment-link-button";
+import { ReconcileInvoiceButton } from "@/components/admin/reconcile-invoice-button";
+import { ReplayWebhookButton } from "@/components/admin/replay-webhook-button";
+import { SubscriptionLifecycleButton } from "@/components/admin/subscription-lifecycle-button";
 import { getAdminState } from "@/lib/admin-store";
 
 export const dynamic = "force-dynamic";
@@ -90,6 +93,11 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
               const customer = state.customers.find((item) => item.id === invoice.customerId);
               const canCollect = invoice.status === "open" || invoice.status === "past_due";
               const canGenerateLink = canCollect;
+              const hasSubscription = Boolean(customer?.stripeSubscriptionId);
+              const subscriptionStatus = customer?.stripeSubscriptionStatus ?? "";
+              const canPause = hasSubscription && !subscriptionStatus.includes("paused") && !subscriptionStatus.includes("cancel");
+              const canResume = hasSubscription && (subscriptionStatus.includes("paused") || subscriptionStatus.includes("canceling"));
+              const canCancel = hasSubscription && !subscriptionStatus.includes("cancel");
 
               return (
                 <tr key={invoice.id} className="border-b border-[#ecdfc3] last:border-0">
@@ -126,6 +134,15 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                         </form>
                       ) : null}
                       <GeneratePaymentLinkButton invoiceId={invoice.id} disabled={!canGenerateLink} />
+                      <ReconcileInvoiceButton invoiceId={invoice.id} disabled={!invoice.stripeCheckoutSessionId && !invoice.stripePaymentIntentId} />
+                      <ReplayWebhookButton invoiceId={invoice.id} disabled={!invoice.stripeCheckoutSessionId && !invoice.stripePaymentIntentId && !invoice.stripeInvoiceId} />
+                      {customer && hasSubscription ? (
+                        <>
+                          <SubscriptionLifecycleButton customerId={customer.id} action="pause" disabled={!canPause} />
+                          <SubscriptionLifecycleButton customerId={customer.id} action="resume" disabled={!canResume} />
+                          <SubscriptionLifecycleButton customerId={customer.id} action="cancel" disabled={!canCancel} />
+                        </>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -189,7 +206,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
           Verified webhook processing is required before checkout completions will mark invoices paid automatically.
         </p>
         <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-          <li>Expected env vars: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, NEXT_PUBLIC_SITE_URL or SITE_URL.</li>
+          <li>Expected env vars: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BILLING_ACCESS_SECRET, NEXT_PUBLIC_SITE_URL or SITE_URL.</li>
           <li>Enable webhook events: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, payment_intent.payment_failed, charge.refunded, invoice.paid, invoice.payment_failed, customer.subscription.updated.</li>
           <li>Route failed payments into retry + reminder automation.</li>
         </ul>

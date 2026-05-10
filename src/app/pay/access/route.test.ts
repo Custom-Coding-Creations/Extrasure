@@ -52,4 +52,23 @@ describe("POST /pay/access", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://example.com/pay?error=not_found");
   });
+
+  it("redirects to expired renewal path when prior token is supplied", async () => {
+    getCustomerInvoiceSnapshot.mockResolvedValue(null);
+
+    const formData = new FormData();
+    formData.set("invoiceId", "inv_missing");
+    formData.set("email", "client@example.com");
+    formData.set("token", "expired-token");
+
+    const req = new NextRequest("https://example.com/pay/access", {
+      method: "POST",
+      body: formData,
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://example.com/pay?error=expired&token=expired-token");
+  });
 });

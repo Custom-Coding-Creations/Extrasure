@@ -5,14 +5,20 @@ import {
   createCustomerPaymentLink,
   createBillingPortalSession,
   createInvoiceCheckoutSession,
+  replayLatestWebhookForInvoice,
+  replayWebhookEventById,
+  reconcileInvoiceFromStripe,
+  setCustomerSubscriptionLifecycle,
   refundPaymentById,
 } from "@/lib/stripe-billing";
 
 type PaymentActionPayload = {
-  action?: "collect" | "portal" | "refund" | "retry" | "link";
+  action?: "collect" | "portal" | "refund" | "retry" | "link" | "reconcile" | "replay" | "subscription";
   invoiceId?: string;
   customerId?: string;
   paymentId?: string;
+  eventId?: string;
+  subscriptionAction?: "pause" | "resume" | "cancel";
 };
 
 function hasValue(input: string | undefined) {
@@ -120,6 +126,78 @@ export async function POST(request: NextRequest) {
       action: "link",
       invoiceId: invoice.id,
       url,
+    });
+  }
+
+  if (payload.action === "reconcile") {
+    const roleSession = await requireAdminApiRole(["owner", "accountant"]);
+
+    if (!roleSession) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!hasValue(payload.invoiceId)) {
+      return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
+    }
+
+    const result = await reconcileInvoiceFromStripe(payload.invoiceId as string);
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      action: "reconcile",
+      ...result,
+    });
+  }
+
+  if (payload.action === "replay") {
+    const roleSession = await requireAdminApiRole(["owner", "accountant"]);
+
+    if (!roleSession) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const result = hasValue(payload.eventId)
+      ? await replayWebhookEventById(payload.eventId as string)
+      : hasValue(payload.invoiceId)
+        ? await replayLatestWebhookForInvoice(payload.invoiceId as string)
+        : { ok: false as const, error: "eventId or invoiceId is required" };
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      action: "replay",
+      ...result,
+    });
+  }
+
+  if (payload.action === "subscription") {
+    const roleSession = await requireAdminApiRole(["owner", "accountant"]);
+
+    if (!roleSession) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!hasValue(payload.customerId) || !hasValue(payload.subscriptionAction)) {
+      return NextResponse.json({ error: "customerId and subscriptionAction are required" }, { status: 400 });
+    }
+
+    const result = await setCustomerSubscriptionLifecycle(
+      payload.customerId as string,
+      payload.subscriptionAction as "pause" | "resume" | "cancel",
+    );
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      action: "subscription",
+      ...result,
     });
   }
 

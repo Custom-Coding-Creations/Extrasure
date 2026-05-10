@@ -64,10 +64,14 @@ stripe listen --forward-to localhost:3000/api/admin/stripe/webhook
 - Generate and copy a customer payment link from `/admin/payments`
 - Pay through the customer page at `/pay`
 - Start autopay for a recurring invoice from `/admin/payments`
+- Pause, resume, and cancel-at-period-end for recurring subscriptions from `/admin/payments`
+- Pause, resume, and cancel-at-period-end from the customer token page `/pay/[token]`
 - Open the Stripe billing portal from `/admin/payments`
 - Refund a successful payment from `/admin/payments`
+- Reconcile and replay webhook-backed invoice updates from `/admin/payments`
 
 Webhook processing is the source of truth for payment success/failure and subscription updates.
+Public payment routes include fixed-window rate limiting and return user-facing retry messaging when throttled.
 
 ## Lead Routing API
 
@@ -126,8 +130,8 @@ Current admin API routes:
 
 - `GET /api/admin/dashboard`
 - `GET /api/admin/payments`
-- `POST /api/admin/payments` (queues retry intent in scaffold mode)
-- `POST /api/admin/stripe/webhook` (signature-required scaffold endpoint)
+- `POST /api/admin/payments` (collect, refund, billing portal, payment-link generation, retry queue, reconcile)
+- `POST /api/admin/stripe/webhook` (signature-verified Stripe event ingestion)
 
 The admin module now persists through Prisma with a local SQLite database by default (`DATABASE_URL="file:./prisma/dev.db"`). Stripe checkout, billing portal, refund actions, and verified webhook handling are implemented; QuickBooks sync remains for the next implementation phase.
 
@@ -155,6 +159,7 @@ In production, customer payment-link tokens require `BILLING_ACCESS_SECRET`. In 
 
 - Customers can start at `/pay` with invoice ID + billing email.
 - Admins can generate one-time tokenized payment links from `/admin/payments` using `Copy Payment Link`.
+- Expired links are routed to `/pay?error=expired` and can be renewed by re-validating invoice ID + billing email.
 - Stripe webhook processing remains the source of truth for final paid/failed/refunded invoice state.
 
 ## Conversion Tracking

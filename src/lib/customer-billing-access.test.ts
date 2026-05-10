@@ -1,4 +1,8 @@
-import { createInvoiceAccessToken, decodeInvoiceAccessToken } from "@/lib/customer-billing-access";
+import {
+  createInvoiceAccessToken,
+  decodeInvoiceAccessToken,
+  inspectInvoiceAccessToken,
+} from "@/lib/customer-billing-access";
 
 describe("customer-billing-access", () => {
   beforeEach(() => {
@@ -25,5 +29,18 @@ describe("customer-billing-access", () => {
     const token = createInvoiceAccessToken("inv_123", -1);
 
     expect(decodeInvoiceAccessToken(token)).toBeNull();
+    expect(inspectInvoiceAccessToken(token)).toEqual({ ok: false, reason: "expired" });
+  });
+
+  it("requires BILLING_ACCESS_SECRET in production", () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousBillingSecret = process.env.BILLING_ACCESS_SECRET;
+    process.env.NODE_ENV = "production";
+    delete process.env.BILLING_ACCESS_SECRET;
+
+    expect(() => createInvoiceAccessToken("inv_123")).toThrow("Missing BILLING_ACCESS_SECRET environment variable");
+
+    process.env.NODE_ENV = previousNodeEnv;
+    process.env.BILLING_ACCESS_SECRET = previousBillingSecret;
   });
 });
