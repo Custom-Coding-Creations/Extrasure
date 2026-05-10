@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApiRole, requireAdminApiSession } from "@/lib/admin-auth";
 import { getAdminState, queuePaymentRetry } from "@/lib/admin-store";
 import {
+  createCustomerPaymentLink,
   createBillingPortalSession,
   createInvoiceCheckoutSession,
   refundPaymentById,
 } from "@/lib/stripe-billing";
 
 type PaymentActionPayload = {
-  action?: "collect" | "portal" | "refund" | "retry";
+  action?: "collect" | "portal" | "refund" | "retry" | "link";
   invoiceId?: string;
   customerId?: string;
   paymentId?: string;
@@ -87,6 +88,38 @@ export async function POST(request: NextRequest) {
       action: "refund",
       refundId: refund.id,
       status: refund.status,
+    });
+  }
+
+  if (payload.action === "link") {
+    const roleSession = await requireAdminApiRole(["owner", "dispatch", "accountant"]);
+
+    if (!roleSession) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!hasValue(payload.invoiceId)) {
+      return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
+    }
+
+    const state = await getAdminState();
+    const invoice = state.invoices.find((item) => item.id === payload.invoiceId);
+
+    if (!invoice) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+    }
+
+    if (invoice.status === "paid" || invoice.status === "refunded") {
+      return NextResponse.json({ error: "Invoice is not eligible for a payment link" }, { status: 400 });
+    }
+
+    const url = createCustomerPaymentLink(invoice.id);
+
+    return NextResponse.json({
+      ok: true,
+      action: "link",
+      invoiceId: invoice.id,
+      url,
     });
   }
 

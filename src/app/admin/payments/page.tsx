@@ -4,6 +4,7 @@ import {
   openBillingPortalAction,
   refundPaymentAction,
 } from "@/app/admin/payments/actions";
+import { GeneratePaymentLinkButton } from "@/components/admin/generate-payment-link-button";
 import { getAdminState } from "@/lib/admin-store";
 
 export const dynamic = "force-dynamic";
@@ -88,6 +89,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
             {state.invoices.map((invoice) => {
               const customer = state.customers.find((item) => item.id === invoice.customerId);
               const canCollect = invoice.status === "open" || invoice.status === "past_due";
+              const canGenerateLink = canCollect;
 
               return (
                 <tr key={invoice.id} className="border-b border-[#ecdfc3] last:border-0">
@@ -123,6 +125,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                           </button>
                         </form>
                       ) : null}
+                      <GeneratePaymentLinkButton invoiceId={invoice.id} disabled={!canGenerateLink} />
                     </div>
                   </td>
                 </tr>

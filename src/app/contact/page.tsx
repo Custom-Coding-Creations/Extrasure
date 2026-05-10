@@ -1,6 +1,7 @@
 import { LeadForm } from "@/components/lead-form";
 import { TrackedContactLink } from "@/components/tracked-contact-link";
 import { company } from "@/lib/site";
+import Link from "next/link";
 
 export default function ContactPage() {
   return (
@@ -42,6 +43,13 @@ export default function ContactPage() {
             ))}
           </ul>
           <p className="mt-4 text-sm text-[#445349]">{company.emergencyPolicy}</p>
+          <p className="mt-4 text-sm text-[#445349]">
+            Already a customer?{" "}
+            <Link href="/pay" className="font-semibold text-[#163526] underline decoration-[#d48534] underline-offset-4">
+              Pay your invoice online
+            </Link>
+            .
+          </p>
         </section>
         <section className="paper-panel rounded-2xl border border-[#d3c7ad] p-6">
           <h2 className="text-2xl text-[#203328]">Inspection Form</h2>

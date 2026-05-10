@@ -56,10 +56,13 @@ stripe listen --forward-to localhost:3000/api/admin/stripe/webhook
 - `STRIPE_PUBLISHABLE_KEY`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
+- `BILLING_ACCESS_SECRET` (required in production for customer payment links)
 
 5. Recommended test flows:
 
 - Pay an open invoice from `/admin/payments`
+- Generate and copy a customer payment link from `/admin/payments`
+- Pay through the customer page at `/pay`
 - Start autopay for a recurring invoice from `/admin/payments`
 - Open the Stripe billing portal from `/admin/payments`
 - Refund a successful payment from `/admin/payments`
@@ -144,6 +147,15 @@ Add these in `.env.local` and Vercel Project Settings before enabling production
 
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
+- `BILLING_ACCESS_SECRET`
+
+In production, customer payment-link tokens require `BILLING_ACCESS_SECRET`. In non-production, the app can fall back to `ADMIN_AUTH_SECRET` for local development convenience.
+
+## Customer Billing Flow
+
+- Customers can start at `/pay` with invoice ID + billing email.
+- Admins can generate one-time tokenized payment links from `/admin/payments` using `Copy Payment Link`.
+- Stripe webhook processing remains the source of truth for final paid/failed/refunded invoice state.
 
 ## Conversion Tracking
 
@@ -160,6 +172,7 @@ Client events are emitted to `dataLayer` and `gtag` when available:
 
 ```bash
 npm run lint
+npm test
 ```
 
 ## Deployment

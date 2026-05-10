@@ -1,7 +1,20 @@
 import { randomUUID } from "node:crypto";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
+import { createInvoiceAccessToken } from "@/lib/customer-billing-access";
 import { getBaseUrl, stripe } from "@/lib/stripe";
+
+type CheckoutContext = "admin" | "customer";
+
+type CheckoutSessionOptions = {
+  successPath?: string;
+  cancelPath?: string;
+  context?: CheckoutContext;
+};
+
+type BillingPortalOptions = {
+  returnUrl?: string;
+};
 
 type BillingInterval = {
   interval: "month" | "year";
@@ -68,7 +81,37 @@ async function ensureStripeCustomer(customerId: string) {
   };
 }
 
-export async function createInvoiceCheckoutSession(invoiceId: string) {
+export async function getCustomerInvoiceSnapshot(invoiceId: string) {
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+
+  if (!invoice) {
+    return null;
+  }
+
+  const customer = await prisma.customer.findUnique({ where: { id: invoice.customerId } });
+
+  if (!customer) {
+    return null;
+  }
+
+  const latestPayment = await prisma.payment.findFirst({
+    where: { invoiceId: invoice.id },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return {
+    invoice,
+    customer,
+    latestPayment,
+  };
+}
+
+export function createCustomerPaymentLink(invoiceId: string) {
+  const token = createInvoiceAccessToken(invoiceId);
+  return `${getBaseUrl()}/pay/${token}`;
+}
+
+export async function createInvoiceCheckoutSession(invoiceId: string, options?: CheckoutSessionOptions) {
   const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
 
   if (!invoice) {
@@ -81,17 +124,21 @@ export async function createInvoiceCheckoutSession(invoiceId: string) {
 
   const { localCustomer, stripeCustomerId } = await ensureStripeCustomer(invoice.customerId);
   const baseUrl = getBaseUrl();
+  const context = options?.context ?? "admin";
+  const successUrl = `${baseUrl}${options?.successPath ?? "/admin/payments?stripe=success&session_id={CHECKOUT_SESSION_ID}"}`;
+  const cancelUrl = `${baseUrl}${options?.cancelPath ?? `/admin/payments?stripe=cancelled&invoice=${invoice.id}`}`;
   const isRecurring = invoice.billingCycle !== "one_time";
   const session = await stripe.checkout.sessions.create({
     customer: stripeCustomerId,
     client_reference_id: invoice.id,
     mode: isRecurring ? "subscription" : "payment",
-    success_url: `${baseUrl}/admin/payments?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/admin/payments?stripe=cancelled&invoice=${invoice.id}`,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
     metadata: {
       localInvoiceId: invoice.id,
       localCustomerId: localCustomer.id,
       billingCycle: invoice.billingCycle,
+      checkoutContext: context,
     },
     line_items: [
       {
@@ -149,11 +196,12 @@ export async function createInvoiceCheckoutSession(invoiceId: string) {
   return session;
 }
 
-export async function createBillingPortalSession(customerId: string) {
+export async function createBillingPortalSession(customerId: string, options?: BillingPortalOptions) {
   const { stripeCustomerId } = await ensureStripeCustomer(customerId);
+  const defaultReturnUrl = `${getBaseUrl()}/admin/payments?stripe=portal_return`;
   const session = await stripe.billingPortal.sessions.create({
     customer: stripeCustomerId,
-    return_url: `${getBaseUrl()}/admin/payments?stripe=portal_return`,
+    return_url: options?.returnUrl ?? defaultReturnUrl,
   });
 
   return session;
