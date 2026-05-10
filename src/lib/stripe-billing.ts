@@ -706,8 +706,27 @@ export async function replayWebhookEventById(eventId: string) {
   } as const;
 }
 
+function eventMatchesInvoiceId(event: Stripe.Event, invoiceId: string) {
+  const dataObject = event.data.object as {
+    client_reference_id?: string;
+    metadata?: Record<string, string | undefined>;
+  };
+
+  if (dataObject.client_reference_id === invoiceId) {
+    return true;
+  }
+
+  const metadata = dataObject.metadata;
+
+  if (!metadata) {
+    return false;
+  }
+
+  return metadata.localInvoiceId === invoiceId || metadata.invoiceId === invoiceId;
+}
+
 export async function replayLatestWebhookForInvoice(invoiceId: string) {
-  const webhookEvent = await prisma.stripeWebhookEvent.findFirst({
+  const webhookEvents = await prisma.stripeWebhookEvent.findMany({
     where: {
       payloadJson: {
         contains: invoiceId,
@@ -716,16 +735,34 @@ export async function replayLatestWebhookForInvoice(invoiceId: string) {
     orderBy: {
       createdAt: "desc",
     },
+    take: 25,
   });
 
-  if (!webhookEvent) {
+  for (const webhookEvent of webhookEvents) {
+    try {
+      const event = JSON.parse(webhookEvent.payloadJson) as Stripe.Event;
+
+      if (!eventMatchesInvoiceId(event, invoiceId)) {
+        continue;
+      }
+
+      return replayWebhookEventById(webhookEvent.id);
+    } catch {
+      continue;
+    }
+  }
+
+  if (!webhookEvents.length) {
     return {
       ok: false,
-      error: "No matching webhook event found for invoice",
+      error: "No webhook events found containing invoice identifier",
     } as const;
   }
 
-  return replayWebhookEventById(webhookEvent.id);
+  return {
+    ok: false,
+    error: "No matching webhook event found for invoice",
+  } as const;
 }
 
 type SubscriptionLifecycleAction = "pause" | "resume" | "cancel";
