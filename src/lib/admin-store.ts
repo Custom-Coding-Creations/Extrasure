@@ -1,5 +1,7 @@
 import {
   type Customer,
+  type Job,
+  type Invoice,
   adminUsers,
   automationEvents,
   customers,
@@ -65,6 +67,20 @@ function toCustomerRecord(customer: Customer) {
   return {
     ...customer,
     lastServiceDate: new Date(customer.lastServiceDate),
+  };
+}
+
+function toJobRecord(job: Job) {
+  return {
+    ...job,
+    scheduledAt: new Date(job.scheduledAt),
+  };
+}
+
+function toInvoiceRecord(invoice: Invoice) {
+  return {
+    ...invoice,
+    dueDate: new Date(invoice.dueDate),
   };
 }
 
@@ -354,6 +370,192 @@ export async function deleteCustomer(id: string) {
   }
 
   return prisma.customer.delete({ where: { id } });
+}
+
+type JobMutationInput = Omit<Job, "id">;
+
+function validateJobInput(input: JobMutationInput) {
+  const customerId = input.customerId.trim();
+  const service = input.service.trim();
+  const scheduledAt = input.scheduledAt.trim();
+  const technicianId = input.technicianId.trim();
+
+  if (!customerId || !service || !scheduledAt || !technicianId) {
+    throw new Error("Job customer, service, scheduled time, and technician are required.");
+  }
+
+  const parsedScheduledAt = new Date(scheduledAt);
+
+  if (Number.isNaN(parsedScheduledAt.getTime())) {
+    throw new Error("Job scheduled time is invalid.");
+  }
+
+  return {
+    customerId,
+    service,
+    scheduledAt,
+    status: input.status,
+    technicianId,
+    emergency: Boolean(input.emergency),
+  } satisfies JobMutationInput;
+}
+
+async function assertJobReferencesExist(customerId: string, technicianId: string) {
+  const [customer, technician] = await Promise.all([
+    prisma.customer.findUnique({ where: { id: customerId } }),
+    prisma.technician.findUnique({ where: { id: technicianId } }),
+  ]);
+
+  if (!customer) {
+    throw new Error("Customer not found.");
+  }
+
+  if (!technician) {
+    throw new Error("Technician not found.");
+  }
+}
+
+export async function createJob(input: JobMutationInput) {
+  await ensureSeededState();
+  const job = validateJobInput(input);
+  await assertJobReferencesExist(job.customerId, job.technicianId);
+
+  return prisma.job.create({
+    data: toJobRecord({
+      id: `j_${Date.now()}`,
+      ...job,
+    }),
+  });
+}
+
+export async function updateJob(id: string, input: JobMutationInput) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Job id is required.");
+  }
+
+  const job = validateJobInput(input);
+  await assertJobReferencesExist(job.customerId, job.technicianId);
+
+  return prisma.job.update({
+    where: { id },
+    data: toJobRecord({
+      id,
+      ...job,
+    }),
+  });
+}
+
+export async function deleteJob(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Job id is required.");
+  }
+
+  return prisma.job.delete({ where: { id } });
+}
+
+type InvoiceMutationInput = Omit<Invoice, "id">;
+
+function validateInvoiceInput(input: InvoiceMutationInput) {
+  const customerId = input.customerId.trim();
+  const estimateId = input.estimateId?.trim() ?? null;
+  const dueDate = input.dueDate.trim();
+  const amount = Number(input.amount);
+
+  if (!customerId || !dueDate || !Number.isFinite(amount) || amount < 0) {
+    throw new Error("Invoice customer, amount, and due date are required.");
+  }
+
+  const parsedDueDate = new Date(dueDate);
+
+  if (Number.isNaN(parsedDueDate.getTime())) {
+    throw new Error("Invoice due date is invalid.");
+  }
+
+  return {
+    customerId,
+    estimateId,
+    amount: Math.round(amount),
+    dueDate,
+    status: input.status,
+    billingCycle: input.billingCycle,
+    stripeCustomerId: input.stripeCustomerId ?? null,
+    stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
+    stripePaymentIntentId: input.stripePaymentIntentId ?? null,
+    stripeSubscriptionId: input.stripeSubscriptionId ?? null,
+    stripeInvoiceId: input.stripeInvoiceId ?? null,
+    checkoutUrl: input.checkoutUrl ?? null,
+    paidAt: input.paidAt ?? null,
+    refundedAt: input.refundedAt ?? null,
+    paymentStatusUpdatedAt: input.paymentStatusUpdatedAt ?? null,
+  } satisfies InvoiceMutationInput;
+}
+
+async function assertInvoiceReferencesExist(customerId: string, estimateId: string | null) {
+  const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+
+  if (!customer) {
+    throw new Error("Customer not found.");
+  }
+
+  if (estimateId) {
+    const estimate = await prisma.estimate.findUnique({ where: { id: estimateId } });
+
+    if (!estimate) {
+      throw new Error("Estimate not found.");
+    }
+  }
+}
+
+export async function createInvoice(input: InvoiceMutationInput) {
+  await ensureSeededState();
+  const invoice = validateInvoiceInput(input);
+  await assertInvoiceReferencesExist(invoice.customerId, invoice.estimateId);
+
+  return prisma.invoice.create({
+    data: toInvoiceRecord({
+      id: `inv_${Date.now()}`,
+      ...invoice,
+    }),
+  });
+}
+
+export async function updateInvoice(id: string, input: InvoiceMutationInput) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Invoice id is required.");
+  }
+
+  const invoice = validateInvoiceInput(input);
+  await assertInvoiceReferencesExist(invoice.customerId, invoice.estimateId);
+
+  return prisma.invoice.update({
+    where: { id },
+    data: toInvoiceRecord({
+      id,
+      ...invoice,
+    }),
+  });
+}
+
+export async function deleteInvoice(id: string) {
+  await ensureSeededState();
+
+  if (!id.trim()) {
+    throw new Error("Invoice id is required.");
+  }
+
+  const paymentCount = await prisma.payment.count({ where: { invoiceId: id } });
+
+  if (paymentCount > 0) {
+    throw new Error("Invoice cannot be deleted while payments still reference the record.");
+  }
+
+  return prisma.invoice.delete({ where: { id } });
 }
 
 export async function queuePaymentRetry(invoiceId: string) {
