@@ -9,9 +9,9 @@ interface BookingFormProps {
     id: string;
     name: string;
     description: string;
-    kind: "subscription" | "one_time_service";
+    kind: "subscription" | "one_time";
     billingCycle?: string;
-    amount: string;
+    amount: number;
   }>;
 }
 

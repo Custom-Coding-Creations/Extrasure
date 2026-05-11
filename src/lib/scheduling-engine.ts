@@ -3,7 +3,8 @@
  * service duration, minimum notice, and drive time between appointments
  */
 
-import { db } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
+import type { DayOfWeek } from "@prisma/client";
 import { getSchedulingConfig } from "@/lib/admin-store";
 import { getDistance, secondsToMinutes } from "@/lib/distance";
 
@@ -58,9 +59,17 @@ function getDayOfWeek(date: Date): number {
   return date.getDay();
 }
 
-const DAYS_OF_WEEK = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const DAYS_OF_WEEK: DayOfWeek[] = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
 
-function getDayOfWeekName(dayIndex: number): string {
+function getDayOfWeekName(dayIndex: number): DayOfWeek {
   return DAYS_OF_WEEK[dayIndex];
 }
 
@@ -80,7 +89,7 @@ async function getTechnicianAvailability(
   const dateStr = date.toISOString().split("T")[0];
 
   // Check for exceptions first
-  const exception = await db.technicianScheduleException.findFirst({
+  const exception = await prisma.technicianScheduleException.findFirst({
     where: {
       technicianId,
       exceptionDate: {
@@ -100,13 +109,13 @@ async function getTechnicianAvailability(
     return {
       startTime: timeToMinutes(exception.startTime),
       endTime: timeToMinutes(exception.endTime),
-      breakStartTime: exception.breakStartTime ? timeToMinutes(exception.breakStartTime) : 0,
-      breakEndTime: exception.breakEndTime ? timeToMinutes(exception.breakEndTime) : 0,
+      breakStartTime: 0,
+      breakEndTime: 0,
     };
   }
 
   // Get the recurring schedule for this day
-  const schedule = await db.technicianSchedule.findFirst({
+  const schedule = await prisma.technicianSchedule.findFirst({
     where: {
       technicianId,
       dayOfWeek,
@@ -141,7 +150,7 @@ async function getTechnicianAppointments(
   const startOfDay = new Date(dateStr);
   const endOfDay = new Date(new Date(dateStr).getTime() + 24 * 60 * 60 * 1000);
 
-  const bookings = await db.serviceBooking.findMany({
+  const bookings = await prisma.serviceBooking.findMany({
     where: {
       technicianId,
       scheduledAt: {
@@ -149,16 +158,11 @@ async function getTechnicianAppointments(
         lt: endOfDay,
       },
       status: {
-        in: ["confirmed", "in_progress"],
+        in: ["requested", "scheduled", "checkout_completed"],
       },
     },
     select: {
       scheduledAt: true,
-      service: {
-        select: {
-          durationMinutes: true,
-        },
-      },
     },
   });
 
@@ -168,7 +172,7 @@ async function getTechnicianAppointments(
       const startMinutes = b.scheduledAt!.getHours() * 60 + b.scheduledAt!.getMinutes();
       return {
         start: startMinutes,
-        end: startMinutes + (b.service.durationMinutes || 90),
+        end: startMinutes + 90,
       };
     })
     .sort((a, b) => a.start - b.start);
@@ -273,7 +277,7 @@ export async function calculateAvailableSlots(
   slotIntervalMinutes = 30
 ): Promise<BookingAvailability> {
   // Get service duration
-  const service = await db.serviceCatalogItem.findUnique({
+  const service = await prisma.serviceCatalogItem.findUnique({
     where: { id: serviceId },
     select: { durationMinutes: true },
   });
@@ -286,7 +290,7 @@ export async function calculateAvailableSlots(
   const config = await getSchedulingConfig();
 
   // Get list of technicians
-  let technicians = await db.technician.findMany({
+  let technicians = await prisma.technician.findMany({
     where: technicianIds ? { id: { in: technicianIds } } : undefined,
     select: { id: true, name: true },
     orderBy: { name: "asc" },
@@ -364,7 +368,7 @@ export async function findBestTechnicianForSlot(
   estimatedDriveTimeMinutes: number;
 }> {
   // Get all available technicians (status not off_shift)
-  const technicians = await db.technician.findMany({
+  const technicians = await prisma.technician.findMany({
     where: {
       status: {
         not: "off_shift",

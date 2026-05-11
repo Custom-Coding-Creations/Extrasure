@@ -139,4 +139,3 @@ export async function updateSchedulingConfigAction(formData: FormData) {
 
   revalidateSettingsPaths();
 }
-}

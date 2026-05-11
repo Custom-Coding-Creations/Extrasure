@@ -40,7 +40,11 @@ export type AuditAction =
   | "service_plan_updated"
   | "service_plan_deleted"
   | "service_plan_deactivated"
-  | "service_booking_created";
+  | "service_booking_created"
+  | "scheduling_config_updated"
+  | "technician_schedule_updated"
+  | "schedule_exception_added"
+  | "schedule_exception_removed";
 
 export async function recordAuditEvent({
   actor,

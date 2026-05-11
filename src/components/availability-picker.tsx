@@ -87,7 +87,7 @@ export function AvailabilityPicker({ serviceId, onSlotSelected, initialDate }: A
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
-      meridiem: "short",
+      hour12: true,
     });
   }
 
