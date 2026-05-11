@@ -155,6 +155,7 @@ model ServiceBooking {
   customerId         String
   serviceCatalogItemId String
   invoiceId          String?
+  idempotencyKey     String?              @unique
   contactName        String
   contactEmail       String
   contactPhone       String

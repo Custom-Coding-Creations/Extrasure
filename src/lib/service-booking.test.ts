@@ -23,6 +23,7 @@ jest.mock("@/lib/prisma", () => ({
       findUnique: jest.fn(),
     },
     serviceBooking: {
+      findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       findUnique: jest.fn(),
@@ -53,8 +54,10 @@ const { prisma } = jest.requireMock("@/lib/prisma") as {
     };
     invoice: {
       create: jest.Mock;
+      findUnique: jest.Mock;
     };
     serviceBooking: {
+      findFirst: jest.Mock;
       create: jest.Mock;
     };
     $transaction: jest.Mock;
@@ -71,6 +74,7 @@ describe("service-booking", () => {
   });
 
   it("creates booking checkout for valid inputs", async () => {
+    prisma.serviceBooking.findFirst.mockResolvedValue(null);
     prisma.serviceCatalogItem.findUnique.mockResolvedValue({
       id: "svc_1",
       active: true,
@@ -111,6 +115,40 @@ describe("service-booking", () => {
       expect.objectContaining({ context: "customer" }),
     );
     expect(result.checkoutUrl).toBe("https://checkout.stripe.test/session");
+  });
+
+  it("reuses existing active checkout session for duplicate submissions", async () => {
+    prisma.serviceBooking.findFirst.mockResolvedValue({
+      id: "book_existing",
+      invoiceId: "inv_existing",
+    });
+    prisma.invoice.findUnique.mockResolvedValue({
+      id: "inv_existing",
+      status: "open",
+      checkoutUrl: "https://checkout.stripe.test/reuse",
+    });
+
+    const result = await createBookingCheckout({
+      serviceCatalogItemId: "svc_1",
+      contactName: "Megan R",
+      contactEmail: "megan@example.com",
+      contactPhone: "315-555-0100",
+      preferredDate: "2099-01-02",
+      preferredWindow: "morning",
+      addressLine1: "123 Main St",
+      city: "Syracuse",
+      notes: "Gate on left",
+    });
+
+    expect(prisma.customer.create).not.toHaveBeenCalled();
+    expect(prisma.invoice.create).not.toHaveBeenCalled();
+    expect(prisma.serviceBooking.create).not.toHaveBeenCalled();
+    expect(createInvoiceCheckoutSession).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      bookingId: "book_existing",
+      invoiceId: "inv_existing",
+      checkoutUrl: "https://checkout.stripe.test/reuse",
+    });
   });
 
   it("rejects booking with past preferred date", async () => {

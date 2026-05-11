@@ -1,4 +1,5 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import type { ActivePlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createInvoiceCheckoutSession } from "@/lib/stripe-billing";
@@ -17,6 +18,8 @@ export type BookingCheckoutInput = {
   postalCode?: string;
   notes?: string;
 };
+
+const BOOKING_IDEMPOTENCY_WINDOW_MS = 15 * 60 * 1000;
 
 function normalizeInput(input: BookingCheckoutInput) {
   const serviceCatalogItemId = input.serviceCatalogItemId.trim();
@@ -83,6 +86,60 @@ function mapBillingCycleToPlan(cycle: "one_time" | "monthly" | "quarterly" | "an
   return "none";
 }
 
+function createBookingIdempotencyKey(input: ReturnType<typeof normalizeInput>) {
+  const bucket = Math.floor(Date.now() / BOOKING_IDEMPOTENCY_WINDOW_MS);
+  const normalizedDate = input.preferredDate.toISOString().slice(0, 10);
+  const raw = [
+    input.serviceCatalogItemId,
+    input.contactEmail,
+    input.contactPhone,
+    normalizedDate,
+    input.preferredWindow,
+    input.addressLine1.toLowerCase(),
+    input.city.toLowerCase(),
+    bucket,
+  ].join("|");
+
+  return createHash("sha256").update(raw).digest("hex");
+}
+
+async function getReusableCheckoutForIdempotencyKey(idempotencyKey: string) {
+  const existing = await prisma.serviceBooking.findFirst({
+    where: {
+      idempotencyKey,
+      createdAt: {
+        gte: new Date(Date.now() - BOOKING_IDEMPOTENCY_WINDOW_MS),
+      },
+      status: {
+        in: ["checkout_pending", "checkout_completed", "requested"],
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (!existing?.invoiceId) {
+    return null;
+  }
+
+  const invoice = await prisma.invoice.findUnique({
+    where: {
+      id: existing.invoiceId,
+    },
+  });
+
+  if (!invoice || invoice.status === "paid" || invoice.status === "refunded" || !invoice.checkoutUrl) {
+    return null;
+  }
+
+  return {
+    bookingId: existing.id,
+    invoiceId: existing.invoiceId,
+    checkoutUrl: invoice.checkoutUrl,
+  };
+}
+
 async function findOrCreateCustomerByEmail(input: ReturnType<typeof normalizeInput>) {
   const existingCustomer = await prisma.customer.findFirst({
     where: {
@@ -114,6 +171,13 @@ async function findOrCreateCustomerByEmail(input: ReturnType<typeof normalizeInp
 export async function createBookingCheckout(input: BookingCheckoutInput) {
   await ensureServiceCatalogSeeded();
   const normalized = normalizeInput(input);
+  const idempotencyKey = createBookingIdempotencyKey(normalized);
+
+  const reusableCheckout = await getReusableCheckoutForIdempotencyKey(idempotencyKey);
+
+  if (reusableCheckout) {
+    return reusableCheckout;
+  }
 
   const item = await prisma.serviceCatalogItem.findUnique({
     where: {
@@ -142,25 +206,40 @@ export async function createBookingCheckout(input: BookingCheckoutInput) {
     },
   });
 
-  const booking = await prisma.serviceBooking.create({
-    data: {
-      id: `book_${randomUUID()}`,
-      customerId: customer.id,
-      serviceCatalogItemId: item.id,
-      invoiceId: invoice.id,
-      contactName: normalized.contactName,
-      contactEmail: normalized.contactEmail,
-      contactPhone: normalized.contactPhone,
-      preferredDate: normalized.preferredDate,
-      preferredWindow: normalized.preferredWindow,
-      addressLine1: normalized.addressLine1,
-      addressLine2: normalized.addressLine2,
-      city: normalized.city,
-      postalCode: normalized.postalCode,
-      notes: normalized.notes,
-      status: "checkout_pending",
-    },
-  });
+  let booking;
+
+  try {
+    booking = await prisma.serviceBooking.create({
+      data: {
+        id: `book_${randomUUID()}`,
+        customerId: customer.id,
+        serviceCatalogItemId: item.id,
+        invoiceId: invoice.id,
+        idempotencyKey,
+        contactName: normalized.contactName,
+        contactEmail: normalized.contactEmail,
+        contactPhone: normalized.contactPhone,
+        preferredDate: normalized.preferredDate,
+        preferredWindow: normalized.preferredWindow,
+        addressLine1: normalized.addressLine1,
+        addressLine2: normalized.addressLine2,
+        city: normalized.city,
+        postalCode: normalized.postalCode,
+        notes: normalized.notes,
+        status: "checkout_pending",
+      },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const recoveredCheckout = await getReusableCheckoutForIdempotencyKey(idempotencyKey);
+
+      if (recoveredCheckout) {
+        return recoveredCheckout;
+      }
+    }
+
+    throw error;
+  }
 
   const checkoutSession = await createInvoiceCheckoutSession(invoice.id, {
     context: "customer",
