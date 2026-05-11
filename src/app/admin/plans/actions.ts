@@ -26,6 +26,8 @@ function getPlanInput(formData: FormData): ServiceCatalogItemInput {
     stripeProductId: String(formData.get("stripeProductId") ?? "") || null,
     stripePriceId: String(formData.get("stripePriceId") ?? "") || null,
     sortOrder: Number(formData.get("sortOrder") ?? 0),
+    durationMinutes: Number(formData.get("durationMinutes") ?? 90),
+    bookingLookaheadDays: Number(formData.get("bookingLookaheadDays") ?? 30),
   };
 }
 

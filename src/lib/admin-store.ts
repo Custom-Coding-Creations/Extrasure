@@ -1598,3 +1598,189 @@ export function getOverviewKpisFromState(state: AdminState): DashboardKpi[] {
     },
   ];
 }
+
+// Technician Schedule Management Functions
+
+type TechnicianScheduleInput = {
+  dayOfWeek: "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
+  startTime: string;
+  endTime: string;
+  breakStartTime?: string | null;
+  breakEndTime?: string | null;
+};
+
+export async function updateTechnicianSchedule(technicianId: string, schedules: TechnicianScheduleInput[]) {
+  await ensureSeededState();
+
+  if (!technicianId.trim()) {
+    throw new Error("Technician id is required.");
+  }
+
+  const technician = await prisma.technician.findUnique({ where: { id: technicianId } });
+  if (!technician) {
+    throw new Error("Technician not found.");
+  }
+
+  // Delete existing schedules for this technician
+  await prisma.technicianSchedule.deleteMany({ where: { technicianId } });
+
+  // Create new schedules
+  const createdSchedules = await Promise.all(
+    schedules.map((schedule) =>
+      prisma.technicianSchedule.create({
+        data: {
+          id: `sched_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          technicianId,
+          dayOfWeek: schedule.dayOfWeek,
+          startTime: schedule.startTime || "08:00",
+          endTime: schedule.endTime || "17:00",
+          breakStartTime: schedule.breakStartTime || null,
+          breakEndTime: schedule.breakEndTime || null,
+        },
+      })
+    )
+  );
+
+  return createdSchedules;
+}
+
+type ScheduleExceptionInput = {
+  exceptionDate: string; // ISO date format YYYY-MM-DD
+  startTime?: string;
+  endTime?: string;
+  isDayOff: boolean;
+};
+
+export async function addScheduleException(technicianId: string, input: ScheduleExceptionInput) {
+  await ensureSeededState();
+
+  if (!technicianId.trim()) {
+    throw new Error("Technician id is required.");
+  }
+
+  const technician = await prisma.technician.findUnique({ where: { id: technicianId } });
+  if (!technician) {
+    throw new Error("Technician not found.");
+  }
+
+  const exceptionDate = new Date(input.exceptionDate);
+  if (Number.isNaN(exceptionDate.getTime())) {
+    throw new Error("Exception date is invalid.");
+  }
+
+  return prisma.technicianScheduleException.create({
+    data: {
+      id: `exc_${Date.now()}`,
+      technicianId,
+      exceptionDate,
+      startTime: input.startTime || null,
+      endTime: input.endTime || null,
+      isDayOff: input.isDayOff,
+    },
+  });
+}
+
+export async function removeScheduleException(exceptionId: string) {
+  await ensureSeededState();
+
+  if (!exceptionId.trim()) {
+    throw new Error("Exception id is required.");
+  }
+
+  return prisma.technicianScheduleException.delete({ where: { id: exceptionId } });
+}
+
+export async function getTechnicianSchedule(technicianId: string) {
+  await ensureSeededState();
+
+  if (!technicianId.trim()) {
+    throw new Error("Technician id is required.");
+  }
+
+  const [schedules, exceptions] = await Promise.all([
+    prisma.technicianSchedule.findMany({
+      where: { technicianId },
+      orderBy: { dayOfWeek: "asc" },
+    }),
+    prisma.technicianScheduleException.findMany({
+      where: { technicianId },
+      orderBy: { exceptionDate: "asc" },
+    }),
+  ]);
+
+  return { schedules, exceptions };
+}
+
+export async function getSchedulingConfig() {
+  try {
+    let config = await prisma.schedulingConfig.findUnique({ where: { id: "singleton" } });
+
+    if (!config) {
+      config = await prisma.schedulingConfig.create({
+        data: {
+          id: "singleton",
+          allowSameDayBooking: true,
+          sameDaySurchargePercent: 0,
+          globalBookingLookaheadDays: 30,
+          minimumNoticeHours: 2,
+        },
+      });
+    }
+
+    return config;
+  } catch (error) {
+    // If table doesn't exist yet, return defaults
+    return {
+      id: "singleton",
+      allowSameDayBooking: true,
+      sameDaySurchargePercent: 0,
+      globalBookingLookaheadDays: 30,
+      minimumNoticeHours: 2,
+      updatedAt: new Date(),
+    };
+  }
+}
+
+type SchedulingConfigInput = {
+  allowSameDayBooking?: boolean;
+  sameDaySurchargePercent?: number;
+  globalBookingLookaheadDays?: number;
+  minimumNoticeHours?: number;
+};
+
+export async function updateSchedulingConfig(input: SchedulingConfigInput) {
+  await ensureSeededState();
+
+  const surcharge = input.sameDaySurchargePercent ?? 0;
+  const lookahead = input.globalBookingLookaheadDays ?? 30;
+  const notice = input.minimumNoticeHours ?? 2;
+
+  if (surcharge < 0 || surcharge > 100) {
+    throw new Error("Same-day surcharge must be between 0 and 100.");
+  }
+
+  if (lookahead < 1 || lookahead > 365) {
+    throw new Error("Booking lookahead days must be between 1 and 365.");
+  }
+
+  if (notice < 0 || notice > 72) {
+    throw new Error("Minimum notice hours must be between 0 and 72.");
+  }
+
+  return prisma.schedulingConfig.upsert({
+    where: { id: "singleton" },
+    create: {
+      id: "singleton",
+      allowSameDayBooking: input.allowSameDayBooking ?? true,
+      sameDaySurchargePercent: surcharge,
+      globalBookingLookaheadDays: lookahead,
+      minimumNoticeHours: notice,
+    },
+    update: {
+      allowSameDayBooking: input.allowSameDayBooking,
+      sameDaySurchargePercent: surcharge,
+      globalBookingLookaheadDays: lookahead,
+      minimumNoticeHours: notice,
+    },
+  });
+}

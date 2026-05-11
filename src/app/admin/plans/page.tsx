@@ -58,6 +58,24 @@ export default async function AdminPlansPage() {
             className="rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]"
           />
           <input
+            name="durationMinutes"
+            type="number"
+            min="15"
+            step="15"
+            defaultValue="90"
+            placeholder="Duration (minutes)"
+            className="rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]"
+          />
+          <input
+            name="bookingLookaheadDays"
+            type="number"
+            min="1"
+            max="365"
+            defaultValue="30"
+            placeholder="Booking lookahead (days)"
+            className="rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]"
+          />
+          <input
             name="sortOrder"
             type="number"
             defaultValue="100"

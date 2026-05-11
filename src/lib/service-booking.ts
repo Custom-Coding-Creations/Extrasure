@@ -12,11 +12,15 @@ export type BookingCheckoutInput = {
   contactPhone: string;
   preferredDate: string;
   preferredWindow: string;
+  preferredDateTime?: string; // New: exact ISO datetime from availability picker
+  preferredTechnicianId?: string; // New: technician selected from availability picker
   addressLine1: string;
   addressLine2?: string;
   city: string;
   postalCode?: string;
+  stateProvince?: string;
   notes?: string;
+  marketingConsent?: boolean;
 };
 
 export type BookingCheckoutResult = {
@@ -35,31 +39,45 @@ function normalizeInput(input: BookingCheckoutInput) {
   const contactPhone = input.contactPhone.trim();
   const preferredDate = input.preferredDate.trim();
   const preferredWindow = input.preferredWindow.trim();
+  const preferredDateTime = input.preferredDateTime?.trim() || null;
+  const preferredTechnicianId = input.preferredTechnicianId?.trim() || null;
   const addressLine1 = input.addressLine1.trim();
   const addressLine2 = input.addressLine2?.trim() || null;
   const city = input.city.trim();
   const postalCode = input.postalCode?.trim() || null;
+  const stateProvince = input.stateProvince?.trim() || null;
   const notes = input.notes?.trim() || null;
+  const marketingConsent = input.marketingConsent ?? false;
 
-  if (!serviceCatalogItemId || !contactName || !contactEmail || !contactPhone || !preferredDate || !preferredWindow || !addressLine1 || !city) {
-    throw new Error("Service, contact details, schedule preference, and address are required.");
+  if (!serviceCatalogItemId || !contactName || !contactEmail || !contactPhone || !addressLine1 || !city) {
+    throw new Error("Service, contact details, and address are required.");
   }
 
   if (!contactEmail.includes("@")) {
     throw new Error("Please provide a valid email address.");
   }
 
-  const parsedPreferredDate = new Date(preferredDate);
-
-  if (Number.isNaN(parsedPreferredDate.getTime())) {
-    throw new Error("Preferred date is invalid.");
+  // If using the new availability picker, require preferredDateTime
+  if (!preferredDate && !preferredDateTime) {
+    throw new Error("Please select a preferred date and time.");
   }
 
-  const floorDate = new Date();
-  floorDate.setHours(0, 0, 0, 0);
+  // Parse date - use preferredDateTime if available, otherwise fall back to preferredDate
+  let parsedDateTime: Date;
+  if (preferredDateTime) {
+    parsedDateTime = new Date(preferredDateTime);
+  } else {
+    parsedDateTime = new Date(preferredDate);
+    parsedDateTime.setHours(0, 0, 0, 0);
+  }
 
-  if (parsedPreferredDate < floorDate) {
-    throw new Error("Preferred date cannot be in the past.");
+  if (Number.isNaN(parsedDateTime.getTime())) {
+    throw new Error("Preferred date/time is invalid.");
+  }
+
+  const now = new Date();
+  if (parsedDateTime < now) {
+    throw new Error("Preferred date/time cannot be in the past.");
   }
 
   return {
@@ -67,13 +85,16 @@ function normalizeInput(input: BookingCheckoutInput) {
     contactName,
     contactEmail,
     contactPhone,
-    preferredDate: parsedPreferredDate,
+    preferredDateTime: parsedDateTime,
+    preferredTechnicianId,
     preferredWindow,
     addressLine1,
     addressLine2,
     city,
     postalCode,
+    stateProvince,
     notes,
+    marketingConsent,
   };
 }
 
@@ -95,7 +116,7 @@ function mapBillingCycleToPlan(cycle: "one_time" | "monthly" | "quarterly" | "an
 
 function createBookingIdempotencyKey(input: ReturnType<typeof normalizeInput>) {
   const bucket = Math.floor(Date.now() / BOOKING_IDEMPOTENCY_WINDOW_MS);
-  const normalizedDate = input.preferredDate.toISOString().slice(0, 10);
+  const normalizedDate = input.preferredDateTime.toISOString().slice(0, 10);
   const raw = [
     input.serviceCatalogItemId,
     input.contactEmail,
@@ -227,12 +248,15 @@ export async function createBookingCheckout(input: BookingCheckoutInput): Promis
         contactName: normalized.contactName,
         contactEmail: normalized.contactEmail,
         contactPhone: normalized.contactPhone,
-        preferredDate: normalized.preferredDate,
+        preferredDate: normalized.preferredDateTime,
         preferredWindow: normalized.preferredWindow,
+        scheduledAt: normalized.preferredDateTime,
+        technicianId: normalized.preferredTechnicianId,
         addressLine1: normalized.addressLine1,
         addressLine2: normalized.addressLine2,
         city: normalized.city,
         postalCode: normalized.postalCode,
+        stateProvince: normalized.stateProvince,
         notes: normalized.notes,
         status: "checkout_pending",
       },

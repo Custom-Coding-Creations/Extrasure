@@ -1,4 +1,5 @@
 import { AdminShell } from "@/components/admin/admin-shell";
+import Link from "next/link";
 import { AdminDataNotice } from "@/components/admin/admin-data-notice";
 import {
   createTechnicianAction,
@@ -42,14 +43,22 @@ export default async function AdminTechniciansPage({
       <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl text-[#1b2f25]">Create Technician</h2>
-          <form action={dedupeTechniciansAction}>
-            <button
-              type="submit"
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/admin/technicians/schedules"
               className="rounded-full border border-[#30435b] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#30435b] transition hover:bg-[#30435b] hover:text-white"
             >
-              Merge duplicate technicians
-            </button>
-          </form>
+              Configure Schedules
+            </Link>
+            <form action={dedupeTechniciansAction}>
+              <button
+                type="submit"
+                className="rounded-full border border-[#30435b] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#30435b] transition hover:bg-[#30435b] hover:text-white"
+              >
+                Merge duplicate technicians
+              </button>
+            </form>
+          </div>
         </div>
         <form action={createTechnicianAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <input

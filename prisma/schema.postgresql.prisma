@@ -113,6 +113,16 @@ enum AutomationEventStatus {
   failed
 }
 
+enum DayOfWeek {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+}
+
 model AdminUser {
   id               String  @id
   name             String
@@ -146,6 +156,8 @@ model ServiceCatalogItem {
   stripeProductId String?
   stripePriceId   String?
   sortOrder       Int                @default(0)
+  durationMinutes Int                @default(90)
+  bookingLookaheadDays Int            @default(30)
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 }
@@ -167,6 +179,8 @@ model ServiceBooking {
   postalCode         String?
   notes              String?
   status             ServiceBookingStatus @default(checkout_pending)
+  scheduledAt        DateTime?
+  technicianId       String?
   stripeCheckoutSessionId String?
   stripeSubscriptionId String?
   paidAt             DateTime?
@@ -206,6 +220,42 @@ model Technician {
   name               String
   status             TechnicianStatus
   utilizationPercent Int
+}
+
+model TechnicianSchedule {
+  id            String   @id
+  technicianId  String
+  dayOfWeek     DayOfWeek
+  startTime     String   @default("08:00")
+  endTime       String   @default("17:00")
+  breakStartTime String?
+  breakEndTime  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([technicianId, dayOfWeek])
+}
+
+model TechnicianScheduleException {
+  id           String   @id
+  technicianId String
+  exceptionDate DateTime
+  startTime    String?
+  endTime      String?
+  isDayOff     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([technicianId, exceptionDate])
+}
+
+model SchedulingConfig {
+  id                      String  @id @default("singleton")
+  allowSameDayBooking     Boolean @default(true)
+  sameDaySurchargePercent Int     @default(0)
+  globalBookingLookaheadDays Int  @default(30)
+  minimumNoticeHours      Int     @default(2)
+  updatedAt               DateTime @updatedAt
 }
 
 model Job {

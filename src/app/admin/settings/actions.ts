@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { requireAdminRole } from "@/lib/admin-auth";
-import { createAdminUser, deleteAdminUser, toggleAdminUserTwoFactor, updateAdminUser } from "@/lib/admin-store";
+import { createAdminUser, deleteAdminUser, toggleAdminUserTwoFactor, updateAdminUser, updateSchedulingConfig } from "@/lib/admin-store";
 import { recordAuditEvent } from "@/lib/audit-log";
 import type { adminUsers } from "@/lib/admin-data";
 
@@ -103,4 +103,40 @@ export async function toggleAdminUserTwoFactorAction(formData: FormData) {
   }
 
   revalidateSettingsPaths();
+}
+
+export async function updateSchedulingConfigAction(formData: FormData) {
+  try {
+    const session = await requireAdminRole(["owner"]);
+    const allowSameDayBooking = formData.get("allowSameDayBooking") === "on";
+    const sameDaySurchargePercent = Number(formData.get("sameDaySurchargePercent") ?? 0);
+    const globalBookingLookaheadDays = Number(formData.get("globalBookingLookaheadDays") ?? 30);
+    const minimumNoticeHours = Number(formData.get("minimumNoticeHours") ?? 2);
+
+    await updateSchedulingConfig({
+      allowSameDayBooking,
+      sameDaySurchargePercent,
+      globalBookingLookaheadDays,
+      minimumNoticeHours,
+    });
+
+    await recordAuditEvent({
+      actor: session.name,
+      role: session.role,
+      action: "scheduling_config_updated",
+      entity: "scheduling_config",
+      entityId: "singleton",
+      after: {
+        allowSameDayBooking,
+        sameDaySurchargePercent,
+        globalBookingLookaheadDays,
+        minimumNoticeHours,
+      },
+    });
+  } catch (error) {
+    handleActionError(error, "updateSchedulingConfigAction failed");
+  }
+
+  revalidateSettingsPaths();
+}
 }

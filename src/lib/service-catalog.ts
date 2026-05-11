@@ -13,6 +13,8 @@ export type ServiceCatalogItemInput = {
   stripeProductId?: string | null;
   stripePriceId?: string | null;
   sortOrder: number;
+  durationMinutes?: number;
+  bookingLookaheadDays?: number;
 };
 
 const starterCatalog: ServiceCatalogItemInput[] = [
@@ -84,6 +86,8 @@ function normalizeInput(input: ServiceCatalogItemInput): ServiceCatalogItemInput
   const serviceType = input.serviceType.trim();
   const amount = Number(input.amount);
   const sortOrder = Number(input.sortOrder);
+  const durationMinutes = Number(input.durationMinutes ?? 90);
+  const bookingLookaheadDays = Number(input.bookingLookaheadDays ?? 30);
 
   if (!name || !description || !serviceType) {
     throw new Error("Name, description, and service type are required.");
@@ -95,6 +99,14 @@ function normalizeInput(input: ServiceCatalogItemInput): ServiceCatalogItemInput
 
   if (!Number.isFinite(sortOrder)) {
     throw new Error("Sort order must be a number.");
+  }
+
+  if (!Number.isFinite(durationMinutes) || durationMinutes < 15) {
+    throw new Error("Duration must be at least 15 minutes.");
+  }
+
+  if (!Number.isFinite(bookingLookaheadDays) || bookingLookaheadDays < 1 || bookingLookaheadDays > 365) {
+    throw new Error("Booking lookahead must be between 1 and 365 days.");
   }
 
   if (input.kind === "one_time" && input.billingCycle !== "one_time") {
@@ -116,6 +128,8 @@ function normalizeInput(input: ServiceCatalogItemInput): ServiceCatalogItemInput
     stripeProductId: input.stripeProductId?.trim() || null,
     stripePriceId: input.stripePriceId?.trim() || null,
     sortOrder: Math.round(sortOrder),
+    durationMinutes: Math.round(durationMinutes),
+    bookingLookaheadDays: Math.round(bookingLookaheadDays),
   };
 }
 

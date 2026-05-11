@@ -5,13 +5,16 @@ import {
   deleteAdminUserAction,
   toggleAdminUserTwoFactorAction,
   updateAdminUserAction,
+  updateSchedulingConfigAction,
 } from "@/app/admin/settings/actions";
 import { loadAdminPageData } from "@/lib/admin-page-data";
+import { getSchedulingConfig } from "@/lib/admin-store";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminSettingsPage() {
   const { state, dataError } = await loadAdminPageData();
+  const schedulingConfig = await getSchedulingConfig();
 
   return (
     <AdminShell
@@ -90,6 +93,77 @@ export default async function AdminSettingsPage() {
           <li>Review failed authentication attempts weekly and rotate privileged credentials quarterly.</li>
           <li>Confirm webhook signature validation for payment and accounting integrations.</li>
         </ul>
+      </section>
+
+      <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
+        <h2 className="text-2xl text-[#1b2f25]">Booking and Scheduling Configuration</h2>
+        <form action={updateSchedulingConfigAction} className="mt-4 grid gap-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-semibold text-[#20372c]">Allow Same-Day Booking</label>
+              <label className="mt-2 flex items-center gap-2 rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]">
+                <input
+                  name="allowSameDayBooking"
+                  type="checkbox"
+                  defaultChecked={schedulingConfig.allowSameDayBooking}
+                  className="h-4 w-4"
+                />
+                Customers can book services today if slots available
+              </label>
+              <p className="mt-2 text-xs text-[#5d7267]">
+                When unchecked, customers can only book services at least 24 hours in advance.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#20372c]">Same-Day Booking Surcharge (%)</label>
+              <input
+                name="sameDaySurchargePercent"
+                type="number"
+                min="0"
+                max="100"
+                step="5"
+                defaultValue={schedulingConfig.sameDaySurchargePercent}
+                className="mt-2 w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]"
+              />
+              <p className="mt-2 text-xs text-[#5d7267]">Percentage increase to invoice total for same-day bookings (0-100%)</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#20372c]">Default Booking Lookahead (days)</label>
+              <input
+                name="globalBookingLookaheadDays"
+                type="number"
+                min="1"
+                max="365"
+                defaultValue={schedulingConfig.globalBookingLookaheadDays}
+                className="mt-2 w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]"
+              />
+              <p className="mt-2 text-xs text-[#5d7267]">How many days ahead customers can book (used if service doesn't specify)</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#20372c]">Minimum Notice Required (hours)</label>
+              <input
+                name="minimumNoticeHours"
+                type="number"
+                min="0"
+                max="72"
+                step="1"
+                defaultValue={schedulingConfig.minimumNoticeHours}
+                className="mt-2 w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]"
+              />
+              <p className="mt-2 text-xs text-[#5d7267]">Customers must book at least this many hours in advance (0-72 hours)</p>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="rounded-xl bg-[#163526] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#10271d]"
+          >
+            Save Configuration
+          </button>
+        </form>
       </section>
       </>
       )}

@@ -40,11 +40,15 @@ export async function startBookingCheckoutAction(formData: FormData) {
       contactPhone: String(formData.get("contactPhone") ?? ""),
       preferredDate: String(formData.get("preferredDate") ?? ""),
       preferredWindow: String(formData.get("preferredWindow") ?? ""),
+      preferredDateTime: String(formData.get("preferredDateTime") ?? ""),
+      preferredTechnicianId: String(formData.get("preferredTechnicianId") ?? ""),
       addressLine1: String(formData.get("addressLine1") ?? ""),
       addressLine2: String(formData.get("addressLine2") ?? ""),
       city: String(formData.get("city") ?? ""),
       postalCode: String(formData.get("postalCode") ?? ""),
+      stateProvince: String(formData.get("stateProvince") ?? ""),
       notes: String(formData.get("notes") ?? ""),
+      marketingConsent: formData.get("marketingConsent") === "on",
     });
 
     await recordAuditEvent({
