@@ -11,6 +11,7 @@ const links = [
   { href: "/commercial", label: "Commercial" },
   { href: "/reviews", label: "Reviews" },
   { href: "/faq", label: "FAQ" },
+  { href: "/account", label: "My Account" },
   { href: "/pay", label: "Pay Bill" },
   { href: "/contact", label: "Contact" },
   { href: "/admin", label: "Owner Dashboard" },

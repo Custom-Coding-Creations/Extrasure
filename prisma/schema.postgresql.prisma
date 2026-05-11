@@ -27,6 +27,17 @@ enum Lifecycle {
   past_due
 }
 
+enum CustomerAccountStatus {
+  invited
+  active
+  disabled
+}
+
+enum CustomerNoteVisibility {
+  internal
+  customer
+}
+
 enum TechnicianStatus {
   available
   in_route
@@ -107,6 +118,30 @@ model Customer {
   stripeCustomerId String?    @unique
   stripeSubscriptionId String?
   stripeSubscriptionStatus String?
+}
+
+model CustomerAccount {
+  id           String                @id
+  customerId   String                @unique
+  email        String                @unique
+  passwordHash String
+  status       CustomerAccountStatus @default(active)
+  invitedAt    DateTime?
+  claimedAt    DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+}
+
+model CustomerNote {
+  id          String                 @id
+  customerId  String
+  authorType  String
+  authorName  String
+  body        String
+  visibility  CustomerNoteVisibility @default(customer)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
 }
 
 model Technician {

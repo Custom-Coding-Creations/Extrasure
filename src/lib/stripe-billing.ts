@@ -234,7 +234,14 @@ export async function getPaymentClientSecret(invoiceId: string) {
       expand: ["latest_invoice.payment_intent"],
     });
     const latestInvoice = subscription.latest_invoice as Stripe.Invoice;
-    const paymentIntent = latestInvoice.payment_intent as Stripe.PaymentIntent;
+    const paymentIntent = (latestInvoice as Stripe.Invoice & {
+      payment_intent?: string | Stripe.PaymentIntent | null;
+    }).payment_intent as Stripe.PaymentIntent | null | undefined;
+
+    if (!paymentIntent || typeof paymentIntent === "string") {
+      throw new Error("Subscription invoice is missing an expanded payment intent");
+    }
+
     return { clientSecret: paymentIntent.client_secret, type: "subscription" as const };
   }
 
@@ -245,7 +252,14 @@ export async function getPaymentClientSecret(invoiceId: string) {
   } else {
     const subscription = await createDirectSubscriptionForInvoice(invoiceId);
     const latestInvoice = subscription.latest_invoice as Stripe.Invoice;
-    const paymentIntent = latestInvoice.payment_intent as Stripe.PaymentIntent;
+    const paymentIntent = (latestInvoice as Stripe.Invoice & {
+      payment_intent?: string | Stripe.PaymentIntent | null;
+    }).payment_intent as Stripe.PaymentIntent | null | undefined;
+
+    if (!paymentIntent || typeof paymentIntent === "string") {
+      throw new Error("Subscription invoice is missing an expanded payment intent");
+    }
+
     return { clientSecret: paymentIntent.client_secret, type: "subscription" as const };
   }
 }
@@ -476,6 +490,37 @@ export async function getStripeInvoiceDocumentLinks(invoiceId: string) {
 
   if (!localInvoice.stripeInvoiceId) {
     throw new Error("Invoice is not linked to Stripe Invoice API yet");
+  }
+
+  const stripeInvoice = await stripe.invoices.retrieve(localInvoice.stripeInvoiceId);
+
+  return {
+    stripeInvoiceId: stripeInvoice.id,
+    hostedInvoiceUrl: stripeInvoice.hosted_invoice_url,
+    pdfUrl: stripeInvoice.invoice_pdf,
+  };
+}
+
+export async function getCustomerStripeInvoiceDocumentLinks(customerId: string, invoiceId: string) {
+  const localInvoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: {
+      id: true,
+      customerId: true,
+      stripeInvoiceId: true,
+    },
+  });
+
+  if (!localInvoice || localInvoice.customerId !== customerId) {
+    throw new Error("Invoice not found");
+  }
+
+  if (!localInvoice.stripeInvoiceId) {
+    return {
+      stripeInvoiceId: null,
+      hostedInvoiceUrl: null,
+      pdfUrl: null,
+    };
   }
 
   const stripeInvoice = await stripe.invoices.retrieve(localInvoice.stripeInvoiceId);
@@ -731,12 +776,11 @@ async function upsertLocalInvoiceFromStripeInvoice(invoice: Stripe.Invoice) {
     return;
   }
 
-  if (!invoice.subscription) {
+  if (!stripeSubscriptionId) {
     return;
   }
 
-  const subscriptionId =
-    typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription.id;
+  const subscriptionId = stripeSubscriptionId;
   const customer = await prisma.customer.findFirst({
     where: {
       OR: [

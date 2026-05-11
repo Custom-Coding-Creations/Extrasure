@@ -3,14 +3,21 @@ import { AdminDataNotice } from "@/components/admin/admin-data-notice";
 import {
   createCustomerAction,
   deleteCustomerAction,
+  disableCustomerAccountAction,
+  enableCustomerAccountAction,
+  inviteCustomerAccountAction,
   updateCustomerAction,
 } from "@/app/admin/customers/actions";
 import { loadAdminPageData } from "@/lib/admin-page-data";
+import { getCustomerAccountSummaries } from "@/lib/customer-auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCustomersPage() {
   const { state, dataError } = await loadAdminPageData();
+  const accountSummaries = state
+    ? await getCustomerAccountSummaries(state.customers.map((customer) => customer.id))
+    : new Map();
 
   return (
     <AdminShell
@@ -90,12 +97,16 @@ export default async function AdminCustomersPage() {
               <th className="px-4 py-3">Plan</th>
               <th className="px-4 py-3">Lifecycle</th>
               <th className="px-4 py-3">Last Service</th>
+              <th className="px-4 py-3">Account</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody>
             {state.customers.map((customer) => {
               const formId = `customer-form-${customer.id}`;
+              const account = accountSummaries.get(customer.id);
+              const hasAccount = Boolean(account);
+              const accountStatus = account?.status ?? "none";
 
               return (
               <tr key={customer.id} className="border-b border-[#ecdfc3] last:border-0">
@@ -167,6 +178,17 @@ export default async function AdminCustomersPage() {
                     className="w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]"
                   />
                 </td>
+                <td className="px-4 py-3 align-top text-[#33453a]">
+                  <p className="text-xs uppercase tracking-[0.09em] text-[#5d7267]">
+                    {hasAccount ? accountStatus : "none"}
+                  </p>
+                  <p className="mt-2 text-xs text-[#5d7267]">
+                    {account?.email ?? "No account created"}
+                  </p>
+                  <p className="mt-1 text-xs text-[#5d7267]">
+                    {account?.lastLoginAt ? `Last login ${new Date(account.lastLoginAt).toLocaleDateString()}` : "No login yet"}
+                  </p>
+                </td>
                 <td className="px-4 py-3 align-top">
                   <div className="flex flex-wrap gap-2">
                     <form id={formId} action={updateCustomerAction}>
@@ -185,6 +207,35 @@ export default async function AdminCustomersPage() {
                         className="rounded-full border border-[#8a3d22] px-3 py-1 text-xs font-semibold text-[#8a3d22] transition hover:bg-[#8a3d22] hover:text-white"
                       >
                         Delete
+                      </button>
+                    </form>
+                    <form action={inviteCustomerAccountAction}>
+                      <input type="hidden" name="customerId" value={customer.id} />
+                      <button
+                        type="submit"
+                        className="rounded-full border border-[#2f4a78] px-3 py-1 text-xs font-semibold text-[#2f4a78] transition hover:bg-[#2f4a78] hover:text-white"
+                      >
+                        Invite Account
+                      </button>
+                    </form>
+                    <form action={disableCustomerAccountAction}>
+                      <input type="hidden" name="customerId" value={customer.id} />
+                      <button
+                        type="submit"
+                        disabled={!hasAccount || accountStatus === "disabled"}
+                        className="rounded-full border border-[#8a3d22] px-3 py-1 text-xs font-semibold text-[#8a3d22] transition hover:bg-[#8a3d22] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Disable Login
+                      </button>
+                    </form>
+                    <form action={enableCustomerAccountAction}>
+                      <input type="hidden" name="customerId" value={customer.id} />
+                      <button
+                        type="submit"
+                        disabled={!hasAccount || accountStatus === "active"}
+                        className="rounded-full border border-[#4f6f49] px-3 py-1 text-xs font-semibold text-[#3e5a37] transition hover:bg-[#3e5a37] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Enable Login
                       </button>
                     </form>
                   </div>

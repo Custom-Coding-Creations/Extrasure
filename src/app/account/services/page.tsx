@@ -1,0 +1,41 @@
+import { redirect } from "next/navigation";
+import { AccountShell } from "@/components/account/account-shell";
+import { logoutCustomer } from "@/app/account/actions";
+import { requireCustomerSession } from "@/lib/customer-auth";
+import { getCustomerAccountSnapshot } from "@/lib/customer-account-data";
+
+export const dynamic = "force-dynamic";
+
+export default async function AccountServicesPage() {
+  const session = await requireCustomerSession();
+  const snapshot = await getCustomerAccountSnapshot(session.customerId);
+
+  if (!snapshot) {
+    redirect("/account/login");
+  }
+
+  return (
+    <AccountShell
+      title="Service History"
+      subtitle="Track completed, in-progress, and scheduled services for your property."
+      activePath="/account/services"
+      logoutAction={logoutCustomer}
+    >
+      <section className="paper-panel rounded-2xl border border-[#d3c7ad] p-6">
+        <div className="space-y-3">
+          {snapshot.jobs.length ? (
+            snapshot.jobs.map((job) => (
+              <article key={job.id} className="rounded-xl border border-[#d8cbaf] bg-[#fffdf6] p-3 text-sm">
+                <p className="font-semibold text-[#1b2f25]">{job.service}</p>
+                <p className="mt-1 capitalize text-[#33453a]">{job.status.replace("_", " ")}</p>
+                <p className="mt-1 text-xs text-[#5d7267]">{new Date(job.scheduledAt).toLocaleString()}</p>
+              </article>
+            ))
+          ) : (
+            <p className="text-sm text-[#5d7267]">No service history yet.</p>
+          )}
+        </div>
+      </section>
+    </AccountShell>
+  );
+}

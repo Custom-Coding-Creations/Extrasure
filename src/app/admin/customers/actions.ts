@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { createCustomer, deleteCustomer, updateCustomer } from "@/lib/admin-store";
 import { recordAuditEvent } from "@/lib/audit-log";
+import { inviteCustomerAccountByCustomerId, setCustomerAccountStatusByCustomerId } from "@/lib/customer-auth";
 import type { Customer } from "@/lib/admin-data";
 
 function getCustomerInput(formData: FormData): Omit<Customer, "id"> {
@@ -64,5 +65,65 @@ export async function deleteCustomerAction(formData: FormData) {
     entity: "customer",
     entityId: customerId,
   });
+  revalidateCustomerPaths();
+}
+
+export async function inviteCustomerAccountAction(formData: FormData) {
+  const session = await requireAdminRole(["owner", "dispatch"]);
+  const customerId = String(formData.get("customerId") ?? "").trim();
+
+  const result = await inviteCustomerAccountByCustomerId(customerId);
+
+  await recordAuditEvent({
+    actor: session.name,
+    role: session.role,
+    action: "customer_updated",
+    entity: "customer",
+    entityId: customerId,
+    after: {
+      accountInvite: result.ok ? "invited" : "failed",
+    },
+  });
+
+  revalidateCustomerPaths();
+}
+
+export async function disableCustomerAccountAction(formData: FormData) {
+  const session = await requireAdminRole(["owner", "dispatch"]);
+  const customerId = String(formData.get("customerId") ?? "").trim();
+
+  const result = await setCustomerAccountStatusByCustomerId(customerId, "disabled");
+
+  await recordAuditEvent({
+    actor: session.name,
+    role: session.role,
+    action: "customer_updated",
+    entity: "customer",
+    entityId: customerId,
+    after: {
+      accountStatus: result.ok ? "disabled" : "failed",
+    },
+  });
+
+  revalidateCustomerPaths();
+}
+
+export async function enableCustomerAccountAction(formData: FormData) {
+  const session = await requireAdminRole(["owner", "dispatch"]);
+  const customerId = String(formData.get("customerId") ?? "").trim();
+
+  const result = await setCustomerAccountStatusByCustomerId(customerId, "active");
+
+  await recordAuditEvent({
+    actor: session.name,
+    role: session.role,
+    action: "customer_updated",
+    entity: "customer",
+    entityId: customerId,
+    after: {
+      accountStatus: result.ok ? "active" : "failed",
+    },
+  });
+
   revalidateCustomerPaths();
 }
