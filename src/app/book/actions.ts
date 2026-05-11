@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { recordAuditEvent } from "@/lib/audit-log";
 import { createBookingCheckout } from "@/lib/service-booking";
@@ -64,6 +65,10 @@ export async function startBookingCheckoutAction(formData: FormData) {
 
     redirect(result.checkoutUrl);
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     const message = encodeURIComponent(getErrorMessage(error));
     redirect(`/book?error=${message}`);
   }
