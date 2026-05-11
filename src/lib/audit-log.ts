@@ -32,6 +32,7 @@ export type AuditAction =
   | "technician_created"
   | "technician_updated"
   | "technician_deleted"
+  | "technician_deduplicated"
   | "technician_status_changed"
   | "payment_refunded"
   | "payment_retried";
