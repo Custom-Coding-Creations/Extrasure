@@ -34,6 +34,14 @@ export type CustomerAccountSummary = {
   lastLoginAt: Date | null;
 };
 
+export type CustomerSignupInput = {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  city: string;
+};
+
 function getAuthSecret() {
   const secret = process.env.CUSTOMER_AUTH_SECRET ?? process.env.ADMIN_AUTH_SECRET;
 
@@ -92,6 +100,53 @@ function normalizeEmail(input: string) {
   return input.trim().toLowerCase();
 }
 
+function signResetPayload(payload: string) {
+  return createHmac("sha256", getAuthSecret()).update(`reset:${payload}`).digest("hex");
+}
+
+function encodeResetToken(payload: { email: string; exp: number }) {
+  const payloadJson = JSON.stringify(payload);
+  const signature = signResetPayload(payloadJson);
+  const token = `${payloadJson}.${signature}`;
+
+  return Buffer.from(token, "utf8").toString("base64url");
+}
+
+function decodeResetToken(token: string) {
+  try {
+    const decoded = Buffer.from(token, "base64url").toString("utf8");
+    const splitIndex = decoded.lastIndexOf(".");
+
+    if (splitIndex <= 0) {
+      return null;
+    }
+
+    const payloadText = decoded.slice(0, splitIndex);
+    const signature = decoded.slice(splitIndex + 1);
+    const expectedSignature = signResetPayload(payloadText);
+
+    const provided = Buffer.from(signature, "utf8");
+    const expected = Buffer.from(expectedSignature, "utf8");
+
+    if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+      return null;
+    }
+
+    const payload = JSON.parse(payloadText) as { email?: string; exp?: number };
+
+    if (!payload.email || !payload.exp || Date.now() >= payload.exp) {
+      return null;
+    }
+
+    return {
+      email: normalizeEmail(payload.email),
+      exp: payload.exp,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function validateNewPassword(password: string) {
   return password.trim().length >= 8;
 }
@@ -126,6 +181,85 @@ export async function createCustomerSession(identity: Omit<CustomerSession, "exp
     ...identity,
     exp,
   });
+}
+
+export function createPasswordResetToken(email: string, ttlSeconds = 60 * 30) {
+  return encodeResetToken({
+    email: normalizeEmail(email),
+    exp: Date.now() + ttlSeconds * 1000,
+  });
+}
+
+export async function createCustomerAccountFromSignup(input: CustomerSignupInput) {
+  const normalizedEmail = normalizeEmail(input.email);
+  const normalizedPhone = input.phone.trim();
+  const normalizedCity = input.city.trim();
+  const name = input.name.trim();
+
+  const existingAccount = await prisma.customerAccount.findUnique({
+    where: { email: normalizedEmail },
+    select: { id: true },
+  });
+
+  if (existingAccount) {
+    return {
+      ok: false,
+      message: "An account already exists for this email. Sign in instead.",
+    } as const;
+  }
+
+  let customer = await prisma.customer.findFirst({
+    where: { email: normalizedEmail },
+  });
+
+  if (!customer) {
+    customer = await prisma.customer.create({
+      data: {
+        id: `cust_${randomBytes(8).toString("hex")}`,
+        name,
+        phone: normalizedPhone,
+        email: normalizedEmail,
+        city: normalizedCity,
+        activePlan: "none",
+        lifecycle: "lead",
+        lastServiceDate: new Date(),
+      },
+    });
+  } else {
+    customer = await prisma.customer.update({
+      where: { id: customer.id },
+      data: {
+        name,
+        phone: normalizedPhone,
+        city: normalizedCity,
+      },
+    });
+  }
+
+  const now = new Date();
+
+  const account = await prisma.customerAccount.create({
+    data: {
+      id: `acct_${randomBytes(8).toString("hex")}`,
+      customerId: customer.id,
+      email: normalizedEmail,
+      passwordHash: hashCustomerPassword(input.password),
+      authMethod: "password",
+      status: "active",
+      invitedAt: now,
+      claimedAt: now,
+    },
+  });
+
+  return {
+    ok: true,
+    identity: {
+      customerId: account.customerId,
+      email: account.email,
+      name: customer.name,
+      status: account.status,
+    },
+  } as const;
 }
 
 export async function setCustomerSession(token: string) {
@@ -182,13 +316,14 @@ export async function findCustomerByEmail(email: string) {
       id: true,
       email: true,
       name: true,
+      phone: true,
+      city: true,
     },
   });
 }
 
 export async function createCustomerAccountForExistingCustomer(email: string, password: string) {
-  const normalizedEmail = normalizeEmail(email);
-  const customer = await findCustomerByEmail(normalizedEmail);
+  const customer = await findCustomerByEmail(email);
 
   if (!customer) {
     return {
@@ -197,41 +332,68 @@ export async function createCustomerAccountForExistingCustomer(email: string, pa
     } as const;
   }
 
-  const existing = await prisma.customerAccount.findFirst({
-    where: {
-      OR: [{ customerId: customer.id }, { email: normalizedEmail }],
-    },
+  return createCustomerAccountFromSignup({
+    name: customer.name,
+    email: customer.email,
+    password,
+    phone: customer.phone,
+    city: customer.city,
+  });
+}
+
+export async function requestPasswordReset(email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  const account = await prisma.customerAccount.findUnique({
+    where: { email: normalizedEmail },
+    select: { id: true, email: true, status: true },
   });
 
-  if (existing) {
+  if (!account || account.status === "disabled") {
     return {
-      ok: false,
-      message: "An account already exists for this email. Sign in instead.",
+      ok: true,
+      token: null,
     } as const;
   }
 
-  const now = new Date();
+  return {
+    ok: true,
+    token: createPasswordResetToken(account.email),
+  } as const;
+}
 
-  const account = await prisma.customerAccount.create({
+export async function resetCustomerPassword(token: string, password: string) {
+  const payload = decodeResetToken(token);
+
+  if (!payload) {
+    return {
+      ok: false,
+      message: "This reset link is invalid or expired.",
+    } as const;
+  }
+
+  const account = await prisma.customerAccount.findUnique({
+    where: { email: payload.email },
+    select: { id: true, status: true },
+  });
+
+  if (!account || account.status === "disabled") {
+    return {
+      ok: false,
+      message: "This reset link is invalid or expired.",
+    } as const;
+  }
+
+  await prisma.customerAccount.update({
+    where: { id: account.id },
     data: {
-      id: `acct_${randomBytes(8).toString("hex")}`,
-      customerId: customer.id,
-      email: normalizedEmail,
       passwordHash: hashCustomerPassword(password),
       status: "active",
-      invitedAt: now,
-      claimedAt: now,
+      claimedAt: new Date(),
     },
   });
 
   return {
     ok: true,
-    identity: {
-      customerId: account.customerId,
-      email: account.email,
-      name: customer.name,
-      status: account.status,
-    },
   } as const;
 }
 
@@ -255,6 +417,13 @@ export async function validateCustomerCredentials(email: string, password: strin
     return {
       ok: false,
       message: "This account is disabled. Contact support.",
+    } as const;
+  }
+
+  if (!account.passwordHash) {
+    return {
+      ok: false,
+      message: "This account uses social sign-in. Use your provider to continue.",
     } as const;
   }
 

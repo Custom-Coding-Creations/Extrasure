@@ -124,7 +124,10 @@ model CustomerAccount {
   id           String                @id
   customerId   String                @unique
   email        String                @unique
-  passwordHash String
+  passwordHash String?
+  authMethod   String                @default("password")
+  oauthProvider String?
+  oauthSubject  String?
   status       CustomerAccountStatus @default(active)
   invitedAt    DateTime?
   claimedAt    DateTime?
