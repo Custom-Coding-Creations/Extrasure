@@ -42,10 +42,10 @@ export default async function AdminInventoryPage() {
               <p className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">{item.id}</p>
               <input form={formId} name="name" defaultValue={item.name} className="mt-1 w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-xl text-[#1b2f25]" />
               <div className="mt-2 grid gap-2">
-                <input form={formId} name="quantity" type="number" min="0" step="1" defaultValue={item.quantity} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-3xl text-[#153126]" />
-                <input form={formId} name="unit" defaultValue={item.unit} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#445349]" />
-                <input form={formId} name="reorderPoint" type="number" min="0" step="1" defaultValue={item.reorderPoint} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#445349]" />
-                <input form={formId} name="lastUpdated" type="date" defaultValue={item.lastUpdated} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#445349]" />
+                <input form={formId} name="quantity" type="number" min="0" step="1" defaultValue={item.quantity} className="w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-3xl text-[#153126]" />
+                <input form={formId} name="unit" defaultValue={item.unit} className="w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#445349]" />
+                <input form={formId} name="reorderPoint" type="number" min="0" step="1" defaultValue={item.reorderPoint} className="w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#445349]" />
+                <input form={formId} name="lastUpdated" type="date" defaultValue={item.lastUpdated} className="w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#445349]" />
               </div>
               <p className="mt-1 text-sm text-[#445349]">Reorder at {item.reorderPoint} {item.unit}</p>
               <p className={`mt-3 text-xs uppercase tracking-[0.1em] ${needsReorder ? "text-red-700" : "text-emerald-700"}`}>
