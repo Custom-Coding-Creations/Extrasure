@@ -86,11 +86,11 @@ export default async function AdminOverviewPage() {
             </li>
             <li className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">
               <p className="font-semibold text-[#20372c]">Open Lead Follow-Up</p>
-              <p>{leadCount} new leads are awaiting conversion to approved estimates.</p>
+              <p>{leadCount} open leads are awaiting conversion to approved estimates.</p>
             </li>
             <li className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">
               <p className="font-semibold text-[#20372c]">QuickBooks Sync</p>
-              <p>Last successful reconciliation completed 14 minutes ago.</p>
+              <p>Review the reporting dashboard for the most recent reconciliation status.</p>
             </li>
           </ul>
         </section>

@@ -271,6 +271,25 @@ function currency(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 }
 
+function getDayRange(baseDate = new Date()) {
+  const start = new Date(baseDate);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(baseDate);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
+function isWithinRange(value: string, start: Date, end: Date) {
+  const parsed = new Date(value);
+  return parsed >= start && parsed <= end;
+}
+
+function pluralize(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export function getCustomerById(customerId: string) {
   return customers.find((customer) => customer.id === customerId);
 }
@@ -284,29 +303,106 @@ export function getInvoiceById(invoiceId: string) {
 }
 
 export function getOverviewKpis(): DashboardKpi[] {
+  const todayRange = getDayRange();
+  const yesterdayReference = new Date(todayRange.start);
+  yesterdayReference.setDate(yesterdayReference.getDate() - 1);
+  const yesterdayRange = getDayRange(yesterdayReference);
+
+  const sevenDaysOut = new Date(todayRange.end);
+  sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
+
   const revenueCollectedToday = payments
-    .filter((payment) => payment.status === "succeeded")
+    .filter((payment) => payment.status === "succeeded" && isWithinRange(payment.createdAt, todayRange.start, todayRange.end))
+    .reduce((total, payment) => total + payment.amount, 0);
+  const revenueCollectedYesterday = payments
+    .filter((payment) => payment.status === "succeeded" && isWithinRange(payment.createdAt, yesterdayRange.start, yesterdayRange.end))
     .reduce((total, payment) => total + payment.amount, 0);
   const outstandingInvoices = invoices
     .filter((invoice) => invoice.status === "open" || invoice.status === "past_due")
     .reduce((total, invoice) => total + invoice.amount, 0);
-  const jobsCompletedToday = jobs.filter((job) => job.status === "completed").length;
-  const jobsScheduledNext7Days = jobs.filter((job) => job.status === "scheduled" || job.status === "in_progress").length;
+  const pastDueAccounts = invoices.filter((invoice) => invoice.status === "past_due").length;
+  const newLeadsToday = automationEvents.filter(
+    (event) => event.type === "lead_alert" && isWithinRange(event.scheduledFor, todayRange.start, todayRange.end),
+  ).length;
+  const openLeads = customers.filter((customer) => customer.lifecycle === "lead").length;
+  const jobsCompletedToday = jobs.filter(
+    (job) => job.status === "completed" && isWithinRange(job.scheduledAt, todayRange.start, todayRange.end),
+  ).length;
+  const emergencyClosuresToday = jobs.filter(
+    (job) => job.status === "completed" && job.emergency && isWithinRange(job.scheduledAt, todayRange.start, todayRange.end),
+  ).length;
+  const jobsScheduledNext7Days = jobs.filter(
+    (job) =>
+      (job.status === "scheduled" || job.status === "in_progress") &&
+      isWithinRange(job.scheduledAt, todayRange.start, sevenDaysOut),
+  ).length;
+  const availableTechnicians = technicians.filter((tech) => tech.status !== "off_shift").length;
+  const weeklyCapacity = Math.max(1, availableTechnicians * 35);
+  const capacityPercent = Math.min(100, Math.round((jobsScheduledNext7Days / weeklyCapacity) * 100));
   const failedPayments = payments.filter((payment) => payment.status === "failed").length;
   const avgTicketSize = invoices.length
     ? Math.round(invoices.reduce((total, invoice) => total + invoice.amount, 0) / invoices.length)
     : 0;
   const recurringCount = customers.filter((customer) => customer.activePlan !== "none").length;
   const recurringRetention = customers.length ? Math.round((recurringCount / customers.length) * 100) : 0;
+  const revenueTrend =
+    revenueCollectedYesterday > 0
+      ? `${Math.round(((revenueCollectedToday - revenueCollectedYesterday) / revenueCollectedYesterday) * 100)}% vs yesterday`
+      : revenueCollectedToday > 0
+        ? "new collections vs yesterday"
+        : "no collections yet";
 
   return [
-    { label: "Revenue Collected Today", value: currency(revenueCollectedToday), trend: "+12% vs yesterday", tone: "positive" },
-    { label: "Outstanding Invoices", value: currency(outstandingInvoices), trend: "3 accounts past due", tone: "attention" },
-    { label: "New Leads Today", value: "11", trend: "4 from Google profile", tone: "positive" },
-    { label: "Jobs Completed Today", value: String(jobsCompletedToday), trend: "1 emergency closure", tone: "neutral" },
-    { label: "Jobs Scheduled Next 7 Days", value: String(jobsScheduledNext7Days), trend: "capacity at 82%", tone: "neutral" },
-    { label: "Average Ticket Size", value: currency(avgTicketSize), trend: "+6% MoM", tone: "positive" },
-    { label: "Recurring Plan Retention", value: `${recurringRetention}%`, trend: "steady", tone: "positive" },
-    { label: "Failed Payments", value: String(failedPayments), trend: "1 retry needed", tone: "attention" },
+    {
+      label: "Revenue Collected Today",
+      value: currency(revenueCollectedToday),
+      trend: revenueTrend,
+      tone: revenueCollectedToday >= revenueCollectedYesterday ? "positive" : "attention",
+    },
+    {
+      label: "Outstanding Invoices",
+      value: currency(outstandingInvoices),
+      trend: `${pluralize(pastDueAccounts, "account", "accounts")} past due`,
+      tone: pastDueAccounts > 0 ? "attention" : "neutral",
+    },
+    {
+      label: "New Leads Today",
+      value: String(newLeadsToday),
+      trend: `${pluralize(openLeads, "lead", "leads")} awaiting follow-up`,
+      tone: newLeadsToday > 0 ? "positive" : "neutral",
+    },
+    {
+      label: "Jobs Completed Today",
+      value: String(jobsCompletedToday),
+      trend:
+        emergencyClosuresToday > 0
+          ? `${pluralize(emergencyClosuresToday, "emergency closure", "emergency closures")}`
+          : "no emergency closures",
+      tone: "neutral",
+    },
+    {
+      label: "Jobs Scheduled Next 7 Days",
+      value: String(jobsScheduledNext7Days),
+      trend: `capacity at ${capacityPercent}%`,
+      tone: "neutral",
+    },
+    {
+      label: "Average Ticket Size",
+      value: currency(avgTicketSize),
+      trend: `${pluralize(invoices.length, "invoice", "invoices")}`,
+      tone: "positive",
+    },
+    {
+      label: "Recurring Plan Retention",
+      value: `${recurringRetention}%`,
+      trend: `${recurringCount} of ${customers.length} customers enrolled`,
+      tone: "positive",
+    },
+    {
+      label: "Failed Payments",
+      value: String(failedPayments),
+      trend: failedPayments > 0 ? `${pluralize(failedPayments, "retry", "retries")} needed` : "no retries needed",
+      tone: failedPayments > 0 ? "attention" : "positive",
+    },
   ];
 }

@@ -1453,17 +1453,77 @@ function toCurrency(value: number) {
   }).format(value);
 }
 
+function getDayRange(baseDate = new Date()) {
+  const start = new Date(baseDate);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(baseDate);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
+function isWithinRange(value: string, start: Date, end: Date) {
+  const parsed = new Date(value);
+  return parsed >= start && parsed <= end;
+}
+
+function pluralize(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export function getOverviewKpisFromState(state: AdminState): DashboardKpi[] {
+  const todayRange = getDayRange();
+  const yesterdayReference = new Date(todayRange.start);
+  yesterdayReference.setDate(yesterdayReference.getDate() - 1);
+  const yesterdayRange = getDayRange(yesterdayReference);
+
+  const sevenDaysOut = new Date(todayRange.end);
+  sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
+
   const revenueCollectedToday = state.payments
-    .filter((payment) => payment.status === "succeeded")
+    .filter(
+      (payment) =>
+        payment.status === "succeeded" &&
+        isWithinRange(payment.createdAt, todayRange.start, todayRange.end),
+    )
+    .reduce((total, payment) => total + payment.amount, 0);
+  const revenueCollectedYesterday = state.payments
+    .filter(
+      (payment) =>
+        payment.status === "succeeded" &&
+        isWithinRange(payment.createdAt, yesterdayRange.start, yesterdayRange.end),
+    )
     .reduce((total, payment) => total + payment.amount, 0);
   const outstandingInvoices = state.invoices
     .filter((invoice) => invoice.status === "open" || invoice.status === "past_due")
     .reduce((total, invoice) => total + invoice.amount, 0);
-  const jobsCompletedToday = state.jobs.filter((job) => job.status === "completed").length;
-  const jobsScheduledNext7Days = state.jobs.filter(
-    (job) => job.status === "scheduled" || job.status === "in_progress",
+  const pastDueAccounts = state.invoices.filter((invoice) => invoice.status === "past_due").length;
+  const newLeadsToday = state.automationEvents.filter(
+    (event) =>
+      event.type === "lead_alert" &&
+      isWithinRange(event.scheduledFor, todayRange.start, todayRange.end),
   ).length;
+  const openLeads = state.customers.filter((customer) => customer.lifecycle === "lead").length;
+  const jobsCompletedToday = state.jobs.filter(
+    (job) =>
+      job.status === "completed" &&
+      isWithinRange(job.scheduledAt, todayRange.start, todayRange.end),
+  ).length;
+  const emergencyClosuresToday = state.jobs.filter(
+    (job) =>
+      job.status === "completed" &&
+      job.emergency &&
+      isWithinRange(job.scheduledAt, todayRange.start, todayRange.end),
+  ).length;
+  const jobsScheduledNext7Days = state.jobs.filter(
+    (job) =>
+      (job.status === "scheduled" || job.status === "in_progress") &&
+      isWithinRange(job.scheduledAt, todayRange.start, sevenDaysOut),
+  ).length;
+  const availableTechnicians = state.technicians.filter((tech) => tech.status !== "off_shift").length;
+  const weeklyCapacity = Math.max(1, availableTechnicians * 35);
+  const capacityPercent = Math.min(100, Math.round((jobsScheduledNext7Days / weeklyCapacity) * 100));
   const failedPayments = state.payments.filter((payment) => payment.status === "failed").length;
   const avgTicketSize = state.invoices.length
     ? Math.round(
@@ -1474,55 +1534,67 @@ export function getOverviewKpisFromState(state: AdminState): DashboardKpi[] {
   const recurringRetention = state.customers.length
     ? Math.round((recurringCount / state.customers.length) * 100)
     : 0;
+  const revenueTrend =
+    revenueCollectedYesterday > 0
+      ? `${Math.round(((revenueCollectedToday - revenueCollectedYesterday) / revenueCollectedYesterday) * 100)}% vs yesterday`
+      : revenueCollectedToday > 0
+        ? "new collections vs yesterday"
+        : "no collections yet";
 
   return [
     {
       label: "Revenue Collected Today",
       value: toCurrency(revenueCollectedToday),
-      trend: "+12% vs yesterday",
-      tone: "positive",
+      trend: revenueTrend,
+      tone: revenueCollectedToday >= revenueCollectedYesterday ? "positive" : "attention",
     },
     {
       label: "Outstanding Invoices",
       value: toCurrency(outstandingInvoices),
-      trend: "3 accounts past due",
-      tone: "attention",
+      trend: `${pluralize(pastDueAccounts, "account", "accounts")} past due`,
+      tone: pastDueAccounts > 0 ? "attention" : "neutral",
     },
     {
       label: "New Leads Today",
-      value: "11",
-      trend: "4 from Google profile",
-      tone: "positive",
+      value: String(newLeadsToday),
+      trend: `${pluralize(openLeads, "lead", "leads")} awaiting follow-up`,
+      tone: newLeadsToday > 0 ? "positive" : "neutral",
     },
     {
       label: "Jobs Completed Today",
       value: String(jobsCompletedToday),
-      trend: "1 emergency closure",
+      trend:
+        emergencyClosuresToday > 0
+          ? `${pluralize(emergencyClosuresToday, "emergency closure", "emergency closures")}`
+          : "no emergency closures",
       tone: "neutral",
     },
     {
       label: "Jobs Scheduled Next 7 Days",
       value: String(jobsScheduledNext7Days),
-      trend: "capacity at 82%",
+      trend: `capacity at ${capacityPercent}%`,
       tone: "neutral",
     },
     {
       label: "Average Ticket Size",
       value: toCurrency(avgTicketSize),
-      trend: "+6% MoM",
+      trend: `${pluralize(state.invoices.length, "invoice", "invoices")}`,
       tone: "positive",
     },
     {
       label: "Recurring Plan Retention",
       value: `${recurringRetention}%`,
-      trend: "steady",
+      trend: `${recurringCount} of ${state.customers.length} customers enrolled`,
       tone: "positive",
     },
     {
       label: "Failed Payments",
       value: String(failedPayments),
-      trend: "1 retry needed",
-      tone: "attention",
+      trend:
+        failedPayments > 0
+          ? `${pluralize(failedPayments, "retry", "retries")} needed`
+          : "no retries needed",
+      tone: failedPayments > 0 ? "attention" : "positive",
     },
   ];
 }
