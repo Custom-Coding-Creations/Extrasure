@@ -57,6 +57,11 @@ export async function startBookingCheckoutAction(formData: FormData) {
       },
     });
 
+    if (result.reusedCheckout) {
+      const continueUrl = encodeURIComponent(result.checkoutUrl);
+      redirect(`/book?resumed=1&continue=${continueUrl}`);
+    }
+
     redirect(result.checkoutUrl);
   } catch (error) {
     const message = encodeURIComponent(getErrorMessage(error));

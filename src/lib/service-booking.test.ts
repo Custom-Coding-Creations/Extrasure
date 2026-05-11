@@ -115,6 +115,7 @@ describe("service-booking", () => {
       expect.objectContaining({ context: "customer" }),
     );
     expect(result.checkoutUrl).toBe("https://checkout.stripe.test/session");
+    expect(result.reusedCheckout).toBe(false);
   });
 
   it("reuses existing active checkout session for duplicate submissions", async () => {
@@ -148,6 +149,7 @@ describe("service-booking", () => {
       bookingId: "book_existing",
       invoiceId: "inv_existing",
       checkoutUrl: "https://checkout.stripe.test/reuse",
+      reusedCheckout: true,
     });
   });
 

@@ -19,6 +19,13 @@ export type BookingCheckoutInput = {
   notes?: string;
 };
 
+export type BookingCheckoutResult = {
+  bookingId: string;
+  invoiceId: string;
+  checkoutUrl: string;
+  reusedCheckout: boolean;
+};
+
 const BOOKING_IDEMPOTENCY_WINDOW_MS = 15 * 60 * 1000;
 
 function normalizeInput(input: BookingCheckoutInput) {
@@ -103,7 +110,7 @@ function createBookingIdempotencyKey(input: ReturnType<typeof normalizeInput>) {
   return createHash("sha256").update(raw).digest("hex");
 }
 
-async function getReusableCheckoutForIdempotencyKey(idempotencyKey: string) {
+async function getReusableCheckoutForIdempotencyKey(idempotencyKey: string): Promise<BookingCheckoutResult | null> {
   const existing = await prisma.serviceBooking.findFirst({
     where: {
       idempotencyKey,
@@ -137,6 +144,7 @@ async function getReusableCheckoutForIdempotencyKey(idempotencyKey: string) {
     bookingId: existing.id,
     invoiceId: existing.invoiceId,
     checkoutUrl: invoice.checkoutUrl,
+    reusedCheckout: true,
   };
 }
 
@@ -168,7 +176,7 @@ async function findOrCreateCustomerByEmail(input: ReturnType<typeof normalizeInp
   });
 }
 
-export async function createBookingCheckout(input: BookingCheckoutInput) {
+export async function createBookingCheckout(input: BookingCheckoutInput): Promise<BookingCheckoutResult> {
   await ensureServiceCatalogSeeded();
   const normalized = normalizeInput(input);
   const idempotencyKey = createBookingIdempotencyKey(normalized);
@@ -270,6 +278,7 @@ export async function createBookingCheckout(input: BookingCheckoutInput) {
     bookingId: booking.id,
     invoiceId: invoice.id,
     checkoutUrl: checkoutSession.url as string,
+    reusedCheckout: false,
   };
 }
 
