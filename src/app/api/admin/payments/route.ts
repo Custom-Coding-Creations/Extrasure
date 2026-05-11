@@ -27,7 +27,8 @@ type PaymentActionPayload = {
     | "subscription"
     | "invoice_sync"
     | "invoice_finalize"
-    | "invoice_pdf";
+    | "invoice_pdf"
+    | "invoice_links";
   invoiceId?: string;
   customerId?: string;
   paymentId?: string;
@@ -228,6 +229,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       action: "invoice_pdf",
+      stripeInvoiceId: links.stripeInvoiceId,
+      hostedInvoiceUrl: links.hostedInvoiceUrl,
+      pdfUrl: links.pdfUrl,
+    });
+  }
+
+  if (payload.action === "invoice_links") {
+    const roleSession = await requireAdminApiRole(["owner", "dispatch", "accountant"]);
+
+    if (!roleSession) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!hasValue(payload.invoiceId)) {
+      return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
+    }
+
+    const links = await getStripeInvoiceDocumentLinks(payload.invoiceId as string);
+
+    if (!links.hostedInvoiceUrl && !links.pdfUrl) {
+      return NextResponse.json(
+        { error: "Stripe invoice links are not available yet. Try finalizing first." },
+        { status: 409 },
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      action: "invoice_links",
       stripeInvoiceId: links.stripeInvoiceId,
       hostedInvoiceUrl: links.hostedInvoiceUrl,
       pdfUrl: links.pdfUrl,

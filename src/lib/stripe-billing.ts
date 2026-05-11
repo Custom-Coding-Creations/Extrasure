@@ -487,6 +487,61 @@ export async function getStripeInvoiceDocumentLinks(invoiceId: string) {
   };
 }
 
+export async function getStripeInvoiceStatusForLocalInvoice(invoiceId: string) {
+  const localInvoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { stripeInvoiceId: true },
+  });
+
+  if (!localInvoice?.stripeInvoiceId) {
+    return null;
+  }
+
+  const stripeInvoice = await stripe.invoices.retrieve(localInvoice.stripeInvoiceId);
+
+  return {
+    stripeInvoiceId: stripeInvoice.id,
+    status: stripeInvoice.status,
+  };
+}
+
+export async function getStripeInvoiceStatusesForLocalInvoices(invoiceIds: string[]) {
+  if (!invoiceIds.length) {
+    return {} as Record<string, string | null>;
+  }
+
+  const localInvoices = await prisma.invoice.findMany({
+    where: {
+      id: {
+        in: invoiceIds,
+      },
+    },
+    select: {
+      id: true,
+      stripeInvoiceId: true,
+    },
+  });
+
+  const statusMap: Record<string, string | null> = Object.fromEntries(
+    invoiceIds.map((invoiceId) => [invoiceId, null]),
+  );
+
+  const linkedInvoices = localInvoices.filter((item) => Boolean(item.stripeInvoiceId));
+
+  await Promise.all(
+    linkedInvoices.map(async (item) => {
+      try {
+        const stripeInvoice = await stripe.invoices.retrieve(item.stripeInvoiceId as string);
+        statusMap[item.id] = stripeInvoice.status;
+      } catch {
+        statusMap[item.id] = "unavailable";
+      }
+    }),
+  );
+
+  return statusMap;
+}
+
 export async function refundPaymentById(paymentId: string) {
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
 

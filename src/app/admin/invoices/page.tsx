@@ -1,11 +1,16 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminDataNotice } from "@/components/admin/admin-data-notice";
+import { CreateStripeInvoiceDraftButton } from "@/components/admin/create-stripe-invoice-draft-button";
+import { FinalizeStripeInvoiceButton } from "@/components/admin/finalize-stripe-invoice-button";
+import { OpenStripeInvoiceLinkButton } from "@/components/admin/open-stripe-invoice-link-button";
+import { StripeInvoicePdfButton } from "@/components/admin/stripe-invoice-pdf-button";
 import {
   createInvoiceAction,
   deleteInvoiceAction,
   updateInvoiceAction,
 } from "@/app/admin/invoices/actions";
 import { loadAdminPageData } from "@/lib/admin-page-data";
+import { getStripeInvoiceStatusesForLocalInvoices } from "@/lib/stripe-billing";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +30,36 @@ function statusClass(status: string) {
   return "bg-[#ece2ca] text-[#33453a]";
 }
 
+function stripeStatusClass(status: string | null | undefined) {
+  if (status === "paid") {
+    return "bg-emerald-100 text-emerald-800";
+  }
+
+  if (status === "draft") {
+    return "bg-slate-200 text-slate-700";
+  }
+
+  if (status === "open") {
+    return "bg-[#ece2ca] text-[#33453a]";
+  }
+
+  if (status === "uncollectible" || status === "void") {
+    return "bg-amber-100 text-amber-800";
+  }
+
+  return "bg-[#ece2ca] text-[#33453a]";
+}
+
 export default async function AdminInvoicesPage() {
   const { state, dataError } = await loadAdminPageData();
+  const stripeStatusByInvoiceId = state
+    ? await getStripeInvoiceStatusesForLocalInvoices(state.invoices.map((invoice) => invoice.id))
+    : {};
 
   return (
     <AdminShell
       title="Invoices and Billing Cycles"
-      subtitle="Manage one-time and recurring invoice schedules across monthly, quarterly, and annual service plans."
+      subtitle="Manage one-time and recurring invoice schedules, then sync/finalize Stripe invoices and open hosted/PDF documents."
     >
       {!state ? <AdminDataNotice message={dataError} /> : (
       <>
@@ -73,6 +101,7 @@ export default async function AdminInvoicesPage() {
               <th className="px-4 py-3">Due Date</th>
               <th className="px-4 py-3">Billing Cycle</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Stripe</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
@@ -112,12 +141,49 @@ export default async function AdminInvoicesPage() {
                       <option value="refunded">Refunded</option>
                     </select>
                   </td>
+                  <td className="px-4 py-3 align-top text-xs text-[#4f695b]">
+                    <div className="space-y-1">
+                      <p>
+                        {invoice.stripeInvoiceId ? "Invoice API linked" : invoice.stripeCheckoutSessionId ? "Checkout linked" : "Not linked"}
+                      </p>
+                      {invoice.stripeInvoiceId ? (
+                        <p>
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${stripeStatusClass(stripeStatusByInvoiceId[invoice.id])}`}>
+                            Stripe: {(stripeStatusByInvoiceId[invoice.id] ?? "unknown").replace("_", " ")}
+                          </span>
+                        </p>
+                      ) : null}
+                      {invoice.stripeInvoiceId ? (
+                        <p className="text-[#5d7267]">Invoice: {invoice.stripeInvoiceId}</p>
+                      ) : null}
+                      {invoice.stripePaymentIntentId ? (
+                        <p className="text-[#5d7267]">PI: {invoice.stripePaymentIntentId}</p>
+                      ) : null}
+                      {invoice.stripeSubscriptionId ? (
+                        <p className="text-[#5d7267]">Sub: {invoice.stripeSubscriptionId}</p>
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 align-top">
                     <div className="flex flex-wrap gap-2">
                       <form id={formId} action={updateInvoiceAction}>
                         <input type="hidden" name="invoiceId" value={invoice.id} />
                         <button type="submit" className="rounded-full bg-[#163526] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#10271d]">Save</button>
                       </form>
+                      <CreateStripeInvoiceDraftButton
+                        invoiceId={invoice.id}
+                        disabled={invoice.status === "paid" || invoice.status === "refunded"}
+                      />
+                      <FinalizeStripeInvoiceButton
+                        invoiceId={invoice.id}
+                        disabled={
+                          invoice.status === "paid" ||
+                          invoice.status === "refunded" ||
+                          !invoice.stripeInvoiceId
+                        }
+                      />
+                      <OpenStripeInvoiceLinkButton invoiceId={invoice.id} disabled={!invoice.stripeInvoiceId} />
+                      <StripeInvoicePdfButton invoiceId={invoice.id} disabled={!invoice.stripeInvoiceId} />
                       <form action={deleteInvoiceAction}>
                         <input type="hidden" name="invoiceId" value={invoice.id} />
                         <button type="submit" className="rounded-full border border-[#8a3d22] px-3 py-1 text-xs font-semibold text-[#8a3d22] transition hover:bg-[#8a3d22] hover:text-white">Delete</button>

@@ -33,12 +33,14 @@ const {
   replayLatestWebhookForInvoice,
   replayWebhookEventById,
   setCustomerSubscriptionLifecycle,
+  createStripeInvoiceForLocalInvoice,
   finalizeStripeInvoiceForLocalInvoice,
   getStripeInvoiceDocumentLinks,
 } = jest.requireMock("@/lib/stripe-billing") as {
   replayLatestWebhookForInvoice: jest.Mock;
   replayWebhookEventById: jest.Mock;
   setCustomerSubscriptionLifecycle: jest.Mock;
+  createStripeInvoiceForLocalInvoice: jest.Mock;
   finalizeStripeInvoiceForLocalInvoice: jest.Mock;
   getStripeInvoiceDocumentLinks: jest.Mock;
 };
@@ -146,6 +148,25 @@ describe("POST /api/admin/payments", () => {
     });
   });
 
+  it("syncs local invoice to stripe invoice api", async () => {
+    createStripeInvoiceForLocalInvoice.mockResolvedValue({
+      id: "in_sync_1",
+      status: "draft",
+    });
+
+    const response = await POST(createJsonRequest({ action: "invoice_sync", invoiceId: "inv_5" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(createStripeInvoiceForLocalInvoice).toHaveBeenCalledWith("inv_5");
+    expect(payload).toEqual(
+      expect.objectContaining({
+        action: "invoice_sync",
+        stripeInvoiceId: "in_sync_1",
+      }),
+    );
+  });
+
   it("finalizes linked stripe invoice", async () => {
     finalizeStripeInvoiceForLocalInvoice.mockResolvedValue({
       id: "in_123",
@@ -181,6 +202,26 @@ describe("POST /api/admin/payments", () => {
       expect.objectContaining({
         action: "invoice_pdf",
         pdfUrl: "https://example.test/invoice.pdf",
+      }),
+    );
+  });
+
+  it("returns hosted invoice links", async () => {
+    getStripeInvoiceDocumentLinks.mockResolvedValue({
+      stripeInvoiceId: "in_789",
+      hostedInvoiceUrl: "https://example.test/hosted-invoice",
+      pdfUrl: null,
+    });
+
+    const response = await POST(createJsonRequest({ action: "invoice_links", invoiceId: "inv_3" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(getStripeInvoiceDocumentLinks).toHaveBeenCalledWith("inv_3");
+    expect(payload).toEqual(
+      expect.objectContaining({
+        action: "invoice_links",
+        hostedInvoiceUrl: "https://example.test/hosted-invoice",
       }),
     );
   });

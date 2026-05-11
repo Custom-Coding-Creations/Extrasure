@@ -1,5 +1,6 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminDataNotice } from "@/components/admin/admin-data-notice";
+import { CreateStripeInvoiceDraftButton } from "@/components/admin/create-stripe-invoice-draft-button";
 import {
   collectInvoiceAction,
   openBillingPortalAction,
@@ -7,6 +8,7 @@ import {
 } from "@/app/admin/payments/actions";
 import { GeneratePaymentLinkButton } from "@/components/admin/generate-payment-link-button";
 import { FinalizeStripeInvoiceButton } from "@/components/admin/finalize-stripe-invoice-button";
+import { OpenStripeInvoiceLinkButton } from "@/components/admin/open-stripe-invoice-link-button";
 import { ReconcileInvoiceButton } from "@/components/admin/reconcile-invoice-button";
 import { ReplayWebhookButton } from "@/components/admin/replay-webhook-button";
 import { StripeInvoicePdfButton } from "@/components/admin/stripe-invoice-pdf-button";
@@ -161,7 +163,16 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                         </form>
                       ) : null}
                       <GeneratePaymentLinkButton invoiceId={invoice.id} disabled={!canGenerateLink} />
-                      <FinalizeStripeInvoiceButton invoiceId={invoice.id} disabled={invoice.status === "paid" || invoice.status === "refunded"} />
+                      <CreateStripeInvoiceDraftButton invoiceId={invoice.id} disabled={invoice.status === "paid" || invoice.status === "refunded"} />
+                      <FinalizeStripeInvoiceButton
+                        invoiceId={invoice.id}
+                        disabled={
+                          invoice.status === "paid" ||
+                          invoice.status === "refunded" ||
+                          !invoice.stripeInvoiceId
+                        }
+                      />
+                      <OpenStripeInvoiceLinkButton invoiceId={invoice.id} disabled={!invoice.stripeInvoiceId} />
                       <StripeInvoicePdfButton invoiceId={invoice.id} disabled={!invoice.stripeInvoiceId} />
                       <ReconcileInvoiceButton
                         invoiceId={invoice.id}
