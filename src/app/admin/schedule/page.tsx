@@ -1,12 +1,53 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminDataNotice } from "@/components/admin/admin-data-notice";
-import { createJobAction, deleteJobAction, updateJobAction } from "@/app/admin/schedule/actions";
+import { convertBookingToJobAction, createJobAction, deleteJobAction, updateJobAction } from "@/app/admin/schedule/actions";
 import { loadAdminPageData } from "@/lib/admin-page-data";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminSchedulePage() {
   const { state, dataError } = await loadAdminPageData();
+  const bookings = state
+    ? await prisma.serviceBooking.findMany({
+        where: {
+          status: {
+            in: ["checkout_pending", "checkout_completed", "requested"],
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      })
+    : [];
+
+  const invoiceIds = bookings.map((booking) => booking.invoiceId).filter((value): value is string => Boolean(value));
+  const catalogIds = bookings.map((booking) => booking.serviceCatalogItemId);
+
+  const [invoices, catalogItems] = state
+    ? await Promise.all([
+        invoiceIds.length
+          ? prisma.invoice.findMany({
+              where: {
+                id: {
+                  in: invoiceIds,
+                },
+              },
+            })
+          : Promise.resolve([]),
+        catalogIds.length
+          ? prisma.serviceCatalogItem.findMany({
+              where: {
+                id: {
+                  in: catalogIds,
+                },
+              },
+            })
+          : Promise.resolve([]),
+      ])
+    : [[], []];
+
+  const invoiceById = new Map(invoices.map((invoice) => [invoice.id, invoice]));
+  const catalogById = new Map(catalogItems.map((item) => [item.id, item]));
 
   return (
     <AdminShell
@@ -113,6 +154,67 @@ export default async function AdminSchedulePage() {
           </ul>
         </section>
       </div>
+
+      <section className="mt-4 rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
+        <h2 className="text-2xl text-[#1b2f25]">Incoming Booking Requests</h2>
+        <p className="mt-2 text-xs text-[#5d7267]">
+          Bookings are created from the public checkout flow. Paid bookings can be converted into jobs for dispatch.
+        </p>
+        <div className="mt-4 space-y-3">
+          {bookings.length ? (
+            bookings.map((booking) => {
+              const customer = state.customers.find((item) => item.id === booking.customerId);
+              const invoice = booking.invoiceId ? invoiceById.get(booking.invoiceId) : null;
+              const item = catalogById.get(booking.serviceCatalogItemId);
+              const isPaid = invoice?.status === "paid";
+
+              return (
+                <article key={booking.id} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4 text-sm text-[#33453a]">
+                  <p className="font-semibold text-[#20372c]">{item?.name ?? "Service request"}</p>
+                  <p className="mt-1 text-xs text-[#5d7267]">{customer?.name ?? booking.contactName} • {booking.contactEmail}</p>
+                  <p className="mt-1 text-xs text-[#5d7267]">
+                    Preferred: {new Date(booking.preferredDate).toLocaleDateString()} • {booking.preferredWindow}
+                  </p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.08em] text-[#5d7267]">
+                    Booking: {booking.status.replaceAll("_", " ")} • Payment: {invoice?.status ?? "open"}
+                  </p>
+                  <form action={convertBookingToJobAction} className="mt-3 grid gap-2 md:grid-cols-4">
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <input
+                      name="scheduledAt"
+                      type="datetime-local"
+                      defaultValue={new Date(booking.preferredDate).toISOString().slice(0, 16)}
+                      required
+                      className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]"
+                    />
+                    <select
+                      name="technicianId"
+                      defaultValue=""
+                      required
+                      className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]"
+                    >
+                      <option value="" disabled>Select technician</option>
+                      {state.technicians.map((tech) => (
+                        <option key={tech.id} value={tech.id}>{tech.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      disabled={!isPaid}
+                      className="rounded-lg bg-[#163526] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#10271d] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Convert to Job
+                    </button>
+                    {!isPaid ? <p className="text-xs text-[#8a3d22]">Awaiting successful payment</p> : <span />}
+                  </form>
+                </article>
+              );
+            })
+          ) : (
+            <p className="text-sm text-[#5d7267]">No incoming booking requests.</p>
+          )}
+        </div>
+      </section>
       </>
       )}
     </AdminShell>

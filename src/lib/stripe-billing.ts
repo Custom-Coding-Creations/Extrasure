@@ -724,6 +724,61 @@ async function upsertPaymentFromCheckoutSession(
       });
     }
   });
+
+  await syncServiceBookingForInvoice(invoiceId, {
+    paymentStatus: status,
+    stripeCheckoutSessionId: session.id,
+    stripeSubscriptionId,
+    paidAt: status === "succeeded" ? timestamp : null,
+  });
+}
+
+async function syncServiceBookingForInvoice(
+  invoiceId: string,
+  options: {
+    paymentStatus: "succeeded" | "failed" | "pending" | "refunded";
+    stripeCheckoutSessionId?: string | null;
+    stripeSubscriptionId?: string | null;
+    paidAt?: Date | null;
+  },
+) {
+  const statusMap = {
+    succeeded: "requested",
+    failed: "checkout_pending",
+    pending: "checkout_pending",
+    refunded: "cancelled",
+  } as const;
+
+  const updateData: {
+    status: "requested" | "checkout_pending" | "cancelled";
+    stripeCheckoutSessionId?: string;
+    stripeSubscriptionId?: string;
+    paidAt?: Date;
+  } = {
+    status: statusMap[options.paymentStatus],
+  };
+
+  if (options.stripeCheckoutSessionId) {
+    updateData.stripeCheckoutSessionId = options.stripeCheckoutSessionId;
+  }
+
+  if (options.stripeSubscriptionId) {
+    updateData.stripeSubscriptionId = options.stripeSubscriptionId;
+  }
+
+  if (options.paidAt) {
+    updateData.paidAt = options.paidAt;
+  }
+
+  await prisma.serviceBooking.updateMany({
+    where: {
+      invoiceId,
+      status: {
+        in: ["checkout_pending", "checkout_completed", "requested"],
+      },
+    },
+    data: updateData,
+  });
 }
 
 async function handleStripeInvoiceEvent(invoice: Stripe.Invoice, status: "paid" | "past_due") {
@@ -743,6 +798,15 @@ async function handleStripeInvoiceEvent(invoice: Stripe.Invoice, status: "paid" 
       paidAt: status === "paid" ? new Date() : null,
       paymentStatusUpdatedAt: new Date(),
     },
+  });
+
+  await syncServiceBookingForInvoice(localInvoiceId, {
+    paymentStatus: status === "paid" ? "succeeded" : "failed",
+    stripeSubscriptionId: (() => {
+      const sub = invoice.parent?.subscription_details?.subscription;
+      return typeof sub === "string" ? sub : (sub?.id ?? null);
+    })(),
+    paidAt: status === "paid" ? new Date() : null,
   });
 }
 
@@ -985,6 +1049,10 @@ async function handleRefundEvent(charge: Stripe.Charge) {
       },
     }),
   ]);
+
+  await syncServiceBookingForInvoice(payment.invoiceId, {
+    paymentStatus: "refunded",
+  });
 }
 
 async function handlePaymentIntentFailure(paymentIntent: Stripe.PaymentIntent) {
@@ -1042,6 +1110,10 @@ async function handlePaymentIntentFailure(paymentIntent: Stripe.PaymentIntent) {
         },
       });
     }
+  });
+
+  await syncServiceBookingForInvoice(invoiceId, {
+    paymentStatus: "failed",
   });
 }
 
@@ -1117,6 +1189,11 @@ async function handlePaymentIntentSuccess(paymentIntent: Stripe.PaymentIntent) {
         },
       });
     }
+  });
+
+  await syncServiceBookingForInvoice(invoiceId, {
+    paymentStatus: "succeeded",
+    paidAt: timestamp,
   });
 }
 
@@ -1301,6 +1378,13 @@ export async function reconcileInvoiceFromStripe(invoiceId: string) {
         },
       });
     }
+  });
+
+  await syncServiceBookingForInvoice(invoiceId, {
+    paymentStatus,
+    stripeCheckoutSessionId: checkoutSessionId,
+    stripeSubscriptionId,
+    paidAt,
   });
 
   return {
