@@ -54,7 +54,7 @@ run(`npx prisma generate --schema ${schemaPath}`);
 
 if (shouldPushSchema) {
   console.log("[prisma] Applying schema with prisma db push");
-  run(`npx prisma db push --skip-generate --schema ${schemaPath}`);
+  run(`npx prisma db push --skip-generate --accept-data-loss --schema ${schemaPath}`);
 }
 
 if (isVercelBuild && process.env.PRISMA_RUN_PRODUCTION_SEED_ON_BUILD === "true") {
