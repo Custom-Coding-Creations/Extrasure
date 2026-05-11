@@ -1013,68 +1013,8 @@ async function countOwnerUsers() {
   return prisma.adminUser.count({ where: { role: "owner" } });
 }
 
-function getLinkedTechnicianId(adminUserId: string) {
-  return `tech_admin_${adminUserId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-}
-
-async function syncLinkedTechnician(adminUser: { id: string; name: string; role: AdminUserMutationInput["role"] }) {
-  if (adminUser.role !== "technician") {
-    return;
-  }
-
-  const technicianId = getLinkedTechnicianId(adminUser.id);
-
-  await prisma.technician.upsert({
-    where: { id: technicianId },
-    update: {
-      name: adminUser.name,
-    },
-    create: {
-      id: technicianId,
-      name: adminUser.name,
-      status: "available",
-      utilizationPercent: 0,
-    },
-  });
-}
-
 function getLinkedAdminUserId(technicianId: string) {
   return `admin_tech_${technicianId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-}
-
-async function syncLinkedAdminUser(technician: { id: string; name: string }) {
-  await prisma.adminUser.upsert({
-    where: { id: getLinkedAdminUserId(technician.id) },
-    update: {
-      name: technician.name,
-      role: "technician",
-    },
-    create: {
-      id: getLinkedAdminUserId(technician.id),
-      name: technician.name,
-      role: "technician",
-      twoFactorEnabled: false,
-    },
-  });
-}
-
-async function syncTechnicianUsersFromAdminUsers() {
-  const technicianAdmins = await prisma.adminUser.findMany({
-    where: { role: "technician" },
-    orderBy: { id: "asc" },
-  });
-
-  for (const adminUser of technicianAdmins) {
-    await syncLinkedTechnician(adminUser);
-  }
-}
-
-async function syncAdminUsersFromTechnicians() {
-  const dbTechnicians = await prisma.technician.findMany({ orderBy: { id: "asc" } });
-
-  for (const technician of dbTechnicians) {
-    await syncLinkedAdminUser(technician);
-  }
 }
 
 function deriveUtilizationPercent(dbJobs: Array<{ technicianId: string; status: Job["status"] }>, technicianId: string) {
@@ -1183,6 +1123,67 @@ type TechnicianMutationInput = {
   status: "available" | "in_route" | "on_job" | "off_shift";
 };
 
+type TechnicianDedupeResult = {
+  groupsResolved: number;
+  deletedTechnicians: number;
+  reassignedJobs: number;
+};
+
+function normalizeTechnicianName(name: string) {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+async function findTechnicianWithSameName(name: string, excludeId?: string) {
+  const normalized = normalizeTechnicianName(name);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const dbTechnicians = await prisma.technician.findMany({
+    select: {
+      id: true,
+      name: true,
+    },
+    orderBy: { id: "asc" },
+  });
+
+  return dbTechnicians.find((technician) => {
+    if (excludeId && technician.id === excludeId) {
+      return false;
+    }
+
+    return normalizeTechnicianName(technician.name) === normalized;
+  }) ?? null;
+}
+
+function isLinkedAdminTechnicianId(id: string) {
+  return id.startsWith("tech_admin_");
+}
+
+function pickPrimaryTechnician(
+  group: Array<{ id: string; name: string; status: "available" | "in_route" | "on_job" | "off_shift"; utilizationPercent: number }>,
+  jobCountByTechnicianId: Map<string, number>,
+) {
+  return [...group].sort((a, b) => {
+    const aLinkedPenalty = isLinkedAdminTechnicianId(a.id) ? 1 : 0;
+    const bLinkedPenalty = isLinkedAdminTechnicianId(b.id) ? 1 : 0;
+
+    if (aLinkedPenalty !== bLinkedPenalty) {
+      return aLinkedPenalty - bLinkedPenalty;
+    }
+
+    const aJobCount = jobCountByTechnicianId.get(a.id) ?? 0;
+    const bJobCount = jobCountByTechnicianId.get(b.id) ?? 0;
+
+    if (aJobCount !== bJobCount) {
+      return bJobCount - aJobCount;
+    }
+
+    return a.id.localeCompare(b.id);
+  })[0];
+}
+
 function validateTechnicianInput(input: TechnicianMutationInput) {
   const name = input.name.trim();
 
@@ -1199,6 +1200,12 @@ function validateTechnicianInput(input: TechnicianMutationInput) {
 export async function createTechnician(input: TechnicianMutationInput) {
   await ensureSeededState();
   const tech = validateTechnicianInput(input);
+
+  const existing = await findTechnicianWithSameName(tech.name);
+
+  if (existing) {
+    throw new Error(`Technician \"${existing.name}\" already exists.`);
+  }
 
   const createdTechnician = await prisma.technician.create({
     data: {
@@ -1225,6 +1232,12 @@ export async function updateTechnician(id: string, input: TechnicianMutationInpu
   }
 
   const tech = validateTechnicianInput(input);
+
+  const existing = await findTechnicianWithSameName(tech.name, id);
+
+  if (existing) {
+    throw new Error(`Technician \"${existing.name}\" already exists.`);
+  }
 
   const updatedTechnician = await prisma.technician.update({
     where: { id },
@@ -1275,6 +1288,73 @@ export async function setTechnicianAvailability(id: string, status: "available" 
   return prisma.technician.update({
     where: { id },
     data: { status },
+  });
+}
+
+export async function dedupeTechniciansByName(): Promise<TechnicianDedupeResult> {
+  await ensureSeededState();
+
+  return prisma.$transaction(async (tx) => {
+    const [dbTechnicians, dbJobs] = await Promise.all([
+      tx.technician.findMany({ orderBy: { id: "asc" } }),
+      tx.job.findMany({ select: { technicianId: true } }),
+    ]);
+
+    const groups = new Map<string, typeof dbTechnicians>();
+
+    for (const technician of dbTechnicians) {
+      const key = normalizeTechnicianName(technician.name);
+      const bucket = groups.get(key) ?? [];
+      bucket.push(technician);
+      groups.set(key, bucket);
+    }
+
+    const jobCountByTechnicianId = new Map<string, number>();
+
+    for (const job of dbJobs) {
+      jobCountByTechnicianId.set(job.technicianId, (jobCountByTechnicianId.get(job.technicianId) ?? 0) + 1);
+    }
+
+    let groupsResolved = 0;
+    let deletedTechnicians = 0;
+    let reassignedJobs = 0;
+
+    for (const group of groups.values()) {
+      if (group.length <= 1) {
+        continue;
+      }
+
+      groupsResolved += 1;
+      const primary = pickPrimaryTechnician(group, jobCountByTechnicianId);
+
+      for (const duplicate of group) {
+        if (duplicate.id === primary.id) {
+          continue;
+        }
+
+        const reassignment = await tx.job.updateMany({
+          where: { technicianId: duplicate.id },
+          data: { technicianId: primary.id },
+        });
+
+        reassignedJobs += reassignment.count;
+        deletedTechnicians += 1;
+
+        await tx.technician.delete({ where: { id: duplicate.id } });
+        await tx.adminUser.deleteMany({
+          where: {
+            id: getLinkedAdminUserId(duplicate.id),
+            role: "technician",
+          },
+        });
+      }
+    }
+
+    return {
+      groupsResolved,
+      deletedTechnicians,
+      reassignedJobs,
+    } satisfies TechnicianDedupeResult;
   });
 }
 

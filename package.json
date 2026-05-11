@@ -14,6 +14,7 @@
     "db:push": "prisma db push",
     "db:push:postgres": "prisma db push --schema prisma/schema.postgresql.prisma",
     "db:seed": "prisma db seed",
+    "db:dedupe:technicians": "node --env-file=.env scripts/dedupe-technicians.mjs",
     "db:seed:prod": "prisma generate --schema prisma/schema.postgresql.prisma && tsx prisma/seed-production.ts"
   },
   "prisma": {

@@ -46,25 +46,62 @@ function getLinkedTechnicianId(adminUserId: string) {
   return `tech_admin_${adminUserId.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
+function normalizeTechnicianName(name: string) {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 async function syncTechnicianUsersFromAdminUsers() {
   const technicianAdmins = await prisma.adminUser.findMany({
     where: { role: "technician" },
     orderBy: { id: "asc" },
   });
 
+  const existingTechnicians = await prisma.technician.findMany({
+    select: {
+      id: true,
+      name: true,
+    },
+    orderBy: { id: "asc" },
+  });
+
+  const technicianIdByNormalizedName = new Map<string, string>();
+
+  for (const technician of existingTechnicians) {
+    const key = normalizeTechnicianName(technician.name);
+
+    if (!technicianIdByNormalizedName.has(key)) {
+      technicianIdByNormalizedName.set(key, technician.id);
+    }
+  }
+
   for (const adminUser of technicianAdmins) {
+    const normalizedName = normalizeTechnicianName(adminUser.name);
+    const linkedTechnicianId = getLinkedTechnicianId(adminUser.id);
+    const existingTechnicianId = technicianIdByNormalizedName.get(normalizedName);
+
+    if (existingTechnicianId) {
+      await prisma.technician.update({
+        where: { id: existingTechnicianId },
+        data: { name: adminUser.name },
+      });
+
+      continue;
+    }
+
     await prisma.technician.upsert({
-      where: { id: getLinkedTechnicianId(adminUser.id) },
+      where: { id: linkedTechnicianId },
       update: {
         name: adminUser.name,
       },
       create: {
-        id: getLinkedTechnicianId(adminUser.id),
+        id: linkedTechnicianId,
         name: adminUser.name,
         status: "available",
         utilizationPercent: 0,
       },
     });
+
+    technicianIdByNormalizedName.set(normalizedName, linkedTechnicianId);
   }
 }
 

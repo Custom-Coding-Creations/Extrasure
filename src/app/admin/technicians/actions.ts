@@ -6,6 +6,7 @@ import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { requireAdminRole } from "@/lib/admin-auth";
 import {
   createTechnician,
+  dedupeTechniciansByName,
   deleteTechnician,
   setTechnicianAvailability,
   updateTechnician,
@@ -109,6 +110,26 @@ export async function setTechnicianStatusAction(formData: FormData) {
     });
   } catch (error) {
     handleActionError(error, "setTechnicianStatusAction failed");
+  }
+
+  revalidateTechnicianPaths();
+}
+
+export async function dedupeTechniciansAction() {
+  try {
+    const session = await requireAdminRole(["owner", "dispatch"]);
+    const result = await dedupeTechniciansByName();
+
+    await recordAuditEvent({
+      actor: session.name,
+      role: session.role,
+      action: "technician_deduplicated",
+      entity: "technician",
+      entityId: "dedupe",
+      after: result,
+    });
+  } catch (error) {
+    handleActionError(error, "dedupeTechniciansAction failed");
   }
 
   revalidateTechnicianPaths();
