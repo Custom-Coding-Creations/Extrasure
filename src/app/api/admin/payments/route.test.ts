@@ -8,13 +8,15 @@ jest.mock("@/lib/admin-auth", () => ({
 
 jest.mock("@/lib/admin-store", () => ({
   getAdminState: jest.fn(),
-  queuePaymentRetry: jest.fn(),
 }));
 
 jest.mock("@/lib/stripe-billing", () => ({
   createCustomerPaymentLink: jest.fn(),
   createBillingPortalSession: jest.fn(),
   createInvoiceCheckoutSession: jest.fn(),
+  createStripeInvoiceForLocalInvoice: jest.fn(),
+  finalizeStripeInvoiceForLocalInvoice: jest.fn(),
+  getStripeInvoiceDocumentLinks: jest.fn(),
   replayLatestWebhookForInvoice: jest.fn(),
   replayWebhookEventById: jest.fn(),
   reconcileInvoiceFromStripe: jest.fn(),
@@ -27,12 +29,18 @@ const { requireAdminApiSession, requireAdminApiRole } = jest.requireMock("@/lib/
   requireAdminApiRole: jest.Mock;
 };
 
-const { replayLatestWebhookForInvoice, replayWebhookEventById, setCustomerSubscriptionLifecycle } = jest.requireMock(
-  "@/lib/stripe-billing",
-) as {
+const {
+  replayLatestWebhookForInvoice,
+  replayWebhookEventById,
+  setCustomerSubscriptionLifecycle,
+  finalizeStripeInvoiceForLocalInvoice,
+  getStripeInvoiceDocumentLinks,
+} = jest.requireMock("@/lib/stripe-billing") as {
   replayLatestWebhookForInvoice: jest.Mock;
   replayWebhookEventById: jest.Mock;
   setCustomerSubscriptionLifecycle: jest.Mock;
+  finalizeStripeInvoiceForLocalInvoice: jest.Mock;
+  getStripeInvoiceDocumentLinks: jest.Mock;
 };
 
 function createJsonRequest(payload: unknown) {
@@ -126,5 +134,54 @@ describe("POST /api/admin/payments", () => {
     expect(response.status).toBe(400);
     expect(payload).toEqual({ error: "customerId and subscriptionAction are required" });
     expect(setCustomerSubscriptionLifecycle).not.toHaveBeenCalled();
+  });
+
+  it("returns 410 when retry action is used", async () => {
+    const response = await POST(createJsonRequest({ action: "retry", invoiceId: "inv_1" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(410);
+    expect(payload).toEqual({
+      error: "Manual retries are deprecated. Stripe Billing dunning and Smart Retries are now the source of truth.",
+    });
+  });
+
+  it("finalizes linked stripe invoice", async () => {
+    finalizeStripeInvoiceForLocalInvoice.mockResolvedValue({
+      id: "in_123",
+      status: "open",
+    });
+
+    const response = await POST(createJsonRequest({ action: "invoice_finalize", invoiceId: "inv_1" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(finalizeStripeInvoiceForLocalInvoice).toHaveBeenCalledWith("inv_1");
+    expect(payload).toEqual(
+      expect.objectContaining({
+        action: "invoice_finalize",
+        stripeInvoiceId: "in_123",
+      }),
+    );
+  });
+
+  it("returns pdf link when stripe invoice pdf exists", async () => {
+    getStripeInvoiceDocumentLinks.mockResolvedValue({
+      stripeInvoiceId: "in_456",
+      hostedInvoiceUrl: "https://example.test/hosted",
+      pdfUrl: "https://example.test/invoice.pdf",
+    });
+
+    const response = await POST(createJsonRequest({ action: "invoice_pdf", invoiceId: "inv_2" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(getStripeInvoiceDocumentLinks).toHaveBeenCalledWith("inv_2");
+    expect(payload).toEqual(
+      expect.objectContaining({
+        action: "invoice_pdf",
+        pdfUrl: "https://example.test/invoice.pdf",
+      }),
+    );
   });
 });

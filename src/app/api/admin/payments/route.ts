@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApiRole, requireAdminApiSession } from "@/lib/admin-auth";
-import { getAdminState, queuePaymentRetry } from "@/lib/admin-store";
+import { getAdminState } from "@/lib/admin-store";
 import {
   createCustomerPaymentLink,
   createBillingPortalSession,
   createInvoiceCheckoutSession,
+  createStripeInvoiceForLocalInvoice,
+  finalizeStripeInvoiceForLocalInvoice,
+  getStripeInvoiceDocumentLinks,
   replayLatestWebhookForInvoice,
   replayWebhookEventById,
   reconcileInvoiceFromStripe,
@@ -13,7 +16,18 @@ import {
 } from "@/lib/stripe-billing";
 
 type PaymentActionPayload = {
-  action?: "collect" | "portal" | "refund" | "retry" | "link" | "reconcile" | "replay" | "subscription";
+  action?:
+    | "collect"
+    | "portal"
+    | "refund"
+    | "retry"
+    | "link"
+    | "reconcile"
+    | "replay"
+    | "subscription"
+    | "invoice_sync"
+    | "invoice_finalize"
+    | "invoice_pdf";
   invoiceId?: string;
   customerId?: string;
   paymentId?: string;
@@ -152,6 +166,74 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  if (payload.action === "invoice_sync") {
+    const roleSession = await requireAdminApiRole(["owner", "accountant"]);
+
+    if (!roleSession) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!hasValue(payload.invoiceId)) {
+      return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
+    }
+
+    const stripeInvoice = await createStripeInvoiceForLocalInvoice(payload.invoiceId as string);
+
+    return NextResponse.json({
+      ok: true,
+      action: "invoice_sync",
+      stripeInvoiceId: stripeInvoice.id,
+      status: stripeInvoice.status,
+    });
+  }
+
+  if (payload.action === "invoice_finalize") {
+    const roleSession = await requireAdminApiRole(["owner", "accountant"]);
+
+    if (!roleSession) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!hasValue(payload.invoiceId)) {
+      return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
+    }
+
+    const stripeInvoice = await finalizeStripeInvoiceForLocalInvoice(payload.invoiceId as string);
+
+    return NextResponse.json({
+      ok: true,
+      action: "invoice_finalize",
+      stripeInvoiceId: stripeInvoice.id,
+      status: stripeInvoice.status,
+    });
+  }
+
+  if (payload.action === "invoice_pdf") {
+    const roleSession = await requireAdminApiRole(["owner", "dispatch", "accountant"]);
+
+    if (!roleSession) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!hasValue(payload.invoiceId)) {
+      return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
+    }
+
+    const links = await getStripeInvoiceDocumentLinks(payload.invoiceId as string);
+
+    if (!links.pdfUrl) {
+      return NextResponse.json({ error: "Stripe invoice PDF is not available until invoice finalization." }, { status: 409 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      action: "invoice_pdf",
+      stripeInvoiceId: links.stripeInvoiceId,
+      hostedInvoiceUrl: links.hostedInvoiceUrl,
+      pdfUrl: links.pdfUrl,
+    });
+  }
+
   if (payload.action === "replay") {
     const roleSession = await requireAdminApiRole(["owner", "accountant"]);
 
@@ -205,6 +287,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
   }
 
+  if (payload.action === "retry") {
+    const roleSession = await requireAdminApiRole(["owner", "accountant"]);
+
+    if (!roleSession) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json(
+      {
+        error: "Manual retries are deprecated. Stripe Billing dunning and Smart Retries are now the source of truth.",
+      },
+      { status: 410 },
+    );
+  }
+
   if (payload.action === "collect") {
     const roleSession = await requireAdminApiRole(["owner", "dispatch", "accountant"]);
 
@@ -222,21 +319,5 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const invoiceId = payload.invoiceId as string;
-  const result = await queuePaymentRetry(invoiceId);
-
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 404 });
-  }
-
-  return NextResponse.json({
-    ok: true,
-    invoiceId: result.invoice.id,
-    action: "retry_queued",
-    provider: "stripe",
-    retryEventId: result.retryEventId,
-    retryPaymentId: result.retryPaymentId,
-    queuedAt: new Date().toISOString(),
-    message: "Retry queued for internal follow-up.",
-  });
+  return NextResponse.json({ error: "Unsupported payment action" }, { status: 400 });
 }

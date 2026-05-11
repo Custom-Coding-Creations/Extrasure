@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { inspectInvoiceAccessToken } from "@/lib/customer-billing-access";
-import { getCustomerInvoiceSnapshot } from "@/lib/stripe-billing";
+import { getCustomerInvoiceSnapshot, getStripeInvoiceDocumentLinks } from "@/lib/stripe-billing";
 import { StripePaymentElement } from "@/components/stripe-payment-element";
 
 export const dynamic = "force-dynamic";
@@ -115,6 +115,9 @@ export default async function TokenPayPage({ params, searchParams }: TokenPayPag
   const message = statusMessage(snapshot.invoice.status, paramsData?.stripe);
   const isPaid = snapshot.invoice.status === "paid";
   const isRefunded = snapshot.invoice.status === "refunded";
+  const invoiceLinks = snapshot.invoice.stripeInvoiceId
+    ? await getStripeInvoiceDocumentLinks(snapshot.invoice.id).catch(() => null)
+    : null;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
@@ -192,6 +195,16 @@ export default async function TokenPayPage({ params, searchParams }: TokenPayPag
               Manage Billing
             </button>
           </form>
+          {invoiceLinks?.pdfUrl ? (
+            <a
+              href={invoiceLinks.pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-[#6e6c4f] px-6 py-3 text-sm font-semibold text-[#545237] transition hover:bg-[#545237] hover:text-white"
+            >
+              Download Invoice PDF
+            </a>
+          ) : null}
             {snapshot.customer.stripeSubscriptionId && snapshot.invoice.billingCycle !== "one_time" ? (
               <div className="mt-3 flex flex-wrap gap-3">
                 <form action={`/pay/${token}/subscription`} method="post">

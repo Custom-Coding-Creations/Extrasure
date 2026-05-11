@@ -6,8 +6,10 @@ import {
   refundPaymentAction,
 } from "@/app/admin/payments/actions";
 import { GeneratePaymentLinkButton } from "@/components/admin/generate-payment-link-button";
+import { FinalizeStripeInvoiceButton } from "@/components/admin/finalize-stripe-invoice-button";
 import { ReconcileInvoiceButton } from "@/components/admin/reconcile-invoice-button";
 import { ReplayWebhookButton } from "@/components/admin/replay-webhook-button";
+import { StripeInvoicePdfButton } from "@/components/admin/stripe-invoice-pdf-button";
 import { SubscriptionLifecycleButton } from "@/components/admin/subscription-lifecycle-button";
 import { loadAdminPageData } from "@/lib/admin-page-data";
 
@@ -44,8 +46,8 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
   if (!state) {
     return (
       <AdminShell
-        title="Payments, Retry, and Refunds"
-        subtitle="Track card and ACH outcomes, trigger retries, and maintain refund controls for billing integrity."
+        title="Payments, Dunning, and Refunds"
+        subtitle="Track card and ACH outcomes, monitor Stripe-managed recovery, and maintain refund controls for billing integrity."
       >
         {stripeState ? (
           <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-4 text-sm text-[#33453a]">
@@ -70,8 +72,8 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
 
   return (
     <AdminShell
-      title="Payments, Retry, and Refunds"
-      subtitle="Track card and ACH outcomes, trigger retries, and maintain refund controls for billing integrity."
+      title="Payments, Dunning, and Refunds"
+      subtitle="Track card and ACH outcomes, monitor Stripe-managed recovery, and maintain refund controls for billing integrity."
     >
       {stripeState ? (
         <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-4 text-sm text-[#33453a]">
@@ -92,7 +94,7 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
         <article className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
           <p className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Failed Payment Exposure</p>
           <p className="mt-2 text-3xl text-[#153126]">${failedTotal}</p>
-          <p className="mt-2 text-sm text-[#445349]">Queue retries and reminders before marking accounts for manual follow-up.</p>
+          <p className="mt-2 text-sm text-[#445349]">Stripe Billing dunning now handles retries and reminders automatically.</p>
         </article>
       </div>
 
@@ -128,7 +130,11 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                   <td className="px-4 py-3 text-[#33453a]">${invoice.amount}</td>
                   <td className="px-4 py-3 capitalize text-[#33453a]">{invoice.status.replace("_", " ")}</td>
                   <td className="px-4 py-3 text-xs text-[#5d7267]">
-                    {invoice.stripeCheckoutSessionId ? "Checkout linked" : "Not linked"}
+                    {invoice.stripeInvoiceId
+                      ? "Invoice API linked"
+                      : invoice.stripeCheckoutSessionId
+                        ? "Checkout linked"
+                        : "Not linked"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -155,7 +161,12 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                         </form>
                       ) : null}
                       <GeneratePaymentLinkButton invoiceId={invoice.id} disabled={!canGenerateLink} />
-                      <ReconcileInvoiceButton invoiceId={invoice.id} disabled={!invoice.stripeCheckoutSessionId && !invoice.stripePaymentIntentId} />
+                      <FinalizeStripeInvoiceButton invoiceId={invoice.id} disabled={invoice.status === "paid" || invoice.status === "refunded"} />
+                      <StripeInvoicePdfButton invoiceId={invoice.id} disabled={!invoice.stripeInvoiceId} />
+                      <ReconcileInvoiceButton
+                        invoiceId={invoice.id}
+                        disabled={!invoice.stripeCheckoutSessionId && !invoice.stripePaymentIntentId && !invoice.stripeInvoiceId}
+                      />
                       <ReplayWebhookButton invoiceId={invoice.id} disabled={!invoice.stripeCheckoutSessionId && !invoice.stripePaymentIntentId && !invoice.stripeInvoiceId} />
                       {customer && hasSubscription ? (
                         <>
@@ -245,13 +256,23 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
               <li>New webhook handlers: payment_intent.succeeded, invoice.created</li>
             </ul>
           </div>
+          <div className="rounded-xl border border-[#b8d8c6] bg-[#ecf9f0] p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#1f4b33]">✅ Phase 2: Stripe Dunning & Radar (Complete)</p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-[#2d5f45]">
+              <li>Stripe Radar enabled in dashboard</li>
+              <li>Smart Retries enabled in Stripe Billing recovery settings</li>
+              <li>Webhook handlers: charge.dispute.created/updated/closed</li>
+              <li>Webhook handler: invoice.payment_action_required</li>
+              <li>Manual retry API action deprecated in favor of Stripe dunning</li>
+            </ul>
+          </div>
           <div className="rounded-xl border border-[#dec3a9] bg-[#fff4e8] p-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#7b3d13]">🔄 Phase 2: Stripe Dunning & Radar (Next)</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#7b3d13]">🔄 Phase 3: Stripe Invoicing (In Progress)</p>
             <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-[#6b3f1a]">
-              <li>Enable Stripe Radar (automatic fraud detection)</li>
-              <li>Enable Intelligent Retry Network (automatic smart retries)</li>
-              <li>Add dispute/chargeback handlers</li>
-              <li>Replace manual retry logic with Stripe's automatic dunning</li>
+              <li>Admin actions added: sync draft Stripe invoice, finalize invoice, and open PDF</li>
+              <li>Webhook handler added: invoice.finalized</li>
+              <li>invoice.created sync now upserts local invoices by metadata/linkage</li>
+              <li>Customer billing page now shows Download Invoice PDF when available</li>
             </ul>
           </div>
         </div>
