@@ -72,6 +72,20 @@ enum BillingCycle {
   annual
 }
 
+enum ServiceCatalogKind {
+  one_time
+  subscription
+}
+
+enum ServiceBookingStatus {
+  checkout_pending
+  checkout_completed
+  requested
+  scheduled
+  completed
+  cancelled
+}
+
 enum PaymentMethod {
   card
   ach
@@ -118,6 +132,45 @@ model Customer {
   stripeCustomerId String?    @unique
   stripeSubscriptionId String?
   stripeSubscriptionStatus String?
+}
+
+model ServiceCatalogItem {
+  id              String             @id
+  name            String
+  description     String
+  serviceType     String
+  kind            ServiceCatalogKind @default(one_time)
+  billingCycle    BillingCycle
+  amount          Int
+  active          Boolean            @default(true)
+  stripeProductId String?
+  stripePriceId   String?
+  sortOrder       Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model ServiceBooking {
+  id                 String               @id
+  customerId         String
+  serviceCatalogItemId String
+  invoiceId          String?
+  contactName        String
+  contactEmail       String
+  contactPhone       String
+  preferredDate      DateTime
+  preferredWindow    String
+  addressLine1       String
+  addressLine2       String?
+  city               String
+  postalCode         String?
+  notes              String?
+  status             ServiceBookingStatus @default(checkout_pending)
+  stripeCheckoutSessionId String?
+  stripeSubscriptionId String?
+  paidAt             DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 }
 
 model CustomerAccount {

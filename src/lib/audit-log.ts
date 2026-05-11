@@ -35,7 +35,12 @@ export type AuditAction =
   | "technician_deduplicated"
   | "technician_status_changed"
   | "payment_refunded"
-  | "payment_retried";
+  | "payment_retried"
+  | "service_plan_created"
+  | "service_plan_updated"
+  | "service_plan_deleted"
+  | "service_plan_deactivated"
+  | "service_booking_created";
 
 export async function recordAuditEvent({
   actor,

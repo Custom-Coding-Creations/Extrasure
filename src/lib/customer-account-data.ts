@@ -4,14 +4,14 @@ import { prisma } from "@/lib/prisma";
 
 type TimelineItem = {
   id: string;
-  type: "invoice" | "payment" | "service" | "note";
+  type: "invoice" | "payment" | "service" | "booking" | "note";
   title: string;
   detail: string;
   occurredAt: string;
 };
 
 export async function getCustomerAccountSnapshot(customerId: string) {
-  const [customer, invoices, jobs, notes] = await Promise.all([
+  const [customer, invoices, jobs, bookings, notes] = await Promise.all([
     prisma.customer.findUnique({
       where: { id: customerId },
       select: {
@@ -36,6 +36,11 @@ export async function getCustomerAccountSnapshot(customerId: string) {
     prisma.job.findMany({
       where: { customerId },
       orderBy: { scheduledAt: "desc" },
+      take: 20,
+    }),
+    prisma.serviceBooking.findMany({
+      where: { customerId },
+      orderBy: { createdAt: "desc" },
       take: 20,
     }),
     prisma.customerNote.findMany({
@@ -89,6 +94,13 @@ export async function getCustomerAccountSnapshot(customerId: string) {
       detail: `${job.service}`,
       occurredAt: job.scheduledAt.toISOString(),
     })),
+    ...bookings.map((booking) => ({
+      id: `booking_${booking.id}`,
+      type: "booking" as const,
+      title: `Booking ${booking.status.replace("_", " ")}`,
+      detail: `${booking.preferredWindow} · ${booking.city}`,
+      occurredAt: booking.createdAt.toISOString(),
+    })),
     ...notes.map((note) => ({
       id: `note_${note.id}`,
       type: "note" as const,
@@ -105,6 +117,7 @@ export async function getCustomerAccountSnapshot(customerId: string) {
     invoices,
     payments,
     jobs,
+    bookings,
     notes,
     timeline,
   };

@@ -6,6 +6,7 @@ import { TrackedContactLink } from "@/components/tracked-contact-link";
 import { company } from "@/lib/site";
 
 const links = [
+  { href: "/book", label: "Book Now" },
   { href: "/services", label: "Services" },
   { href: "/service-area", label: "Service Area" },
   { href: "/commercial", label: "Commercial" },
@@ -30,6 +31,12 @@ export function SiteHeader() {
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/book"
+              className="hidden rounded-full bg-[#efdcb7] px-4 py-2 text-sm font-semibold text-[#183224] transition hover:bg-[#f4e7cb] md:inline-flex"
+            >
+              Book Service
+            </Link>
             <Link
               href="/account"
               className="hidden rounded-full border border-[#efdcb7]/30 px-4 py-2 text-sm font-semibold text-[#efdcb7] transition hover:border-[#efdcb7]/60 hover:bg-[#efdcb7]/10 md:inline-flex"
