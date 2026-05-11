@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { createAdminUser, deleteAdminUser, toggleAdminUserTwoFactor, updateAdminUser } from "@/lib/admin-store";
 import { recordAuditEvent } from "@/lib/audit-log";
@@ -21,6 +22,14 @@ function revalidateSettingsPaths() {
   revalidatePath("/admin/settings");
 }
 
+function handleActionError(error: unknown, context: string) {
+  if (isRedirectError(error)) {
+    throw error;
+  }
+
+  console.error(`[admin/settings] ${context}`, error);
+}
+
 export async function createAdminUserAction(formData: FormData) {
   try {
     const session = await requireAdminRole(["owner"]);
@@ -33,7 +42,7 @@ export async function createAdminUserAction(formData: FormData) {
       entityId: user.id,
     });
   } catch (error) {
-    console.error("[admin/settings] createAdminUserAction failed", error);
+    handleActionError(error, "createAdminUserAction failed");
   }
 
   revalidateSettingsPaths();
@@ -52,7 +61,7 @@ export async function updateAdminUserAction(formData: FormData) {
       entityId: userId,
     });
   } catch (error) {
-    console.error("[admin/settings] updateAdminUserAction failed", error);
+    handleActionError(error, "updateAdminUserAction failed");
   }
 
   revalidateSettingsPaths();
@@ -71,7 +80,7 @@ export async function deleteAdminUserAction(formData: FormData) {
       entityId: userId,
     });
   } catch (error) {
-    console.error("[admin/settings] deleteAdminUserAction failed", error);
+    handleActionError(error, "deleteAdminUserAction failed");
   }
 
   revalidateSettingsPaths();
@@ -90,7 +99,7 @@ export async function toggleAdminUserTwoFactorAction(formData: FormData) {
       entityId: userId,
     });
   } catch (error) {
-    console.error("[admin/settings] toggleAdminUserTwoFactorAction failed", error);
+    handleActionError(error, "toggleAdminUserTwoFactorAction failed");
   }
 
   revalidateSettingsPaths();
