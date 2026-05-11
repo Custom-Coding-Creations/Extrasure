@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { inspectInvoiceAccessToken } from "@/lib/customer-billing-access";
 import { getCustomerInvoiceSnapshot } from "@/lib/stripe-billing";
+import { StripePaymentElement } from "@/components/stripe-payment-element";
 
 export const dynamic = "force-dynamic";
 
@@ -171,18 +172,18 @@ export default async function TokenPayPage({ params, searchParams }: TokenPayPag
           </div>
         </dl>
 
-        <div className="mt-6 flex flex-wrap gap-3">
-          {!isPaid && !isRefunded ? (
-            <form action={`/pay/${token}/checkout`} method="post">
-              <button
-                type="submit"
-                className="rounded-full bg-[#163526] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#10271d]"
-              >
-                Pay Securely
-              </button>
-            </form>
-          ) : null}
+        {!isPaid && !isRefunded ? (
+          <div className="mt-6">
+            <StripePaymentElement 
+              token={token}
+              amount={snapshot.invoice.amount}
+              onSuccess={() => window.location.reload()}
+              onError={(error) => console.error("Payment error:", error)}
+            />
+          </div>
+        ) : null}
 
+        <div className="mt-6 flex flex-wrap gap-3">
           <form action={`/pay/${token}/portal`} method="post">
             <button
               type="submit"

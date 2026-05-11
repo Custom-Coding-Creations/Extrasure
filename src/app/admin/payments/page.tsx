@@ -226,12 +226,49 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
           Stripe Checkout, subscription autopay, refunds, and the billing portal are now wired through server actions.
           Verified webhook processing is required before checkout completions will mark invoices paid automatically.
         </p>
-        <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-          <li>Expected env vars: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BILLING_ACCESS_SECRET, NEXT_PUBLIC_SITE_URL or SITE_URL.</li>
-          <li>Enable webhook events: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, payment_intent.payment_failed, charge.refunded, invoice.paid, invoice.payment_failed, customer.subscription.updated.</li>
-          <li>Route failed payments into retry + reminder automation.</li>
-        </ul>
-        <p className="mt-4 text-xs text-[#5d7267]">Open invoices in scope: {state.invoices.filter((item) => item.status !== "paid").length}</p>
+        <div className="mt-4 space-y-3">
+          <div className="rounded-xl border border-[#b8d8c6] bg-[#ecf9f0] p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#1f4b33]">✅ Phase 0: Foundation (Complete)</p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-[#2d5f45]">
+              <li>Test/live mode indicator active in admin UI</li>
+              <li>Webhook signature verification working</li>
+              <li>10 core webhook event handlers implemented</li>
+              <li>Deduplication via unique constraint (P2002) prevents duplicate processing</li>
+            </ul>
+          </div>
+          <div className="rounded-xl border border-[#b8d8c6] bg-[#ecf9f0] p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#1f4b33]">✅ Phase 1: Payment Element & Subscriptions (Complete)</p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-[#2d5f45]">
+              <li>Payment Element embedded on customer invoice pages</li>
+              <li>Direct Subscriptions API (auto-renewing, no manual checkout)</li>
+              <li>Payment Intent flow for one-time payments</li>
+              <li>New webhook handlers: payment_intent.succeeded, invoice.created</li>
+            </ul>
+          </div>
+          <div className="rounded-xl border border-[#dec3a9] bg-[#fff4e8] p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#7b3d13]">🔄 Phase 2: Stripe Dunning & Radar (Next)</p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-[#6b3f1a]">
+              <li>Enable Stripe Radar (automatic fraud detection)</li>
+              <li>Enable Intelligent Retry Network (automatic smart retries)</li>
+              <li>Add dispute/chargeback handlers</li>
+              <li>Replace manual retry logic with Stripe's automatic dunning</li>
+            </ul>
+          </div>
+        </div>
+        <div className="mt-4 flex gap-4 text-xs text-[#5d7267]">
+          <div>
+            <p className="font-semibold text-[#24392d]">{state.invoices.filter((item) => item.status !== "paid").length}</p>
+            <p>Open invoices</p>
+          </div>
+          <div>
+            <p className="font-semibold text-[#24392d]">{state.payments.filter((item) => item.status === "succeeded").length}</p>
+            <p>Successful payments</p>
+          </div>
+          <div>
+            <p className="font-semibold text-[#24392d]">{state.payments.filter((item) => item.status === "failed").length}</p>
+            <p>Failed payments</p>
+          </div>
+        </div>
       </section>
     </AdminShell>
   );

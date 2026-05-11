@@ -11,8 +11,20 @@ type AdminShellProps = {
 export async function AdminShell({ title, subtitle, children }: AdminShellProps) {
   const session = await getAdminSession();
 
+  // Check if running in test mode (sk_test_* or rk_test_*)
+  const isTestMode = 
+    process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_") || 
+    process.env.STRIPE_SECRET_KEY?.startsWith("rk_test_");
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            {isTestMode && (
+              <div className="mb-4 rounded-2xl border-2 border-yellow-400 bg-yellow-50 px-4 py-3">
+                <p className="text-sm font-semibold text-yellow-900">
+                  🔴 TEST MODE — Payments are in test mode. Real charges are disabled.
+                </p>
+              </div>
+            )}
       <div className="mb-6 rounded-2xl border border-[#d6c8a4] bg-[#fff7e8] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-[0.16em] text-[#496053]">Owner Operations Console</p>

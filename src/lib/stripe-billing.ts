@@ -82,6 +82,160 @@ async function ensureStripeCustomer(customerId: string) {
   };
 }
 
+/**
+ * Phase 1: Create Payment Intent for one-time payments (Payment Element flow)
+ * Replaces checkout sessions for one-time payments
+ */
+export async function createPaymentIntentForInvoice(invoiceId: string) {
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+
+  if (!invoice) {
+    throw new Error("Invoice not found");
+  }
+
+  if (invoice.status === "paid" || invoice.status === "refunded") {
+    throw new Error("Invoice is not eligible for payment");
+  }
+
+  const { localCustomer, stripeCustomerId } = await ensureStripeCustomer(invoice.customerId);
+
+  const paymentIntent = await stripe.paymentIntents.create({
+    customer: stripeCustomerId,
+    amount: toUnitAmount(invoice.amount),
+    currency: "usd",
+    automatic_payment_methods: { enabled: true },
+    metadata: {
+      localInvoiceId: invoice.id,
+      localCustomerId: localCustomer.id,
+      billingCycle: invoice.billingCycle,
+    },
+  });
+
+  await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      stripeCustomerId,
+      stripePaymentIntentId: paymentIntent.id,
+      paymentStatusUpdatedAt: new Date(),
+    },
+  });
+
+  return paymentIntent;
+}
+
+/**
+ * Phase 1: Create Subscription directly via Subscriptions API (not checkout)
+ * Auto-renewing subscriptions without manual checkout each cycle
+ */
+export async function createDirectSubscriptionForInvoice(invoiceId: string, trialDays?: number) {
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+
+  if (!invoice) {
+    throw new Error("Invoice not found");
+  }
+
+  if (invoice.billingCycle === "one_time") {
+    throw new Error("Cannot create subscription for one-time invoice");
+  }
+
+  const { localCustomer, stripeCustomerId } = await ensureStripeCustomer(invoice.customerId);
+
+  // Create a Price in Stripe (per-invoice pricing)
+  const price = await stripe.prices.create({
+    product_data: {
+      name: `${invoice.billingCycle} service plan`,
+      metadata: {
+        localInvoiceId: invoice.id,
+        localCustomerId: localCustomer.id,
+      },
+    },
+    unit_amount: toUnitAmount(invoice.amount),
+    currency: "usd",
+    recurring: getBillingInterval(invoice.billingCycle as "monthly" | "quarterly" | "annual"),
+    metadata: {
+      localInvoiceId: invoice.id,
+    },
+  });
+
+  // Create subscription (direct API, not checkout)
+  const subscription = await stripe.subscriptions.create({
+    customer: stripeCustomerId,
+    items: [{ price: price.id }],
+    payment_behavior: "default_incomplete",
+    payment_settings: {
+      payment_method_types: ["card", "us_bank_account"],
+      save_default_payment_method: "on_subscription",
+    },
+    expand: ["latest_invoice.payment_intent"],
+    metadata: {
+      localInvoiceId: invoice.id,
+      localCustomerId: localCustomer.id,
+      billingCycle: invoice.billingCycle,
+    },
+    ...(trialDays ? { trial_period_days: trialDays } : {}),
+  });
+
+  await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      stripeCustomerId,
+      stripeSubscriptionId: subscription.id,
+      stripeInvoiceId: typeof subscription.latest_invoice === "string" ? subscription.latest_invoice : (subscription.latest_invoice as Stripe.Invoice)?.id ?? null,
+      paymentStatusUpdatedAt: new Date(),
+    },
+  });
+
+  await prisma.customer.update({
+    where: { id: invoice.customerId },
+    data: {
+      stripeCustomerId,
+      stripeSubscriptionId: subscription.id,
+      stripeSubscriptionStatus: subscription.status,
+    },
+  });
+
+  return subscription;
+}
+
+/**
+ * Phase 1: Get client secret for Payment Element
+ * Returns either PaymentIntent or Subscription's PaymentIntent client secret
+ */
+export async function getPaymentClientSecret(invoiceId: string) {
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+
+  if (!invoice) {
+    throw new Error("Invoice not found");
+  }
+
+  // If already has payment intent, retrieve it
+  if (invoice.stripePaymentIntentId) {
+    const paymentIntent = await stripe.paymentIntents.retrieve(invoice.stripePaymentIntentId);
+    return { clientSecret: paymentIntent.client_secret, type: "payment_intent" as const };
+  }
+
+  // If already has subscription, get its latest invoice payment intent
+  if (invoice.stripeSubscriptionId) {
+    const subscription = await stripe.subscriptions.retrieve(invoice.stripeSubscriptionId, {
+      expand: ["latest_invoice.payment_intent"],
+    });
+    const latestInvoice = subscription.latest_invoice as Stripe.Invoice;
+    const paymentIntent = latestInvoice.payment_intent as Stripe.PaymentIntent;
+    return { clientSecret: paymentIntent.client_secret, type: "subscription" as const };
+  }
+
+  // Create new based on billing cycle
+  if (invoice.billingCycle === "one_time") {
+    const paymentIntent = await createPaymentIntentForInvoice(invoiceId);
+    return { clientSecret: paymentIntent.client_secret, type: "payment_intent" as const };
+  } else {
+    const subscription = await createDirectSubscriptionForInvoice(invoiceId);
+    const latestInvoice = subscription.latest_invoice as Stripe.Invoice;
+    const paymentIntent = latestInvoice.payment_intent as Stripe.PaymentIntent;
+    return { clientSecret: paymentIntent.client_secret, type: "subscription" as const };
+  }
+}
+
 export async function getCustomerInvoiceSnapshot(invoiceId: string) {
   const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
 
@@ -485,6 +639,133 @@ async function handlePaymentIntentFailure(paymentIntent: Stripe.PaymentIntent) {
   });
 }
 
+/**
+ * Phase 1: Handle PaymentIntent success from Payment Element flow
+ */
+async function handlePaymentIntentSuccess(paymentIntent: Stripe.PaymentIntent) {
+  const invoiceId = paymentIntent.metadata.localInvoiceId;
+
+  if (!invoiceId) {
+    return;
+  }
+
+  const timestamp = new Date();
+  const chargeId = typeof paymentIntent.latest_charge === "string" ? paymentIntent.latest_charge : null;
+  const customerId = typeof paymentIntent.customer === "string" ? paymentIntent.customer : null;
+
+  const existingPayment = await prisma.payment.findFirst({
+    where: {
+      OR: [{ stripePaymentIntentId: paymentIntent.id }, { invoiceId }],
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status: "paid",
+        stripePaymentIntentId: paymentIntent.id,
+        stripeCustomerId: customerId,
+        paidAt: timestamp,
+        paymentStatusUpdatedAt: timestamp,
+      },
+    });
+
+    const paymentData = {
+      invoiceId,
+      method: mapPaymentMethod(paymentIntent.payment_method_types),
+      status: "succeeded" as const,
+      amount: Math.round(paymentIntent.amount / 100),
+      createdAt: timestamp,
+      stripeCheckoutSessionId: null,
+      stripePaymentIntentId: paymentIntent.id,
+      stripeChargeId: chargeId,
+      failureCode: null,
+      refundedAt: null,
+      stripeRefundId: null,
+    };
+
+    if (existingPayment) {
+      await tx.payment.update({
+        where: { id: existingPayment.id },
+        data: paymentData,
+      });
+    } else {
+      await tx.payment.create({
+        data: {
+          id: randomUUID(),
+          ...paymentData,
+        },
+      });
+    }
+
+    // Update customer record with Stripe customer ID
+    if (customerId) {
+      await tx.customer.updateMany({
+        where: { id: paymentIntent.metadata?.localCustomerId },
+        data: {
+          stripeCustomerId: customerId,
+        },
+      });
+    }
+  });
+}
+
+/**
+ * Phase 1: Handle invoice.created for auto-generated subscription invoices
+ */
+async function handleInvoiceCreated(invoice: Stripe.Invoice) {
+  // Only handle subscription invoices (auto-generated)
+  if (!invoice.subscription) {
+    return;
+  }
+
+  const subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription.id;
+  const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
+
+  // Check if this is a known subscription
+  const customer = await prisma.customer.findFirst({
+    where: { stripeSubscriptionId: subscriptionId },
+  });
+
+  if (!customer) {
+    return;
+  }
+
+  // Check if we already have a local invoice for this Stripe invoice
+  const existingInvoice = await prisma.invoice.findFirst({
+    where: { stripeInvoiceId: invoice.id },
+  });
+
+  if (existingInvoice) {
+    return; // Already synced
+  }
+
+  // Get the subscription to determine billing cycle
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const billingCycle = subscription.metadata?.billingCycle ?? "monthly";
+
+  // Create local invoice record
+  await prisma.invoice.create({
+    data: {
+      id: `inv_auto_${randomUUID()}`,
+      customerId: customer.id,
+      amount: Math.round(invoice.total / 100),
+      dueDate: new Date(invoice.due_date ? invoice.due_date * 1000 : Date.now()),
+      status: invoice.status === "paid" ? "paid" : "open",
+      billingCycle: billingCycle as "one_time" | "monthly" | "quarterly" | "annual",
+      stripeInvoiceId: invoice.id,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscriptionId,
+      paidAt: invoice.status_transitions.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : null,
+      paymentStatusUpdatedAt: new Date(),
+    },
+  });
+}
+
 export async function recordStripeWebhookEvent(event: Stripe.Event) {
   try {
     await prisma.stripeWebhookEvent.create({
@@ -849,12 +1130,22 @@ export async function handleStripeEvent(event: Stripe.Event) {
       await upsertPaymentFromCheckoutSession(event.data.object as Stripe.Checkout.Session, "failed");
       return;
     }
+    case "payment_intent.succeeded": {
+      // Phase 1: Handle Payment Element success
+      await handlePaymentIntentSuccess(event.data.object as Stripe.PaymentIntent);
+      return;
+    }
     case "payment_intent.payment_failed": {
       await handlePaymentIntentFailure(event.data.object as Stripe.PaymentIntent);
       return;
     }
     case "charge.refunded": {
       await handleRefundEvent(event.data.object as Stripe.Charge);
+      return;
+    }
+    case "invoice.created": {
+      // Phase 1: Auto-sync subscription invoices
+      await handleInvoiceCreated(event.data.object as Stripe.Invoice);
       return;
     }
     case "invoice.paid": {
