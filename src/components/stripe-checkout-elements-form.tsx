@@ -21,6 +21,7 @@ type StripeCheckoutElementsFormProps = {
   successPath: string;
   amount: number;
   title?: string;
+  defaultCountry?: string;
 };
 
 type CheckoutFormInnerProps = {
@@ -106,6 +107,7 @@ export function StripeCheckoutElementsForm({
   successPath,
   amount,
   title = "Payment Details",
+  defaultCountry = "US",
 }: StripeCheckoutElementsFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -168,6 +170,13 @@ export function StripeCheckoutElementsForm({
 
   const options: StripeCheckoutElementsSdkOptions = {
     clientSecret,
+    defaultValues: {
+      billingAddress: {
+        address: {
+          country: defaultCountry,
+        },
+      },
+    },
     elementsOptions: {
       appearance: {
         theme: "stripe",
