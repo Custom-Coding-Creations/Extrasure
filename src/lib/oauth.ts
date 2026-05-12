@@ -240,6 +240,25 @@ export function clearOAuthCookies(response: NextResponse) {
   response.cookies.delete(OAUTH_FLOW_COOKIE);
 }
 
+function decodeJwtPayload<T>(token: string | undefined): T | null {
+  if (!token) {
+    return null;
+  }
+
+  const parts = token.split(".");
+
+  if (parts.length < 2) {
+    return null;
+  }
+
+  try {
+    const payload = Buffer.from(parts[1], "base64url").toString("utf8");
+    return JSON.parse(payload) as T;
+  } catch {
+    return null;
+  }
+}
+
 async function exchangeGoogleCode(request: NextRequest, code: string) {
   const body = new URLSearchParams({
     grant_type: "authorization_code",
@@ -315,39 +334,57 @@ async function exchangeMicrosoftCode(request: NextRequest, code: string) {
     throw new Error("Microsoft token exchange failed");
   }
 
-  const tokenData = (await tokenResponse.json()) as { access_token?: string };
+  const tokenData = (await tokenResponse.json()) as { access_token?: string; id_token?: string };
 
   if (!tokenData.access_token) {
     throw new Error("Microsoft token response missing access_token");
   }
 
-  const profileResponse = await fetch("https://graph.microsoft.com/oidc/userinfo", {
-    headers: {
-      Authorization: `Bearer ${tokenData.access_token}`,
-    },
-  });
-
-  if (!profileResponse.ok) {
-    throw new Error("Microsoft userinfo request failed");
-  }
-
-  const profile = (await profileResponse.json()) as {
+  const tokenClaims = decodeJwtPayload<{
     sub?: string;
     email?: string;
     preferred_username?: string;
     name?: string;
-  };
+  }>(tokenData.id_token);
 
-  const email = profile.email ?? profile.preferred_username;
+  let profile: {
+    sub?: string;
+    email?: string;
+    preferred_username?: string;
+    name?: string;
+  } = {};
 
-  if (!profile.sub || !email) {
+  try {
+    const profileResponse = await fetch("https://graph.microsoft.com/oidc/userinfo", {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+      },
+    });
+
+    if (profileResponse.ok) {
+      profile = (await profileResponse.json()) as {
+        sub?: string;
+        email?: string;
+        preferred_username?: string;
+        name?: string;
+      };
+    }
+  } catch {
+    // Fallback to id_token claims when userinfo is unavailable.
+  }
+
+  const subject = profile.sub ?? tokenClaims?.sub;
+  const email = profile.email ?? profile.preferred_username ?? tokenClaims?.email ?? tokenClaims?.preferred_username;
+  const name = profile.name?.trim() || tokenClaims?.name?.trim() || email;
+
+  if (!subject || !email) {
     throw new Error("Microsoft profile missing required identity fields");
   }
 
   return {
     email,
-    name: profile.name?.trim() || email,
-    subject: profile.sub,
+    name,
+    subject,
   } satisfies OAuthUserProfile;
 }
 

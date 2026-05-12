@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import { useSearchParams } from "next/navigation";
 import {
   loginCustomer,
   requestPasswordResetAction,
@@ -24,13 +23,21 @@ const oauthErrorMessages: Record<string, string> = {
   not_authorized: "This email is not authorized for admin access.",
 };
 
-export function LoginClient() {
-  const searchParams = useSearchParams();
+const portalHighlights = [
+  { label: "Fast access", value: "Sign in, pay, and review invoices in one place." },
+  { label: "Self-serve", value: "Create a new account with your own contact details." },
+  { label: "Secure", value: "Password reset and account controls built in." },
+];
+
+type LoginClientProps = {
+  resetDone: boolean;
+  oauthErrorCode: string;
+};
+
+export function LoginClient({ resetDone, oauthErrorCode }: LoginClientProps) {
   const [loginState, loginAction, loginPending] = useActionState(loginCustomer, initialState);
   const [signupState, signupAction, signupPending] = useActionState(signupCustomer, initialState);
   const [resetState, resetAction, resetPending] = useActionState(requestPasswordResetAction, initialState);
-  const resetDone = searchParams.get("reset") === "done";
-  const oauthErrorCode = searchParams.get("oauth_error") ?? "";
   const oauthError = oauthErrorMessages[oauthErrorCode];
 
   return (
@@ -52,11 +59,7 @@ export function LoginClient() {
           </div>
 
           <div className="mt-10 grid gap-3 sm:grid-cols-3">
-            {[
-              { label: "Fast access", value: "Sign in, pay, and review invoices in one place." },
-              { label: "Self-serve", value: "Create a new account with your own contact details." },
-              { label: "Secure", value: "Password reset and account controls built in." },
-            ].map((item) => (
+            {portalHighlights.map((item) => (
               <article key={item.label} className="rounded-2xl border border-[#ddcfb2] bg-[#fffdf6] p-4">
                 <p className="text-xs uppercase tracking-[0.16em] text-[#6b705e]">{item.label}</p>
                 <p className="mt-2 text-sm leading-6 text-[#33453a]">{item.value}</p>
