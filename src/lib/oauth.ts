@@ -330,51 +330,71 @@ async function exchangeMicrosoftCode(request: NextRequest, code: string) {
     body,
   });
 
+  const tokenData = (await tokenResponse.json()) as {
+    access_token?: string;
+    id_token?: string;
+    error?: string;
+    error_description?: string;
+  };
+
   if (!tokenResponse.ok) {
-    throw new Error("Microsoft token exchange failed");
-  }
-
-  const tokenData = (await tokenResponse.json()) as { access_token?: string; id_token?: string };
-
-  if (!tokenData.access_token) {
-    throw new Error("Microsoft token response missing access_token");
+    const detail = tokenData.error ? `${tokenData.error}${tokenData.error_description ? `: ${tokenData.error_description}` : ""}` : "unknown_error";
+    throw new Error(`Microsoft token exchange failed (${detail})`);
   }
 
   const tokenClaims = decodeJwtPayload<{
     sub?: string;
+    oid?: string;
     email?: string;
     preferred_username?: string;
+    upn?: string;
+    unique_name?: string;
     name?: string;
   }>(tokenData.id_token);
 
   let profile: {
     sub?: string;
+    id?: string;
     email?: string;
     preferred_username?: string;
+    upn?: string;
+    unique_name?: string;
     name?: string;
   } = {};
 
-  try {
-    const profileResponse = await fetch("https://graph.microsoft.com/oidc/userinfo", {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`,
-      },
-    });
+  if (tokenData.access_token) {
+    try {
+      const profileResponse = await fetch("https://graph.microsoft.com/oidc/userinfo", {
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+        },
+      });
 
-    if (profileResponse.ok) {
-      profile = (await profileResponse.json()) as {
-        sub?: string;
-        email?: string;
-        preferred_username?: string;
-        name?: string;
-      };
+      if (profileResponse.ok) {
+        profile = (await profileResponse.json()) as {
+          sub?: string;
+          id?: string;
+          email?: string;
+          preferred_username?: string;
+          upn?: string;
+          unique_name?: string;
+          name?: string;
+        };
+      }
+    } catch {
+      // Fall back to id_token claims when userinfo is unavailable.
     }
-  } catch {
-    // Fallback to id_token claims when userinfo is unavailable.
   }
 
-  const subject = profile.sub ?? tokenClaims?.sub;
-  const email = profile.email ?? profile.preferred_username ?? tokenClaims?.email ?? tokenClaims?.preferred_username;
+  const subject = profile.sub ?? profile.id ?? tokenClaims?.sub ?? tokenClaims?.oid;
+  const email = profile.email
+    ?? profile.preferred_username
+    ?? profile.upn
+    ?? profile.unique_name
+    ?? tokenClaims?.email
+    ?? tokenClaims?.preferred_username
+    ?? tokenClaims?.upn
+    ?? tokenClaims?.unique_name;
   const name = profile.name?.trim() || tokenClaims?.name?.trim() || email;
 
   if (!subject || !email) {

@@ -20,6 +20,20 @@ function withClearedOAuthCookies(response: NextResponse) {
   return response;
 }
 
+function mapCallbackErrorCode(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+
+  if (message.includes("token exchange failed")) {
+    return "token_exchange_failed";
+  }
+
+  if (message.includes("missing required identity fields") || message.includes("missing profile")) {
+    return "missing_profile_claims";
+  }
+
+  return "callback_failed";
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ provider: string }> },
@@ -97,6 +111,7 @@ export async function GET(
     return withClearedOAuthCookies(NextResponse.redirect(new URL(getSuccessPath(flow), request.url)));
   } catch (error) {
     console.error("[oauth/callback] failed", error);
-    return withClearedOAuthCookies(redirectWithOAuthError(request, flow, "callback_failed"));
+    const errorCode = mapCallbackErrorCode(error);
+    return withClearedOAuthCookies(redirectWithOAuthError(request, flow, errorCode));
   }
 }

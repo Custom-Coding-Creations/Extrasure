@@ -14,6 +14,8 @@ const oauthErrorMessages: Record<string, string> = {
   provider_mismatch: "Sign-in provider mismatch. Please try again.",
   provider_config: "OAuth is not configured correctly yet.",
   missing_code: "Provider did not return an authorization code.",
+  token_exchange_failed: "Microsoft token exchange failed. Check app secret, redirect URI, and app registration settings.",
+  missing_profile_claims: "Microsoft did not return a usable email identity claim for this account.",
   callback_failed: "Social sign-in failed. Please try again.",
   not_authorized: "This email does not match an admin account.",
 };
