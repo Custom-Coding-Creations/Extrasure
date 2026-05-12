@@ -90,6 +90,16 @@ function getMicrosoftRedirectUri(request: NextRequest) {
   return process.env.MICROSOFT_REDIRECT_URI ?? `${getBaseUrl(request)}/api/auth/callback/microsoft`;
 }
 
+function getMicrosoftTenantId() {
+  const tenantId = process.env.MICROSOFT_TENANT_ID?.trim();
+
+  if (tenantId && tenantId.length > 0) {
+    return tenantId;
+  }
+
+  return "common";
+}
+
 function getProviderClientId(provider: OAuthProvider) {
   if (provider === "google") {
     const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
@@ -200,7 +210,8 @@ export function beginOAuth(request: NextRequest, provider: OAuthProvider, flow: 
     };
   }
 
-  const url = new URL("https://login.microsoftonline.com/common/oauth2/v2.0/authorize");
+  const microsoftTenantId = getMicrosoftTenantId();
+  const url = new URL(`https://login.microsoftonline.com/${microsoftTenantId}/oauth2/v2.0/authorize`);
   url.searchParams.set("client_id", getProviderClientId("microsoft"));
   url.searchParams.set("redirect_uri", getMicrosoftRedirectUri(request));
   url.searchParams.set("response_type", "code");
@@ -326,7 +337,8 @@ async function exchangeMicrosoftCode(request: NextRequest, code: string): Promis
     redirect_uri: getMicrosoftRedirectUri(request),
   });
 
-  const tokenResponse = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+  const microsoftTenantId = getMicrosoftTenantId();
+  const tokenResponse = await fetch(`https://login.microsoftonline.com/${microsoftTenantId}/oauth2/v2.0/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
