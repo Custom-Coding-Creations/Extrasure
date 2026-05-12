@@ -11,8 +11,12 @@ jest.mock("@/lib/prisma", () => ({
     },
     customer: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+    },
+    customerAccount: {
+      findUnique: jest.fn(),
     },
     invoice: {
       create: jest.fn(),
@@ -46,7 +50,11 @@ const { prisma } = jest.requireMock("@/lib/prisma") as {
     };
     customer: {
       findFirst: jest.Mock;
+      findUnique: jest.Mock;
       create: jest.Mock;
+    };
+    customerAccount: {
+      findUnique: jest.Mock;
     };
     invoice: {
       create: jest.Mock;

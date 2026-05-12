@@ -169,6 +169,22 @@ async function getReusableCheckoutForIdempotencyKey(idempotencyKey: string): Pro
 }
 
 async function findOrCreateCustomerByEmail(input: ReturnType<typeof normalizeInput>) {
+  // If a customer account exists for this email, always attach bookings to that customer record.
+  const linkedAccount = await prisma.customerAccount.findUnique({
+    where: { email: input.contactEmail },
+    select: { customerId: true },
+  });
+
+  if (linkedAccount?.customerId) {
+    const linkedCustomer = await prisma.customer.findUnique({
+      where: { id: linkedAccount.customerId },
+    });
+
+    if (linkedCustomer) {
+      return linkedCustomer;
+    }
+  }
+
   const existingCustomer = await prisma.customer.findFirst({
     where: {
       email: input.contactEmail,

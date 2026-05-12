@@ -20,7 +20,7 @@ function subscriptionLabel(status: string | null) {
 
 export default async function AccountBillingPage({ searchParams }: BillingPageProps) {
   const session = await requireCustomerSession();
-  const snapshot = await getCustomerAccountSnapshot(session.customerId);
+  const snapshot = await getCustomerAccountSnapshot(session.customerId, session.email);
 
   if (!snapshot) {
     redirect("/account/login");

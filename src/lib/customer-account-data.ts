@@ -10,52 +10,65 @@ type TimelineItem = {
   occurredAt: string;
 };
 
-export async function getCustomerAccountSnapshot(customerId: string) {
-  const [customer, invoices, jobs, bookings, notes] = await Promise.all([
-    prisma.customer.findUnique({
-      where: { id: customerId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        city: true,
-        activePlan: true,
-        lifecycle: true,
-        lastServiceDate: true,
-        stripeCustomerId: true,
-        stripeSubscriptionId: true,
-        stripeSubscriptionStatus: true,
-      },
-    }),
+export async function getCustomerAccountSnapshot(customerId: string, emailHint?: string) {
+  const customer = await prisma.customer.findUnique({
+    where: { id: customerId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      city: true,
+      activePlan: true,
+      lifecycle: true,
+      lastServiceDate: true,
+      stripeCustomerId: true,
+      stripeSubscriptionId: true,
+      stripeSubscriptionStatus: true,
+    },
+  });
+
+  if (!customer) {
+    return null;
+  }
+
+  const normalizedEmail = (emailHint ?? customer.email).trim().toLowerCase();
+  const relatedCustomerIds = normalizedEmail
+    ? await prisma.customer.findMany({
+        where: {
+          email: normalizedEmail,
+        },
+        select: { id: true },
+      })
+    : [];
+
+  const customerIds = Array.from(new Set([customerId, ...relatedCustomerIds.map((item) => item.id)]));
+
+  const [invoices, jobs, bookings, notes] = await Promise.all([
     prisma.invoice.findMany({
-      where: { customerId },
+      where: { customerId: { in: customerIds } },
       orderBy: { dueDate: "desc" },
       take: 20,
     }),
     prisma.job.findMany({
-      where: { customerId },
+      where: { customerId: { in: customerIds } },
       orderBy: { scheduledAt: "desc" },
       take: 20,
     }),
     prisma.serviceBooking.findMany({
-      where: { customerId },
+      where: { customerId: { in: customerIds } },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
     prisma.customerNote.findMany({
       where: {
-        customerId,
+        customerId: { in: customerIds },
         visibility: "customer",
       },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
   ]);
-
-  if (!customer) {
-    return null;
-  }
 
   const invoiceIds = invoices.map((invoice) => invoice.id);
   const payments = invoiceIds.length

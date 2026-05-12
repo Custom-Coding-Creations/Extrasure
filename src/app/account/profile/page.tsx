@@ -12,7 +12,7 @@ type ProfilePageProps = {
 
 export default async function AccountProfilePage({ searchParams }: ProfilePageProps) {
   const session = await requireCustomerSession();
-  const snapshot = await getCustomerAccountSnapshot(session.customerId);
+  const snapshot = await getCustomerAccountSnapshot(session.customerId, session.email);
   const params = searchParams ? await searchParams : undefined;
 
   if (!snapshot) {

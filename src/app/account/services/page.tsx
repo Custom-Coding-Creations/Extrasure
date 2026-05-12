@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountServicesPage() {
   const session = await requireCustomerSession();
-  const snapshot = await getCustomerAccountSnapshot(session.customerId);
+  const snapshot = await getCustomerAccountSnapshot(session.customerId, session.email);
 
   if (!snapshot) {
     redirect("/account/login");

@@ -15,7 +15,7 @@ type AccountPageProps = {
 
 export default async function AccountPage({ searchParams }: AccountPageProps) {
   const session = await requireCustomerSession();
-  const snapshot = await getCustomerAccountSnapshot(session.customerId);
+  const snapshot = await getCustomerAccountSnapshot(session.customerId, session.email);
 
   if (!snapshot) {
     redirect("/account/login");
