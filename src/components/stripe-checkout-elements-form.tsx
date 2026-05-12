@@ -69,16 +69,14 @@ function CheckoutFormInner({ successPath }: CheckoutFormInnerProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <ExpressCheckoutElement />
-      <ContactDetailsElement options={{ fields: { phone: "always" } }} />
-      <BillingAddressElement options={{ mode: "billing" }} />
+      <ExpressCheckoutElement onConfirm={async () => {}} />
+      <ContactDetailsElement />
+      <BillingAddressElement />
       <PaymentElement
         options={{
           layout: {
             type: "accordion",
             defaultCollapsed: false,
-            radios: true,
-            spacedAccordionItems: true,
           },
         }}
       />

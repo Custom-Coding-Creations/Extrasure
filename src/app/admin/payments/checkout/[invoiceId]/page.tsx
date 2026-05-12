@@ -16,20 +16,27 @@ export default async function AdminInvoiceCheckoutPage({ params }: AdminInvoiceC
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
-    include: {
-      customer: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
+    select: {
+      id: true,
+      customerId: true,
+      billingCycle: true,
+      amount: true,
+      status: true,
     },
   });
 
   if (!invoice) {
     notFound();
   }
+
+  const customer = await prisma.customer.findUnique({
+    where: { id: invoice.customerId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  });
 
   if (invoice.status === "paid" || invoice.status === "refunded") {
     redirect(`/admin/payments?stripe=cancelled&invoice=${invoice.id}`);
@@ -51,7 +58,7 @@ export default async function AdminInvoiceCheckoutPage({ params }: AdminInvoiceC
           </div>
           <div>
             <dt className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Customer</dt>
-            <dd className="mt-1 text-base text-[#1b2f25]">{invoice.customer?.name ?? invoice.customerId}</dd>
+            <dd className="mt-1 text-base text-[#1b2f25]">{customer?.name ?? invoice.customerId}</dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Billing cycle</dt>

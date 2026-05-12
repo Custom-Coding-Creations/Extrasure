@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { Suspense, useActionState } from "react";
 import { useSearchParams } from "next/navigation";
 import { loginOwner, type LoginState } from "@/app/owner-login/actions";
 
@@ -18,7 +18,7 @@ const oauthErrorMessages: Record<string, string> = {
   not_authorized: "This email does not match an admin account.",
 };
 
-export default function OwnerLoginPage() {
+function OwnerLoginForm() {
   const searchParams = useSearchParams();
   const [state, action, pending] = useActionState(loginOwner, initialState);
   const oauthErrorCode = searchParams.get("oauth_error") ?? "";
@@ -77,5 +77,13 @@ export default function OwnerLoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function OwnerLoginPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto w-full max-w-md px-4 py-16 sm:px-6 lg:px-8" />}>
+      <OwnerLoginForm />
+    </Suspense>
   );
 }
