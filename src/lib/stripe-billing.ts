@@ -13,6 +13,11 @@ type CheckoutSessionOptions = {
   context?: CheckoutContext;
 };
 
+type CheckoutElementsSessionOptions = {
+  returnPath?: string;
+  context?: CheckoutContext;
+};
+
 type BillingPortalOptions = {
   returnUrl?: string;
 };
@@ -177,7 +182,6 @@ export async function createDirectSubscriptionForInvoice(invoiceId: string, tria
     items: [{ price: price.id }],
     payment_behavior: "default_incomplete",
     payment_settings: {
-      payment_method_types: ["card", "us_bank_account"],
       save_default_payment_method: "on_subscription",
     },
     expand: ["latest_invoice.payment_intent"],
@@ -212,56 +216,118 @@ export async function createDirectSubscriptionForInvoice(invoiceId: string, tria
 }
 
 /**
- * Phase 1: Get client secret for Payment Element
- * Returns either PaymentIntent or Subscription's PaymentIntent client secret
+ * Creates a Checkout Session configured for embedded Checkout Elements.
  */
-export async function getPaymentClientSecret(invoiceId: string) {
+export async function createInvoiceCheckoutElementsSession(
+  invoiceId: string,
+  options?: CheckoutElementsSessionOptions,
+) {
   const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
 
   if (!invoice) {
     throw new Error("Invoice not found");
   }
 
-  // If already has payment intent, retrieve it
-  if (invoice.stripePaymentIntentId) {
-    const paymentIntent = await stripe.paymentIntents.retrieve(invoice.stripePaymentIntentId);
-    return { clientSecret: paymentIntent.client_secret, type: "payment_intent" as const };
+  if (invoice.status === "paid" || invoice.status === "refunded") {
+    throw new Error("Invoice is not eligible for checkout");
   }
 
-  // If already has subscription, get its latest invoice payment intent
-  if (invoice.stripeSubscriptionId) {
-    const subscription = await stripe.subscriptions.retrieve(invoice.stripeSubscriptionId, {
-      expand: ["latest_invoice.payment_intent"],
-    });
-    const latestInvoice = subscription.latest_invoice as Stripe.Invoice;
-    const paymentIntent = (latestInvoice as Stripe.Invoice & {
-      payment_intent?: string | Stripe.PaymentIntent | null;
-    }).payment_intent as Stripe.PaymentIntent | null | undefined;
+  const { localCustomer, stripeCustomerId } = await ensureStripeCustomer(invoice.customerId);
+  const baseUrl = getBaseUrl();
+  const context = options?.context ?? "customer";
+  const returnUrl = `${baseUrl}${options?.returnPath ?? `/pay?stripe=success&invoice=${invoice.id}`}`;
+  const isRecurring = invoice.billingCycle !== "one_time";
 
-    if (!paymentIntent || typeof paymentIntent === "string") {
-      throw new Error("Subscription invoice is missing an expanded payment intent");
-    }
+  const billingInterval = isRecurring
+    ? getBillingInterval(invoice.billingCycle as "monthly" | "quarterly" | "annual")
+    : null;
 
-    return { clientSecret: paymentIntent.client_secret, type: "subscription" as const };
-  }
+  const sessionConfig: Stripe.Checkout.SessionCreateParams = {
+    customer: stripeCustomerId,
+    client_reference_id: invoice.id,
+    mode: isRecurring ? "subscription" : "payment",
+    ui_mode: "elements",
+    return_url: returnUrl,
+    metadata: {
+      localInvoiceId: invoice.id,
+      localCustomerId: localCustomer.id,
+      billingCycle: invoice.billingCycle,
+      checkoutContext: context,
+    },
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: isRecurring ? `${invoice.billingCycle} service plan` : `Invoice ${invoice.id}`,
+            description: `ExtraSure Pest Control billing for ${localCustomer.name}`,
+          },
+          unit_amount: toUnitAmount(invoice.amount),
+          ...(isRecurring && billingInterval
+            ? {
+                recurring: {
+                  interval: billingInterval.interval,
+                  interval_count: billingInterval.intervalCount,
+                },
+              }
+            : {}),
+        },
+      },
+    ],
+  };
 
-  // Create new based on billing cycle
-  if (invoice.billingCycle === "one_time") {
-    const paymentIntent = await createPaymentIntentForInvoice(invoiceId);
-    return { clientSecret: paymentIntent.client_secret, type: "payment_intent" as const };
+  if (isRecurring) {
+    sessionConfig.subscription_data = {
+      metadata: {
+        localInvoiceId: invoice.id,
+        localCustomerId: localCustomer.id,
+        billingCycle: invoice.billingCycle,
+      },
+    };
   } else {
-    const subscription = await createDirectSubscriptionForInvoice(invoiceId);
-    const latestInvoice = subscription.latest_invoice as Stripe.Invoice;
-    const paymentIntent = (latestInvoice as Stripe.Invoice & {
-      payment_intent?: string | Stripe.PaymentIntent | null;
-    }).payment_intent as Stripe.PaymentIntent | null | undefined;
-
-    if (!paymentIntent || typeof paymentIntent === "string") {
-      throw new Error("Subscription invoice is missing an expanded payment intent");
-    }
-
-    return { clientSecret: paymentIntent.client_secret, type: "subscription" as const };
+    sessionConfig.payment_intent_data = {
+      metadata: {
+        localInvoiceId: invoice.id,
+        localCustomerId: localCustomer.id,
+        billingCycle: invoice.billingCycle,
+      },
+    };
   }
+
+  const session = await stripe.checkout.sessions.create(sessionConfig);
+
+  await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      stripeCustomerId,
+      stripeCheckoutSessionId: session.id,
+      checkoutUrl: session.url,
+      paymentStatusUpdatedAt: new Date(),
+    },
+  });
+
+  if (!session.client_secret) {
+    throw new Error("Stripe did not return a Checkout Session client secret");
+  }
+
+  return session;
+}
+
+/**
+ * Returns a Checkout Session client secret for Checkout Elements initialization.
+ */
+export async function getPaymentClientSecret(
+  invoiceId: string,
+  options?: CheckoutElementsSessionOptions,
+) {
+  const session = await createInvoiceCheckoutElementsSession(invoiceId, options);
+
+  return {
+    clientSecret: session.client_secret,
+    type: "checkout_session" as const,
+    sessionId: session.id,
+  };
 }
 
 export async function getCustomerInvoiceSnapshot(invoiceId: string) {

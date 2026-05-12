@@ -177,12 +177,7 @@ export default async function TokenPayPage({ params, searchParams }: TokenPayPag
 
         {!isPaid && !isRefunded ? (
           <div className="mt-6">
-            <StripePaymentElement 
-              token={token}
-              amount={snapshot.invoice.amount}
-              onSuccess={() => window.location.reload()}
-              onError={(error) => console.error("Payment error:", error)}
-            />
+            <StripePaymentElement token={token} amount={snapshot.invoice.amount} />
           </div>
         ) : null}
 

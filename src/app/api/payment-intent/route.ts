@@ -3,8 +3,7 @@ import { getPaymentClientSecret } from "@/lib/stripe-billing";
 import { inspectInvoiceAccessToken } from "@/lib/customer-billing-access";
 
 /**
- * Phase 1: API route to get Payment Element client secret
- * Used by customer payment page to initialize Stripe Payment Element
+ * Returns a Checkout Session client secret for Checkout Elements.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -27,12 +26,15 @@ export async function POST(request: NextRequest) {
 
     const { invoiceId } = tokenResult.payload;
 
-    // Get the client secret for Payment Element
-    const result = await getPaymentClientSecret(invoiceId);
+    const result = await getPaymentClientSecret(invoiceId, {
+      context: "customer",
+      returnPath: `/pay/${token}?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
+    });
 
     return NextResponse.json({
       ok: true,
       clientSecret: result.clientSecret,
+      sessionId: result.sessionId,
       type: result.type,
     });
   } catch (error) {

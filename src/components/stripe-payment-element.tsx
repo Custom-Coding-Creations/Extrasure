@@ -1,28 +1,32 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { loadStripe, type StripeElementsOptions } from "@stripe/stripe-js";
+import {
+  BillingAddressElement,
+  CheckoutElementsProvider,
+  ContactDetailsElement,
+  ExpressCheckoutElement,
+  PaymentElement,
+  useCheckoutElements,
+} from "@stripe/react-stripe-js/checkout";
+import { loadStripe, type StripeCheckoutElementsSdkOptions } from "@stripe/stripe-js";
 
 // Load publishable key from env
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 type PaymentFormProps = {
   token: string;
-  onSuccess: () => void;
-  onError: (error: string) => void;
 };
 
-function PaymentForm({ token, onSuccess, onError }: PaymentFormProps) {
-  const stripe = useStripe();
-  const elements = useElements();
+function PaymentForm({ token }: PaymentFormProps) {
+  const checkoutState = useCheckoutElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
+    if (checkoutState.type !== "success") {
       return;
     }
 
@@ -30,23 +34,24 @@ function PaymentForm({ token, onSuccess, onError }: PaymentFormProps) {
     setMessage(null);
 
     try {
-      const { error } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/pay/${token}?status=success`,
-        },
+      const result = await checkoutState.checkout.confirm({
+        returnUrl: `${window.location.origin}/pay/${token}?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
       });
 
-      if (error) {
-        setMessage(error.message ?? "Payment failed");
-        onError(error.message ?? "Payment failed");
-      } else {
-        onSuccess();
+      if (result.type === "error") {
+        const errorMessage = result.error.message ?? "Payment failed";
+        setMessage(errorMessage);
+        return;
+      }
+
+      if (result.type === "success") {
+        const sessionId = result.session.id;
+        window.location.assign(`/pay/${token}?stripe=success&session_id=${encodeURIComponent(sessionId)}`);
+        return;
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "An unexpected error occurred";
       setMessage(message);
-      onError(message);
     } finally {
       setIsProcessing(false);
     }
@@ -54,7 +59,32 @@ function PaymentForm({ token, onSuccess, onError }: PaymentFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <PaymentElement />
+      <ExpressCheckoutElement />
+
+      <ContactDetailsElement
+        options={{
+          fields: {
+            phone: "always",
+          },
+        }}
+      />
+
+      <BillingAddressElement
+        options={{
+          mode: "billing",
+        }}
+      />
+
+      <PaymentElement
+        options={{
+          layout: {
+            type: "accordion",
+            defaultCollapsed: false,
+            radios: true,
+            spacedAccordionItems: true,
+          },
+        }}
+      />
       
       {message && (
         <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">
@@ -64,7 +94,7 @@ function PaymentForm({ token, onSuccess, onError }: PaymentFormProps) {
 
       <button
         type="submit"
-        disabled={!stripe || isProcessing}
+        disabled={checkoutState.type !== "success" || isProcessing}
         className="w-full rounded-full bg-[#163526] px-6 py-3 text-base font-semibold text-white transition hover:bg-[#10271d] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isProcessing ? "Processing..." : "Pay Now"}
@@ -80,16 +110,9 @@ function PaymentForm({ token, onSuccess, onError }: PaymentFormProps) {
 type StripePaymentElementProps = {
   token: string;
   amount: number;
-  onSuccess?: () => void;
-  onError?: (error: string) => void;
 };
 
-export function StripePaymentElement({ 
-  token, 
-  amount,
-  onSuccess = () => {},
-  onError = () => {},
-}: StripePaymentElementProps) {
+export function StripePaymentElement({ token, amount }: StripePaymentElementProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,14 +136,13 @@ export function StripePaymentElement({
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load payment form";
         setError(message);
-        onError(message);
       } finally {
         setLoading(false);
       }
     }
 
     fetchClientSecret();
-  }, [token, onError]);
+  }, [token]);
 
   if (loading) {
     return (
@@ -142,18 +164,22 @@ export function StripePaymentElement({
     );
   }
 
-  const options: StripeElementsOptions = {
+  const options: StripeCheckoutElementsSdkOptions = {
     clientSecret,
-    appearance: {
-      theme: "stripe",
-      variables: {
-        colorPrimary: "#163526",
-        colorBackground: "#fff9eb",
-        colorText: "#1b2f25",
-        colorDanger: "#8a3d22",
-        borderRadius: "12px",
-        fontFamily: "system-ui, -apple-system, sans-serif",
+    elementsOptions: {
+      appearance: {
+        theme: "stripe",
+        variables: {
+          colorPrimary: "#163526",
+          colorBackground: "#fff9eb",
+          colorText: "#1b2f25",
+          colorDanger: "#8a3d22",
+          borderRadius: "12px",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+        },
       },
+      loader: "auto",
+      syncAddressCheckbox: "billing",
     },
   };
 
@@ -163,9 +189,9 @@ export function StripePaymentElement({
       <p className="mt-1 text-sm text-[#5d7267]">Amount: ${amount}</p>
       
       <div className="mt-6">
-        <Elements stripe={stripePromise} options={options}>
-          <PaymentForm token={token} onSuccess={onSuccess} onError={onError} />
-        </Elements>
+        <CheckoutElementsProvider stripe={stripePromise} options={options}>
+          <PaymentForm token={token} />
+        </CheckoutElementsProvider>
       </div>
     </div>
   );
