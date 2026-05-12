@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { requireAdminRole } from "@/lib/admin-auth";
 import {
   createBillingPortalSession,
-  createInvoiceCheckoutSession,
   refundPaymentById,
 } from "@/lib/stripe-billing";
 
@@ -17,8 +16,7 @@ export async function collectInvoiceAction(formData: FormData) {
     throw new Error("Missing invoiceId");
   }
 
-  const session = await createInvoiceCheckoutSession(invoiceId);
-  redirect(session.url as string);
+  redirect(`/admin/payments/checkout/${invoiceId}`);
 }
 
 export async function openBillingPortalAction(formData: FormData) {

@@ -2,7 +2,6 @@ import { createHash, randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { ActivePlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createInvoiceCheckoutSession } from "@/lib/stripe-billing";
 import { ensureServiceCatalogSeeded } from "@/lib/service-catalog";
 
 export type BookingCheckoutInput = {
@@ -157,14 +156,14 @@ async function getReusableCheckoutForIdempotencyKey(idempotencyKey: string): Pro
     },
   });
 
-  if (!invoice || invoice.status === "paid" || invoice.status === "refunded" || !invoice.checkoutUrl) {
+  if (!invoice || invoice.status === "paid" || invoice.status === "refunded") {
     return null;
   }
 
   return {
     bookingId: existing.id,
     invoiceId: existing.invoiceId,
-    checkoutUrl: invoice.checkoutUrl,
+    checkoutUrl: `/book/checkout/${existing.id}?invoice=${existing.invoiceId}`,
     reusedCheckout: true,
   };
 }
@@ -272,20 +271,7 @@ export async function createBookingCheckout(input: BookingCheckoutInput): Promis
     throw error;
   }
 
-  const checkoutSession = await createInvoiceCheckoutSession(invoice.id, {
-    context: "customer",
-    successPath: `/book/confirmation?booking=${booking.id}&invoice=${invoice.id}&session_id={CHECKOUT_SESSION_ID}`,
-    cancelPath: `/book?booking=${booking.id}&cancelled=1`,
-  });
-
   await prisma.$transaction(async (tx) => {
-    await tx.serviceBooking.update({
-      where: { id: booking.id },
-      data: {
-        stripeCheckoutSessionId: checkoutSession.id,
-      },
-    });
-
     if (item.billingCycle !== "one_time") {
       await tx.customer.update({
         where: { id: customer.id },
@@ -300,7 +286,7 @@ export async function createBookingCheckout(input: BookingCheckoutInput): Promis
   return {
     bookingId: booking.id,
     invoiceId: invoice.id,
-    checkoutUrl: checkoutSession.url as string,
+    checkoutUrl: `/book/checkout/${booking.id}?invoice=${invoice.id}`,
     reusedCheckout: false,
   };
 }

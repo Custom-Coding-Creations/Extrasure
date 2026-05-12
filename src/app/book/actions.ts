@@ -62,12 +62,11 @@ export async function startBookingCheckoutAction(formData: FormData) {
       },
     });
 
-    if (result.reusedCheckout) {
-      const continueUrl = encodeURIComponent(result.checkoutUrl);
-      redirect(`/book?resumed=1&continue=${continueUrl}`);
-    }
+    const destination = result.reusedCheckout
+      ? `${result.checkoutUrl}${result.checkoutUrl.includes("?") ? "&" : "?"}resumed=1`
+      : result.checkoutUrl;
 
-    redirect(result.checkoutUrl);
+    redirect(destination);
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;

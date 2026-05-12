@@ -4,10 +4,6 @@ jest.mock("@/lib/service-catalog", () => ({
   ensureServiceCatalogSeeded: jest.fn(),
 }));
 
-jest.mock("@/lib/stripe-billing", () => ({
-  createInvoiceCheckoutSession: jest.fn(),
-}));
-
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     serviceCatalogItem: {
@@ -64,10 +60,6 @@ const { prisma } = jest.requireMock("@/lib/prisma") as {
   };
 };
 
-const { createInvoiceCheckoutSession } = jest.requireMock("@/lib/stripe-billing") as {
-  createInvoiceCheckoutSession: jest.Mock;
-};
-
 describe("service-booking", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -91,10 +83,6 @@ describe("service-booking", () => {
     prisma.serviceBooking.create.mockResolvedValue({
       id: "book_123",
     });
-    createInvoiceCheckoutSession.mockResolvedValue({
-      id: "cs_123",
-      url: "https://checkout.stripe.test/session",
-    });
 
     const result = await createBookingCheckout({
       serviceCatalogItemId: "svc_1",
@@ -110,11 +98,7 @@ describe("service-booking", () => {
 
     expect(prisma.invoice.create).toHaveBeenCalled();
     expect(prisma.serviceBooking.create).toHaveBeenCalled();
-    expect(createInvoiceCheckoutSession).toHaveBeenCalledWith(
-      "inv_123",
-      expect.objectContaining({ context: "customer" }),
-    );
-    expect(result.checkoutUrl).toBe("https://checkout.stripe.test/session");
+    expect(result.checkoutUrl).toBe("/book/checkout/book_123?invoice=inv_123");
     expect(result.reusedCheckout).toBe(false);
   });
 
@@ -126,7 +110,6 @@ describe("service-booking", () => {
     prisma.invoice.findUnique.mockResolvedValue({
       id: "inv_existing",
       status: "open",
-      checkoutUrl: "https://checkout.stripe.test/reuse",
     });
 
     const result = await createBookingCheckout({
@@ -144,11 +127,10 @@ describe("service-booking", () => {
     expect(prisma.customer.create).not.toHaveBeenCalled();
     expect(prisma.invoice.create).not.toHaveBeenCalled();
     expect(prisma.serviceBooking.create).not.toHaveBeenCalled();
-    expect(createInvoiceCheckoutSession).not.toHaveBeenCalled();
     expect(result).toEqual({
       bookingId: "book_existing",
       invoiceId: "inv_existing",
-      checkoutUrl: "https://checkout.stripe.test/reuse",
+      checkoutUrl: "/book/checkout/book_existing?invoice=inv_existing",
       reusedCheckout: true,
     });
   });
