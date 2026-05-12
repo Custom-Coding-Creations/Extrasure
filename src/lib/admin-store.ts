@@ -253,7 +253,10 @@ export async function getAdminState(): Promise<AdminState> {
     ]);
 
     return {
-      adminUsers: dbAdminUsers,
+      adminUsers: dbAdminUsers.map((user) => ({
+        ...user,
+        email: user.email ?? "",
+      })),
       customers: dbCustomers.map((customer) => ({
         ...customer,
         lastServiceDate: toDateOnly(customer.lastServiceDate),

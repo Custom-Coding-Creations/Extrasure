@@ -126,7 +126,7 @@ enum DayOfWeek {
 model AdminUser {
   id               String  @id
   name             String
-  email            String  @unique
+  email            String? @unique
   role             Role
   twoFactorEnabled Boolean @default(false)
 }

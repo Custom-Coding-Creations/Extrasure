@@ -51,7 +51,7 @@ export default async function AdminSettingsPage() {
             <li key={user.id} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
                 <input form={formId} name="name" defaultValue={user.name} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                <input form={formId} name="email" type="email" defaultValue={user.email} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                <input form={formId} name="email" type="email" defaultValue={user.email ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
                 <select form={formId} name="role" defaultValue={user.role} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]">
                   <option value="owner">Owner</option>
                   <option value="dispatch">Dispatch</option>

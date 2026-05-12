@@ -185,7 +185,7 @@ export function validateOwnerCredentials(email: string, password: string) {
 export async function findAdminByEmail(email: string) {
   const normalizedEmail = normalizeEmail(email);
 
-  return prisma.adminUser.findUnique({
+  return prisma.adminUser.findFirst({
     where: {
       email: normalizedEmail,
     },
