@@ -311,7 +311,11 @@ export async function createInvoiceCheckoutSession(invoiceId: string, options?: 
   const successUrl = `${baseUrl}${options?.successPath ?? "/admin/payments?stripe=success&session_id={CHECKOUT_SESSION_ID}"}`;
   const cancelUrl = `${baseUrl}${options?.cancelPath ?? `/admin/payments?stripe=cancelled&invoice=${invoice.id}`}`;
   const isRecurring = invoice.billingCycle !== "one_time";
-  const session = await stripe.checkout.sessions.create({
+  
+  // For subscription checkouts, we need to use the Prices API with explicit interval configuration
+  const billingInterval = isRecurring ? getBillingInterval(invoice.billingCycle as "monthly" | "quarterly" | "annual") : null;
+  
+  let sessionConfig: Record<string, unknown> = {
     customer: stripeCustomerId,
     client_reference_id: invoice.id,
     mode: isRecurring ? "subscription" : "payment",
@@ -333,34 +337,38 @@ export async function createInvoiceCheckoutSession(invoiceId: string, options?: 
             description: `ExtraSure Pest Control billing for ${localCustomer.name}`,
           },
           unit_amount: toUnitAmount(invoice.amount),
-          ...(isRecurring
+          ...(isRecurring && billingInterval
             ? {
-                recurring: getBillingInterval(invoice.billingCycle as "monthly" | "quarterly" | "annual"),
+                recurring: {
+                  interval: billingInterval.interval,
+                  interval_count: billingInterval.intervalCount,
+                },
               }
             : {}),
         },
       },
     ],
-    ...(isRecurring
-      ? {
-          subscription_data: {
-            metadata: {
-              localInvoiceId: invoice.id,
-              localCustomerId: localCustomer.id,
-              billingCycle: invoice.billingCycle,
-            },
-          },
-        }
-      : {
-          payment_intent_data: {
-            metadata: {
-              localInvoiceId: invoice.id,
-              localCustomerId: localCustomer.id,
-              billingCycle: invoice.billingCycle,
-            },
-          },
-        }),
-  });
+  };
+
+  if (isRecurring) {
+    sessionConfig.subscription_data = {
+      metadata: {
+        localInvoiceId: invoice.id,
+        localCustomerId: localCustomer.id,
+        billingCycle: invoice.billingCycle,
+      },
+    };
+  } else {
+    sessionConfig.payment_intent_data = {
+      metadata: {
+        localInvoiceId: invoice.id,
+        localCustomerId: localCustomer.id,
+        billingCycle: invoice.billingCycle,
+      },
+    };
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionConfig);
 
   await prisma.invoice.update({
     where: { id: invoice.id },
