@@ -43,9 +43,7 @@ function CheckoutFormInner({ successPath }: CheckoutFormInnerProps) {
     setMessage(null);
 
     try {
-      const result = await checkoutState.checkout.confirm({
-        returnUrl: `${window.location.origin}${successPath}`,
-      });
+      const result = await checkoutState.checkout.confirm();
 
       if (result.type === "error") {
         setMessage(result.error.message ?? "Payment failed");
