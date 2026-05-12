@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Role } from "@/lib/admin-data";
+import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE = "extrasure_admin_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
@@ -72,6 +73,10 @@ function parseRole(input: string | undefined): Role {
   }
 
   return "owner";
+}
+
+function normalizeEmail(input: string) {
+  return input.trim().toLowerCase();
 }
 
 export async function createAdminSession(name: string, roleInput?: string) {
@@ -175,4 +180,20 @@ export function validateOwnerCredentials(email: string, password: string) {
     role: (process.env.ADMIN_LOGIN_ROLE as Role) ?? "owner",
     name: process.env.ADMIN_LOGIN_NAME ?? "Owner",
   };
+}
+
+export async function findAdminByEmail(email: string) {
+  const normalizedEmail = normalizeEmail(email);
+
+  return prisma.adminUser.findUnique({
+    where: {
+      email: normalizedEmail,
+    },
+    select: {
+      id: true,
+      name: true,
+      role: true,
+      email: true,
+    },
+  });
 }

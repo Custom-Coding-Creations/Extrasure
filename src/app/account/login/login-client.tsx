@@ -13,12 +13,25 @@ const initialState: CustomerAuthState = {
   message: "",
 };
 
+const oauthErrorMessages: Record<string, string> = {
+  invalid_state: "Your sign-in session expired. Please try again.",
+  provider_denied: "Sign-in was cancelled at the provider.",
+  provider_mismatch: "Sign-in provider mismatch. Please try again.",
+  provider_config: "OAuth is not configured correctly yet.",
+  missing_code: "Provider did not return an authorization code.",
+  callback_failed: "Social sign-in failed. Please try again.",
+  account_disabled: "This account is disabled. Contact support.",
+  not_authorized: "This email is not authorized for admin access.",
+};
+
 export function LoginClient() {
   const searchParams = useSearchParams();
   const [loginState, loginAction, loginPending] = useActionState(loginCustomer, initialState);
   const [signupState, signupAction, signupPending] = useActionState(signupCustomer, initialState);
   const [resetState, resetAction, resetPending] = useActionState(requestPasswordResetAction, initialState);
   const resetDone = searchParams.get("reset") === "done";
+  const oauthErrorCode = searchParams.get("oauth_error") ?? "";
+  const oauthError = oauthErrorMessages[oauthErrorCode];
 
   return (
     <div className="relative overflow-hidden">
@@ -53,6 +66,12 @@ export function LoginClient() {
         </section>
 
         <section className="grid gap-5">
+          {oauthError ? (
+            <div className="rounded-2xl border border-[#e3b7b7] bg-[#fdf0f0] px-5 py-4 text-sm text-[#6b2323]">
+              {oauthError}
+            </div>
+          ) : null}
+
           {resetDone ? (
             <div className="rounded-2xl border border-[#b8d8c6] bg-[#ecf9f0] px-5 py-4 text-sm text-[#1f4b33]">
               Password updated. Sign in with your new password below.
@@ -63,6 +82,23 @@ export function LoginClient() {
             <p className="text-xs uppercase tracking-[0.2em] text-[#6c7568]">Sign In</p>
             <h2 className="mt-2 text-3xl text-[#15281f]">Welcome back</h2>
             <p className="mt-2 text-sm leading-6 text-[#506155]">Use the email and password you created for your portal account.</p>
+
+            <div className="mt-6 grid gap-2 sm:grid-cols-2">
+              <a
+                href="/api/auth/start?flow=customer&provider=google"
+                className="rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-center text-sm font-semibold text-[#1f3127] transition hover:bg-[#f9f2e4]"
+              >
+                Continue with Google
+              </a>
+              <a
+                href="/api/auth/start?flow=customer&provider=microsoft"
+                className="rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-center text-sm font-semibold text-[#1f3127] transition hover:bg-[#f9f2e4]"
+              >
+                Continue with Microsoft
+              </a>
+            </div>
+
+            <p className="mt-4 text-xs uppercase tracking-[0.16em] text-[#6c7568]">Or sign in with email</p>
 
             <form action={loginAction} className="mt-6 space-y-3">
               <input className="field" type="email" name="email" placeholder="Email" autoComplete="email" required />

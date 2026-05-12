@@ -602,3 +602,99 @@ export async function setCustomerAccountStatusByCustomerId(customerId: string, s
     message: `Customer account status set to ${status}.`,
   } as const;
 }
+
+export async function upsertCustomerOAuthIdentity(input: {
+  email: string;
+  name: string;
+  provider: "google" | "microsoft";
+  subject: string;
+}) {
+  const normalizedEmail = normalizeEmail(input.email);
+  const now = new Date();
+
+  let customer = await prisma.customer.findFirst({
+    where: {
+      email: normalizedEmail,
+    },
+  });
+
+  const existingAccount = await prisma.customerAccount.findUnique({
+    where: {
+      email: normalizedEmail,
+    },
+  });
+
+  if (existingAccount && existingAccount.status === "disabled") {
+    return {
+      ok: false,
+      message: "This account is disabled. Contact support.",
+    } as const;
+  }
+
+  if (!customer) {
+    customer = await prisma.customer.create({
+      data: {
+        id: `cust_${randomBytes(8).toString("hex")}`,
+        name: input.name.trim() || normalizedEmail,
+        phone: "Pending",
+        email: normalizedEmail,
+        city: "Pending",
+        activePlan: "none",
+        lifecycle: "lead",
+        lastServiceDate: now,
+      },
+    });
+  } else if (input.name.trim() && customer.name !== input.name.trim()) {
+    customer = await prisma.customer.update({
+      where: { id: customer.id },
+      data: {
+        name: input.name.trim(),
+      },
+    });
+  }
+
+  let account = existingAccount;
+
+  if (account) {
+    account = await prisma.customerAccount.update({
+      where: {
+        id: account.id,
+      },
+      data: {
+        customerId: customer.id,
+        email: normalizedEmail,
+        authMethod: "oauth",
+        oauthProvider: input.provider,
+        oauthSubject: input.subject,
+        status: account.status === "invited" ? "active" : account.status,
+        claimedAt: account.claimedAt ?? now,
+        lastLoginAt: now,
+      },
+    });
+  } else {
+    account = await prisma.customerAccount.create({
+      data: {
+        id: `acct_${randomBytes(8).toString("hex")}`,
+        customerId: customer.id,
+        email: normalizedEmail,
+        authMethod: "oauth",
+        oauthProvider: input.provider,
+        oauthSubject: input.subject,
+        status: "active",
+        invitedAt: now,
+        claimedAt: now,
+        lastLoginAt: now,
+      },
+    });
+  }
+
+  return {
+    ok: true,
+    identity: {
+      customerId: customer.id,
+      email: normalizedEmail,
+      name: customer.name,
+      status: account.status,
+    },
+  } as const;
+}

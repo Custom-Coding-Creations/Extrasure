@@ -97,11 +97,11 @@ export type InventoryItem = {
   lastUpdated: string;
 };
 
-export const adminUsers: Array<{ id: string; name: string; role: Role; twoFactorEnabled: boolean }> = [
-  { id: "u_1", name: "Owner", role: "owner", twoFactorEnabled: true },
-  { id: "u_2", name: "Dispatch Lead", role: "dispatch", twoFactorEnabled: false },
-  { id: "u_3", name: "Tech A", role: "technician", twoFactorEnabled: false },
-  { id: "u_4", name: "Bookkeeper", role: "accountant", twoFactorEnabled: false },
+export const adminUsers: Array<{ id: string; name: string; email: string; role: Role; twoFactorEnabled: boolean }> = [
+  { id: "u_1", name: "Owner", email: "rdawson@extrasurepestcontrol.com", role: "owner", twoFactorEnabled: true },
+  { id: "u_2", name: "Dispatch Lead", email: "dispatch@extrasurepestcontrol.com", role: "dispatch", twoFactorEnabled: false },
+  { id: "u_3", name: "Tech A", email: "tech.a@extrasurepestcontrol.com", role: "technician", twoFactorEnabled: false },
+  { id: "u_4", name: "Bookkeeper", email: "accounting@extrasurepestcontrol.com", role: "accountant", twoFactorEnabled: false },
 ];
 
 export const customers: Customer[] = [

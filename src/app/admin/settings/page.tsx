@@ -25,8 +25,9 @@ export default async function AdminSettingsPage() {
       <>
       <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
         <h2 className="text-2xl text-[#1b2f25]">Create Admin User</h2>
-        <form action={createAdminUserAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <form action={createAdminUserAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <input name="name" required placeholder="Name" className="rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]" />
+          <input name="email" type="email" required placeholder="Email" className="rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]" />
           <select name="role" defaultValue="owner" className="rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]">
             <option value="owner">Owner</option>
             <option value="dispatch">Dispatch</option>
@@ -48,8 +49,9 @@ export default async function AdminSettingsPage() {
 
             return (
             <li key={user.id} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
                 <input form={formId} name="name" defaultValue={user.name} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                <input form={formId} name="email" type="email" defaultValue={user.email} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
                 <select form={formId} name="role" defaultValue={user.role} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]">
                   <option value="owner">Owner</option>
                   <option value="dispatch">Dispatch</option>

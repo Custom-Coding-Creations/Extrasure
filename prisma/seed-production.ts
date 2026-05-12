@@ -117,6 +117,16 @@ function resolveId() {
   return "owner:primary";
 }
 
+function resolveEmail() {
+  const email = process.env.ADMIN_LOGIN_EMAIL?.trim().toLowerCase();
+
+  if (email && email.length > 0) {
+    return email;
+  }
+
+  return "owner@extrasurepestcontrol.com";
+}
+
 function toDateTime(value: string) {
   return new Date(value);
 }
@@ -293,16 +303,19 @@ async function main() {
   const id = resolveId();
   const role = resolveRole();
   const name = resolveName();
+  const email = resolveEmail();
 
   await prisma.adminUser.upsert({
     where: { id },
     update: {
       name,
+      email,
       role,
     },
     create: {
       id,
       name,
+      email,
       role,
       twoFactorEnabled: false,
     },

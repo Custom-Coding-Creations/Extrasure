@@ -12,6 +12,7 @@ type AdminUserRole = (typeof adminUsers)[number]["role"];
 function getAdminUserInput(formData: FormData) {
   return {
     name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
     role: String(formData.get("role") ?? "owner") as AdminUserRole,
     twoFactorEnabled: formData.get("twoFactorEnabled") === "on",
   };

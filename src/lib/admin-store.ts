@@ -991,19 +991,26 @@ export async function setAutomationEventStatus(id: string, status: AutomationEve
 
 type AdminUserMutationInput = {
   name: string;
+  email: string;
   role: "owner" | "dispatch" | "technician" | "accountant";
   twoFactorEnabled: boolean;
 };
 
 function validateAdminUserInput(input: AdminUserMutationInput) {
   const name = input.name.trim();
+  const email = input.email.trim().toLowerCase();
 
   if (!name) {
     throw new Error("Admin user name is required.");
   }
 
+  if (!email || !email.includes("@")) {
+    throw new Error("Valid admin user email is required.");
+  }
+
   return {
     name,
+    email,
     role: input.role,
     twoFactorEnabled: Boolean(input.twoFactorEnabled),
   } satisfies AdminUserMutationInput;
