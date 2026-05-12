@@ -11,7 +11,8 @@ import {
 } from "@stripe/react-stripe-js/checkout";
 import { loadStripe, type StripeCheckoutElementsSdkOptions } from "@stripe/stripe-js";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 type InitRequestPayload = Record<string, string | number | boolean | null | undefined>;
 
@@ -85,6 +86,12 @@ function CheckoutFormInner({ successPath }: CheckoutFormInnerProps) {
         <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{message}</div>
       ) : null}
 
+      {checkoutState.type === "error" ? (
+        <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+          {checkoutState.error.message || "Unable to initialize Stripe checkout."}
+        </div>
+      ) : null}
+
       <button
         type="submit"
         disabled={checkoutState.type !== "success" || isProcessing}
@@ -114,6 +121,12 @@ export function StripeCheckoutElementsForm({
   const payload = useMemo(() => initPayload, [initPayload]);
 
   useEffect(() => {
+    if (!stripePromise) {
+      setError("Stripe is not configured. Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.");
+      setLoading(false);
+      return;
+    }
+
     async function initializeCheckout() {
       try {
         const response = await fetch(initUrl, {
