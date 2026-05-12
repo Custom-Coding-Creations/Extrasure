@@ -5,7 +5,6 @@ import {
   BillingAddressElement,
   CheckoutElementsProvider,
   ContactDetailsElement,
-  ExpressCheckoutElement,
   PaymentElement,
   useCheckoutElements,
 } from "@stripe/react-stripe-js/checkout";
@@ -70,15 +69,11 @@ function CheckoutFormInner({ successPath }: CheckoutFormInnerProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <ExpressCheckoutElement onConfirm={async () => {}} />
       <ContactDetailsElement />
       <BillingAddressElement />
       <PaymentElement
         options={{
-          layout: {
-            type: "accordion",
-            defaultCollapsed: false,
-          },
+          layout: "accordion",
         }}
       />
 
