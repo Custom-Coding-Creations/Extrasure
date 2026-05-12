@@ -259,7 +259,7 @@ function decodeJwtPayload<T>(token: string | undefined): T | null {
   }
 }
 
-async function exchangeGoogleCode(request: NextRequest, code: string) {
+async function exchangeGoogleCode(request: NextRequest, code: string): Promise<OAuthUserProfile> {
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code,
@@ -306,14 +306,18 @@ async function exchangeGoogleCode(request: NextRequest, code: string) {
     throw new Error("Google profile missing required identity fields");
   }
 
+  const resolvedEmail = profile.email.trim().toLowerCase();
+  const resolvedName = profile.name?.trim() || resolvedEmail;
+  const resolvedSubject = profile.sub;
+
   return {
-    email: profile.email,
-    name: profile.name?.trim() || profile.email,
-    subject: profile.sub,
-  } satisfies OAuthUserProfile;
+    email: resolvedEmail,
+    name: resolvedName,
+    subject: resolvedSubject,
+  };
 }
 
-async function exchangeMicrosoftCode(request: NextRequest, code: string) {
+async function exchangeMicrosoftCode(request: NextRequest, code: string): Promise<OAuthUserProfile> {
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code,
@@ -386,8 +390,8 @@ async function exchangeMicrosoftCode(request: NextRequest, code: string) {
     }
   }
 
-  const subject = profile.sub ?? profile.id ?? tokenClaims?.sub ?? tokenClaims?.oid;
-  const email = profile.email
+  const subjectCandidate = profile.sub ?? profile.id ?? tokenClaims?.sub ?? tokenClaims?.oid;
+  const emailCandidate = profile.email
     ?? profile.preferred_username
     ?? profile.upn
     ?? profile.unique_name
@@ -395,20 +399,24 @@ async function exchangeMicrosoftCode(request: NextRequest, code: string) {
     ?? tokenClaims?.preferred_username
     ?? tokenClaims?.upn
     ?? tokenClaims?.unique_name;
-  const name = profile.name?.trim() || tokenClaims?.name?.trim() || email;
+  const nameCandidate = profile.name?.trim() || tokenClaims?.name?.trim() || emailCandidate;
 
-  if (!subject || !email) {
+  if (!subjectCandidate || !emailCandidate) {
     throw new Error("Microsoft profile missing required identity fields");
   }
 
+  const resolvedSubject = subjectCandidate;
+  const resolvedEmail = emailCandidate.trim().toLowerCase();
+  const resolvedName = nameCandidate?.trim() || resolvedEmail;
+
   return {
-    email,
-    name,
-    subject,
-  } satisfies OAuthUserProfile;
+    email: resolvedEmail,
+    name: resolvedName,
+    subject: resolvedSubject,
+  };
 }
 
-export async function completeOAuthSignIn(request: NextRequest, provider: OAuthProvider, code: string) {
+export async function completeOAuthSignIn(request: NextRequest, provider: OAuthProvider, code: string): Promise<OAuthUserProfile> {
   if (provider === "google") {
     return exchangeGoogleCode(request, code);
   }
