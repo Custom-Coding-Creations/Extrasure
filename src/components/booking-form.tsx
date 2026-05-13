@@ -21,12 +21,6 @@ import {
 import { testimonials, trustBadges } from "@/lib/site";
 import { isTriageUiEnabled } from "@/lib/triage-runtime";
 
-type AiChatPayload = {
-  ok: true;
-  sessionId: string;
-  answer: string;
-};
-
 type TriagePayload = {
   ok: true;
   assessmentId: string | null;
@@ -278,9 +272,6 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
   const [postalCode, setPostalCode] = useState(storedState?.postalCode ?? prefill?.postalCode ?? "");
   const [stateProvince, setStateProvince] = useState(storedState?.stateProvince ?? prefill?.stateProvince ?? "");
   const [notes, setNotes] = useState(storedState?.notes ?? "");
-  const [aiSessionId, setAiSessionId] = useState("");
-  const [aiAnswer, setAiAnswer] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
   const [triagePrompt, setTriagePrompt] = useState(storedState?.triagePrompt ?? "");
   const [triageAssessmentId, setTriageAssessmentId] = useState(storedState?.triageAssessmentId ?? "");
   const [triageLikelyPest, setTriageLikelyPest] = useState(storedState?.triageLikelyPest ?? "");
@@ -501,52 +492,16 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
   }
 
   async function askAi(prompt: string) {
-    setAiLoading(true);
-    setAiAnswer("");
-    trackEvent("booking_ai_prompt_sent", {
-      ...bookingAiEventPayload,
-      lineageSource: "legacy_chat",
-    });
-
-    try {
-      const response = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId: aiSessionId || undefined,
-          message: prompt,
-          context: bookingAiContext,
-        }),
+    // Open the unified chatbot with the prompt and booking context
+    if (typeof window !== "undefined") {
+      saveBookingAiHandoff(window.sessionStorage, {
+        prompt,
+        context: bookingAiContext,
       });
-
-      if (!response.ok) {
-        throw new Error("AI request failed");
-      }
-
-      const data = (await response.json()) as AiChatPayload;
-      setAiSessionId(data.sessionId);
-      setAiAnswer(data.answer);
-      if (typeof window !== "undefined") {
-        saveBookingAiHandoff(window.sessionStorage, {
-          prompt,
-          context: bookingAiContext,
-        });
-      }
-      trackEvent("booking_ai_prompt_answered", {
-        ...bookingAiEventPayload,
-        lineageSource: "legacy_chat",
-      });
-    } catch {
-      setAiAnswer("AI guidance is temporarily unavailable. You can continue booking and our team will confirm details.");
-      trackEvent("booking_ai_prompt_failed", {
-        ...bookingAiEventPayload,
-        lineageSource: "legacy_chat",
-      });
-    } finally {
-      setAiLoading(false);
+      window.dispatchEvent(new CustomEvent("extrasure:open-site-chatbot"));
     }
+
+    trackEvent("booking_ai_open_full_assistant", { ...bookingAiEventPayload, prompt });
   }
 
   async function uploadTriagePhotos(files: FileList | null) {
@@ -645,7 +600,7 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
   function openFullAssistant() {
     if (typeof window !== "undefined") {
       saveBookingAiHandoff(window.sessionStorage, {
-        prompt: aiAnswer || triagePrompt || aiPrompts[0],
+        prompt: triagePrompt || aiPrompts[0],
         context: bookingAiContext,
       });
       window.dispatchEvent(new CustomEvent("extrasure:open-site-chatbot"));
@@ -989,35 +944,13 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
                   key={prompt}
                   type="button"
                   onClick={() => askAi(prompt)}
-                  disabled={aiLoading}
-                  className="rounded-full border border-[#ccb68b] bg-[#f8e7c4] px-3 py-1 text-xs font-semibold text-[#5d4a24] transition hover:bg-[#f2dbad] disabled:opacity-60"
+                  className="rounded-full border border-[#ccb68b] bg-[#f8e7c4] px-3 py-1 text-xs font-semibold text-[#5d4a24] transition hover:bg-[#f2dbad]"
                 >
                   {prompt}
                 </button>
               ))}
             </div>
-            {aiLoading ? <p className="mt-3 text-xs text-[#5d7267]" aria-live="polite">Thinking...</p> : null}
-            {aiAnswer ? (
-              <div className="mt-3 rounded-xl border border-[#d6c6a5] bg-white px-3 py-2 text-sm text-[#33453a]" aria-live="polite">
-                <p>{aiAnswer}</p>
-                <div className="mt-2 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setNotes((current) => (current ? `${current}\n${aiAnswer}` : aiAnswer))}
-                    className="text-xs font-semibold text-[#1f5537] underline underline-offset-4"
-                  >
-                    Add guidance to notes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openFullAssistant}
-                    className="text-xs font-semibold text-[#1f5537] underline underline-offset-4"
-                  >
-                    Open full AI assistant
-                  </button>
-                </div>
-              </div>
-            ) : null}
+            <p className="mt-2 text-xs text-[#5d7267]">Click any prompt to open the AI assistant with your question pre-filled.</p>
           </section>
 
           {step < stepLabels.length - 1 ? (
