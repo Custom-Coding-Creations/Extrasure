@@ -107,6 +107,35 @@ AI environment variables:
 - `AI_CHAT_MODEL` (optional, default: `gpt-4.1-mini`)
 - `AI_TRANSCRIPT_WEBHOOK_URL` (optional, receives transcript events)
 
+## AI Triage Operations
+
+Phase 1 triage controls are additive and can be emergency-disabled without affecting legacy chat.
+
+Environment variables:
+
+- `AI_TRIAGE_ENABLED` (optional, default enabled; set to `false`/`0`/`off` to disable triage API + retrieval + upload)
+- `NEXT_PUBLIC_AI_TRIAGE_ENABLED` (optional, default enabled; set to `false`/`0`/`off` to hide triage UI entry points)
+- `AI_TRIAGE_HUMAN_REVIEW_THRESHOLD` (optional, default `0.7`; below this confidence triage responses include explicit human-review prompts)
+- `AI_TRIAGE_PHOTO_RETENTION_DAYS` (optional, default `30`)
+- `AI_TRIAGE_RECORD_RETENTION_DAYS` (optional, default `120`)
+
+Retention purge command:
+
+```bash
+npm run db:purge:triage
+```
+
+This command deletes aged triage Blob photos, clears stale photo references, and removes aged triage records using the retention windows above.
+
+Automated purge:
+
+- Vercel cron is configured to call `POST /api/internal/triage-retention` daily at 04:00 UTC.
+- Set `TRIAGE_RETENTION_CRON_SECRET` in environment variables.
+- Cron authorization supports either:
+	- `Authorization: Bearer <TRIAGE_RETENTION_CRON_SECRET>`
+	- `x-triage-retention-secret: <TRIAGE_RETENTION_CRON_SECRET>`
+- Optional dry-run can be executed manually with: `POST /api/internal/triage-retention?dryRun=1`.
+
 ## Owner Dashboard (Initial Implementation)
 
 Launch dashboard routes:

@@ -181,4 +181,55 @@ describe("account-home-intelligence", () => {
       icon: "message",
     });
   });
+
+  it("adds triage-informed recommendation and AI timeline category when triage exists", () => {
+    const snapshot = makeSnapshot({
+      triageAssessments: [
+        {
+          id: "triage_1",
+          customerId: "customer_1",
+          serviceBookingId: null,
+          source: "triage_engine_v1",
+          likelyPest: "Rodent activity",
+          confidence: 0.81,
+          severity: "high",
+          urgency: "urgent",
+          recommendedService: "Inspection and targeted treatment plan",
+          estimatedPriceRange: "$149-$499",
+          recommendedTimeline: "Same day",
+          safetyConsiderations: ["Keep children and pets away"],
+          followUpQuestions: ["Where is activity highest?"],
+          riskFactors: ["Activity may spread"],
+          conversionLikelihood: "high",
+          guidedAnswersJson: null,
+          photosJson: null,
+          needsFollowUp: true,
+          resolvedAt: null,
+          createdAt: new Date("2026-05-12T00:00:00.000Z"),
+          updatedAt: new Date("2026-05-12T00:00:00.000Z"),
+        },
+      ],
+      timeline: [
+        {
+          id: "triage_timeline_1",
+          type: "triage",
+          title: "Urgent triage signal",
+          detail: "Rodent activity",
+          occurredAt: "2026-05-12T00:00:00.000Z",
+        },
+      ],
+    });
+
+    const intelligence = buildAccountHomeIntelligence(snapshot, new Date("2026-05-13T00:00:00.000Z"));
+
+    expect(intelligence.recommendations.some((item) => item.id === "triage")).toBe(true);
+    expect(intelligence.summary).toContain("Latest AI triage signal");
+    expect(intelligence.timeline.filters).toEqual([
+      { id: "all", label: "All", count: 2 },
+      { id: "service", label: "Service", count: 0 },
+      { id: "billing", label: "Billing", count: 0 },
+      { id: "support", label: "Support", count: 0 },
+      { id: "ai", label: "AI", count: 2 },
+    ]);
+  });
 });

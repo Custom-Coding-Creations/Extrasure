@@ -7,6 +7,9 @@ export type BookingAssistantContext = {
   city?: string;
   lastServiceDate?: string;
   propertyAddress?: string;
+  triageAssessmentId?: string;
+  triageLikelyPest?: string;
+  triageConfidence?: number;
 };
 
 export type BookingAiHandoff = {

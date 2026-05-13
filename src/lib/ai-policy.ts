@@ -6,6 +6,8 @@ export type GuardrailDecision = {
   policySnippet?: string;
 };
 
+export const TRIAGE_MIN_CONFIDENCE_FOR_ASSERTIVE_LABEL = 0.7;
+
 const MEDICAL_OR_LEGAL_PATTERN = /\b(medical|doctor|diagnose|diagnosis|legal|lawsuit|attorney|lawyer|sue)\b/i;
 const PESTICIDE_SAFETY_PATTERN = /\b(is it safe|safe for (kids|children|pets)|toxic|poison|poisonous|pregnant|pregnancy)\b/i;
 const GUARANTEED_PRICE_PATTERN = /\b(guarantee(d)?\s+price|exact\s+price|final\s+price|locked\s+price|quote\s+guarantee)\b/i;
@@ -62,4 +64,12 @@ export function evaluateGuardrails(userInput: string): GuardrailDecision {
 
 export function policySnippetFor(reasonCode: Exclude<GuardrailDecision["reasonCode"], undefined>, language: AiLanguage) {
   return POLICY_SNIPPETS[reasonCode][language];
+}
+
+export function shouldEscalateTriageToHuman(confidence: number, severity: "low" | "moderate" | "high" | "critical") {
+  if (severity === "critical") {
+    return true;
+  }
+
+  return confidence < TRIAGE_MIN_CONFIDENCE_FOR_ASSERTIVE_LABEL;
 }

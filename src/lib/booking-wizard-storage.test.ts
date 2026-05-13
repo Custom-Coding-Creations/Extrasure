@@ -26,6 +26,9 @@ describe("booking wizard storage", () => {
       step: 3,
       selectedServiceId: "svc_2",
       city: "Syracuse",
+      triageAssessmentId: "triage_1",
+      triageLikelyPest: "Rodent activity",
+      triageConfidence: 0.72,
     });
 
     const loaded = loadWizardState(storage);
@@ -34,6 +37,9 @@ describe("booking wizard storage", () => {
       step: 3,
       selectedServiceId: "svc_2",
       city: "Syracuse",
+      triageAssessmentId: "triage_1",
+      triageLikelyPest: "Rodent activity",
+      triageConfidence: 0.72,
     });
   });
 

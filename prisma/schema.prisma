@@ -117,6 +117,9 @@ enum AutomationEventType {
   failed_payment_retry
   review_request
   seasonal_reservice
+  triage_high_urgency
+  triage_unresolved_high_risk
+  triage_follow_up_due
 }
 
 enum AutomationEventStatus {
@@ -133,6 +136,38 @@ enum DayOfWeek {
   friday
   saturday
   sunday
+}
+
+enum TriageSeverity {
+  low
+  moderate
+  high
+  critical
+}
+
+enum TriageUrgency {
+  monitor
+  soon
+  urgent
+  immediate
+}
+
+enum TriageConversionLikelihood {
+  low
+  medium
+  high
+}
+
+enum AssessmentOverrideReason {
+  incorrect_confidence
+  model_misclassification
+  edge_case
+  manual_review_required
+  other
+}
+
+enum WebhookEventType {
+  triage_anomaly_detected
 }
 
 model AdminUser {
@@ -163,6 +198,7 @@ model Customer {
   autopayEnabled   Boolean @default(false)
   autopayMethodType PaymentPreferenceMethod @default(none)
   achDiscountEligible Boolean @default(true)
+  triageAssessments TriageAssessment[]
 }
 
 model SavedPaymentMethod {
@@ -222,6 +258,38 @@ model ServiceBooking {
   paidAt             DateTime?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
+  triageAssessments  TriageAssessment[]
+}
+
+model TriageAssessment {
+  id                   String                      @id
+  customerId           String
+  serviceBookingId     String?
+  source               String                      @default("triage_engine_v1")
+  likelyPest           String
+  confidence           Float
+  severity             TriageSeverity
+  urgency              TriageUrgency
+  recommendedService   String
+  estimatedPriceRange  String
+  recommendedTimeline  String
+  safetyConsiderations String[]
+  followUpQuestions    String[]
+  riskFactors          String[]
+  conversionLikelihood TriageConversionLikelihood
+  guidedAnswersJson    String?
+  photosJson           String?
+  needsFollowUp        Boolean                     @default(false)
+  resolvedAt           DateTime?
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  customer             Customer                    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceBooking       ServiceBooking?             @relation(fields: [serviceBookingId], references: [id], onDelete: SetNull)
+  overrides            AssessmentOverride[]
+
+  @@index([customerId, createdAt])
+  @@index([serviceBookingId])
+  @@index([urgency, severity, resolvedAt])
 }
 
 model CustomerAccount {
@@ -326,6 +394,29 @@ model SchedulingConfig {
   updatedAt               DateTime @updatedAt
 }
 
+model OperationalSettings {
+  id                           String   @id @default("singleton")
+  triageKillSwitchDisabled     Boolean  @default(false)
+  triageHumanReviewThreshold   Float    @default(0.7)
+  updatedAt                    DateTime @updatedAt
+  updatedBy                    String?
+}
+
+model AssessmentOverride {
+  id                    String                     @id @default(cuid())
+  triageAssessmentId    String
+  previousConfidence    Float
+  newConfidence         Float
+  reason                AssessmentOverrideReason
+  notes                 String?
+  overriddenBy          String
+  createdAt             DateTime                   @default(now())
+  triageAssessment      TriageAssessment           @relation(fields: [triageAssessmentId], references: [id], onDelete: Cascade)
+
+  @@index([triageAssessmentId])
+  @@index([createdAt])
+}
+
 model Job {
   id           String    @id
   customerId   String
@@ -415,5 +506,34 @@ model AuditEvent {
   before    String?
   after     String?
   timestamp DateTime @default(now())
+}
+
+model WebhookEndpoint {
+  id           String                  @id @default(cuid())
+  url          String
+  eventTypes   WebhookEventType[]
+  isActive     Boolean                 @default(true)
+  createdAt    DateTime                @default(now())
+  deliveries   WebhookDelivery[]
+
+  @@index([isActive, createdAt])
+}
+
+model WebhookDelivery {
+  id                 String              @id @default(cuid())
+  webhookEndpointId  String
+  webhookEndpoint    WebhookEndpoint     @relation(fields: [webhookEndpointId], references: [id], onDelete: Cascade)
+  eventType          WebhookEventType
+  statusCode         Int?
+  success            Boolean
+  error              String?
+  payload            Json
+  attemptNumber      Int
+  nextRetryAt        DateTime?
+  deliveredAt        DateTime?
+  createdAt          DateTime            @default(now())
+
+  @@index([webhookEndpointId, createdAt])
+  @@index([success, createdAt])
 }
 

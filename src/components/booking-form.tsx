@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { type AvailableSlot, AvailabilityPicker } from "@/components/availability-picker";
 import { startBookingCheckoutAction } from "@/app/book/actions";
 import { getNextSlotIndex } from "@/lib/availability-navigation";
-import { buildBookingAiEventPayload } from "@/lib/booking-ai-analytics";
-import { trackEvent } from "@/lib/analytics";
+import { buildBookingAiEventPayload, buildBookingTriageEventPayload } from "@/lib/booking-ai-analytics";
+import { trackEvent, trackTriageEvent } from "@/lib/analytics";
 import { buildBookingAiContext } from "@/lib/booking-ai-context";
 import { saveBookingAiHandoff } from "@/lib/booking-assistant-handoff";
 import { buildBookingReviewSummary } from "@/lib/booking-review-summary";
@@ -19,11 +19,30 @@ import {
   saveWizardState,
 } from "@/lib/booking-wizard-storage";
 import { testimonials, trustBadges } from "@/lib/site";
+import { isTriageUiEnabled } from "@/lib/triage-runtime";
 
 type AiChatPayload = {
   ok: true;
   sessionId: string;
   answer: string;
+};
+
+type TriagePayload = {
+  ok: true;
+  assessmentId: string | null;
+  needsFollowUp: boolean;
+  requiresHumanReview: boolean;
+  humanReviewReason: "critical_risk" | "low_confidence" | "safety_escalation" | null;
+  humanReviewThreshold: number;
+  triage: {
+    likelyPest: string;
+    confidence: number;
+    urgency: "monitor" | "soon" | "urgent" | "immediate";
+    recommendedService: string;
+    estimatedPriceRange: string;
+    recommendedTimeline: string;
+    followUpQuestions: string[];
+  };
 };
 
 const stepLabels = [
@@ -234,6 +253,7 @@ interface BookingFormProps {
 }
 
 export function BookingForm({ activeItems, prefill }: BookingFormProps) {
+  const triageEnabled = isTriageUiEnabled();
   const [storedState] = useState(() => {
     if (typeof window === "undefined") {
       return null;
@@ -261,6 +281,14 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
   const [aiSessionId, setAiSessionId] = useState("");
   const [aiAnswer, setAiAnswer] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [triagePrompt, setTriagePrompt] = useState(storedState?.triagePrompt ?? "");
+  const [triageAssessmentId, setTriageAssessmentId] = useState(storedState?.triageAssessmentId ?? "");
+  const [triageLikelyPest, setTriageLikelyPest] = useState(storedState?.triageLikelyPest ?? "");
+  const [triageConfidence, setTriageConfidence] = useState(storedState?.triageConfidence ?? 0);
+  const [triagePhotoUrls, setTriagePhotoUrls] = useState<string[]>(storedState?.triagePhotoUrls ?? []);
+  const [triageLoading, setTriageLoading] = useState(false);
+  const [triageError, setTriageError] = useState("");
+  const [triageHumanReviewNotice, setTriageHumanReviewNotice] = useState("");
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const pestButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const planButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -279,6 +307,9 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
     stepLabel: stepLabels[step],
     city,
     propertyAddress: addressLine1 || undefined,
+    triageAssessmentId: triageAssessmentId || undefined,
+    triageLikelyPest: triageLikelyPest || undefined,
+    triageConfidence: triageConfidence || undefined,
   });
 
   const contextPanel = getContextByStep(step, selectedService?.name ?? "", selectedPest.label, selectedSlot);
@@ -330,6 +361,11 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
         postalCode,
         stateProvince,
         notes,
+        triagePrompt,
+        triageAssessmentId,
+        triageLikelyPest,
+        triageConfidence,
+        triagePhotoUrls,
       });
   }, [
     addressLine1,
@@ -345,6 +381,11 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
     selectedSlot,
     stateProvince,
     step,
+    triageAssessmentId,
+    triageConfidence,
+    triageLikelyPest,
+    triagePhotoUrls,
+    triagePrompt,
   ]);
 
   useEffect(() => {
@@ -462,7 +503,10 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
   async function askAi(prompt: string) {
     setAiLoading(true);
     setAiAnswer("");
-    trackEvent("booking_ai_prompt_sent", bookingAiEventPayload);
+    trackEvent("booking_ai_prompt_sent", {
+      ...bookingAiEventPayload,
+      lineageSource: "legacy_chat",
+    });
 
     try {
       const response = await fetch("/api/ai/chat", {
@@ -490,19 +534,118 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
           context: bookingAiContext,
         });
       }
-      trackEvent("booking_ai_prompt_answered", bookingAiEventPayload);
+      trackEvent("booking_ai_prompt_answered", {
+        ...bookingAiEventPayload,
+        lineageSource: "legacy_chat",
+      });
     } catch {
       setAiAnswer("AI guidance is temporarily unavailable. You can continue booking and our team will confirm details.");
-      trackEvent("booking_ai_prompt_failed", bookingAiEventPayload);
+      trackEvent("booking_ai_prompt_failed", {
+        ...bookingAiEventPayload,
+        lineageSource: "legacy_chat",
+      });
     } finally {
       setAiLoading(false);
+    }
+  }
+
+  async function uploadTriagePhotos(files: FileList | null) {
+    if (!files?.length) {
+      return;
+    }
+
+    const formData = new FormData();
+
+    for (const file of Array.from(files).slice(0, 4)) {
+      formData.append("files", file);
+    }
+
+    const response = await fetch("/api/ai/triage/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("upload_failed");
+    }
+
+    const payload = (await response.json()) as {
+      files?: Array<{ url: string }>;
+    };
+
+    setTriagePhotoUrls(payload.files?.map((item) => item.url).filter(Boolean).slice(0, 4) ?? []);
+  }
+
+  async function runNotSureTriage() {
+    const message = triagePrompt.trim();
+
+    if (!message || triageLoading) {
+      return;
+    }
+
+    setTriageLoading(true);
+    setTriageError("");
+
+    try {
+      const response = await fetch("/api/ai/triage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message,
+          photoUrls: triagePhotoUrls,
+          answers: [
+            {
+              question: "Booking not_sure triage prompt",
+              answer: message,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("triage_failed");
+      }
+
+      const payload = (await response.json()) as TriagePayload;
+      setTriageAssessmentId(payload.assessmentId ?? "");
+      setTriageLikelyPest(payload.triage.likelyPest);
+      setTriageConfidence(payload.triage.confidence);
+      setTriageHumanReviewNotice(
+        payload.requiresHumanReview
+          ? payload.humanReviewReason === "low_confidence"
+            ? `Confidence is below ${Math.round(payload.humanReviewThreshold * 100)}%. A licensed team member should review this diagnosis.`
+            : "A licensed team member should review this triage result before treatment confirmation."
+          : "",
+      );
+      setNotes((current) => {
+        const triageSummary = `Triage: ${payload.triage.likelyPest} (${Math.round(payload.triage.confidence * 100)}% confidence), ${payload.triage.recommendedService}, ${payload.triage.recommendedTimeline}.`;
+        return current ? `${current}\n${triageSummary}` : triageSummary;
+      });
+      trackTriageEvent("booking_completed", buildBookingTriageEventPayload({
+        step,
+        stepLabel: stepLabels[step],
+        completionQualityScore: payload.triage.confidence,
+        userConfidenceSelection: payload.triage.confidence >= 0.75 ? "high" : payload.triage.confidence >= 0.55 ? "medium" : "low",
+        followUpAccepted: payload.needsFollowUp,
+      }));
+    } catch {
+      setTriageError("Triage is unavailable right now. You can continue booking and our team will validate details.");
+      setTriageHumanReviewNotice("");
+      trackTriageEvent("booking_failed", buildBookingTriageEventPayload({
+        step,
+        stepLabel: stepLabels[step],
+      }));
+    } finally {
+      setTriageLoading(false);
     }
   }
 
   function openFullAssistant() {
     if (typeof window !== "undefined") {
       saveBookingAiHandoff(window.sessionStorage, {
-        prompt: aiAnswer || aiPrompts[0],
+        prompt: aiAnswer || triagePrompt || aiPrompts[0],
         context: bookingAiContext,
       });
       window.dispatchEvent(new CustomEvent("extrasure:open-site-chatbot"));
@@ -624,6 +767,46 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
                   );
                 })}
               </div>
+              {triageEnabled && selectedPestId === "not_sure" ? (
+                <section className="rounded-2xl border border-[#d8caad] bg-[#fff7e6] p-4" aria-label="Not sure triage flow">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#536359]">AI triage for uncertain pest type</p>
+                  <textarea
+                    value={triagePrompt}
+                    onChange={(event) => setTriagePrompt(event.target.value)}
+                    className="mt-2 min-h-20 w-full rounded-xl border border-[#cfbf9f] bg-white px-4 py-3 text-sm text-[#1e3026]"
+                    placeholder="Describe what you are seeing and where it appears most often."
+                    aria-label="Booking triage description"
+                  />
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="mt-2 w-full rounded-xl border border-[#cfbf9f] bg-white px-3 py-2 text-xs text-[#1e3026]"
+                    onChange={(event) => {
+                      void uploadTriagePhotos(event.target.files).catch(() => {
+                        setTriageError("Photo upload failed. Sign in for customer-linked uploads and retry.");
+                      });
+                    }}
+                    aria-label="Upload symptom photos"
+                  />
+                  {triagePhotoUrls.length ? <p className="mt-2 text-xs text-[#5d7267]">Uploaded photos: {triagePhotoUrls.length}</p> : null}
+                  <button
+                    type="button"
+                    onClick={() => void runNotSureTriage()}
+                    disabled={triageLoading || !triagePrompt.trim()}
+                    className="mt-2 rounded-full bg-[#163526] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {triageLoading ? "Analyzing..." : "Analyze symptoms"}
+                  </button>
+                  {triageError ? <p className="mt-2 text-xs text-red-700">{triageError}</p> : null}
+                  {triageHumanReviewNotice ? <p className="mt-2 text-xs font-semibold text-[#6e3f13]">{triageHumanReviewNotice}</p> : null}
+                  {triageLikelyPest ? (
+                    <p className="mt-2 text-xs text-[#33453a]">
+                      Likely pest signal: <strong>{triageLikelyPest}</strong> ({Math.round(triageConfidence * 100)}% confidence)
+                    </p>
+                  ) : null}
+                </section>
+              ) : null}
             </div>
           ) : null}
 

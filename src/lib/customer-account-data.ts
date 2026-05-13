@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export type TimelineItem = {
   id: string;
-  type: "invoice" | "payment" | "service" | "booking" | "note";
+  type: "invoice" | "payment" | "service" | "booking" | "note" | "triage";
   title: string;
   detail: string;
   occurredAt: string;
@@ -50,7 +50,7 @@ export async function getCustomerAccountSnapshot(customerId: string, emailHint?:
 
   const customerIds = Array.from(new Set([customerId, ...relatedCustomerIds.map((item) => item.id)]));
 
-  const [invoices, jobs, bookings, notes] = await Promise.all([
+  const [invoices, jobs, bookings, notes, triageAssessments] = await Promise.all([
     prisma.invoice.findMany({
       where: { customerId: { in: customerIds } },
       orderBy: { dueDate: "desc" },
@@ -70,6 +70,13 @@ export async function getCustomerAccountSnapshot(customerId: string, emailHint?:
       where: {
         customerId: { in: customerIds },
         visibility: "customer",
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.triageAssessment.findMany({
+      where: {
+        customerId: { in: customerIds },
       },
       orderBy: { createdAt: "desc" },
       take: 20,
@@ -127,6 +134,13 @@ export async function getCustomerAccountSnapshot(customerId: string, emailHint?:
       detail: note.body,
       occurredAt: note.createdAt.toISOString(),
     })),
+    ...triageAssessments.map((assessment) => ({
+      id: `triage_${assessment.id}`,
+      type: "triage" as const,
+      title: `Triage ${assessment.urgency.replace("_", " ")}`,
+      detail: `${assessment.likelyPest} · ${Math.round(assessment.confidence * 100)}% confidence`,
+      occurredAt: assessment.createdAt.toISOString(),
+    })),
   ]
     .sort((a, b) => Number(new Date(b.occurredAt)) - Number(new Date(a.occurredAt)))
     .slice(0, 40);
@@ -138,6 +152,7 @@ export async function getCustomerAccountSnapshot(customerId: string, emailHint?:
     jobs,
     bookings,
     notes,
+    triageAssessments,
     timeline,
   };
 }

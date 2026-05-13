@@ -16,6 +16,11 @@ export type StoredWizardState = {
   postalCode?: string;
   stateProvince?: string;
   notes?: string;
+  triagePrompt?: string;
+  triageAssessmentId?: string;
+  triageLikelyPest?: string;
+  triageConfidence?: number;
+  triagePhotoUrls?: string[];
 };
 
 export function loadWizardState(storage: Pick<Storage, "getItem">, key = bookingWizardStorageKey): StoredWizardState | null {

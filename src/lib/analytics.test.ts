@@ -1,4 +1,4 @@
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackTriageEvent } from "@/lib/analytics";
 
 describe("trackEvent", () => {
   const originalWindow = global.window;
@@ -35,5 +35,28 @@ describe("trackEvent", () => {
     delete (global as typeof global & { window?: Window }).window;
 
     expect(() => trackEvent("booking_ai_prompt_failed", { step: 3 })).not.toThrow();
+  });
+
+  it("prefixes triage events and applies default lineage", () => {
+    const gtag = jest.fn();
+
+    global.window = {
+      dataLayer: [],
+      gtag,
+    } as Window;
+
+    trackTriageEvent("completed", { completionQualityScore: 0.8 });
+
+    expect(global.window.dataLayer).toEqual([
+      {
+        event: "triage_completed",
+        lineageSource: "triage_engine",
+        completionQualityScore: 0.8,
+      },
+    ]);
+    expect(gtag).toHaveBeenCalledWith("event", "triage_completed", {
+      lineageSource: "triage_engine",
+      completionQualityScore: 0.8,
+    });
   });
 });

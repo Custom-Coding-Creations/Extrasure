@@ -1,5 +1,12 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminDataNotice } from "@/components/admin/admin-data-notice";
+import { TriageRetentionOpsCard } from "@/components/admin/triage-retention-ops-card";
+import { TriageRetentionHistoryCard } from "@/components/admin/triage-retention-history-card";
+import { TriageOperationalControlsCard } from "@/components/admin/triage-operational-controls-card";
+import { TriageAnomalyDetectionCard } from "@/components/admin/triage-anomaly-detection-card";
+import { TriageAssessmentOverrideCard } from "@/components/admin/triage-assessment-override-card";
+import { TriageWebhookNotificationsCard } from "@/components/admin/triage-webhook-notifications-card";
+import { TriageAssessmentExportCard } from "@/components/admin/triage-assessment-export-card";
 import {
   createAdminUserAction,
   deleteAdminUserAction,
@@ -9,7 +16,6 @@ import {
 } from "@/app/admin/settings/actions";
 import { loadAdminPageData } from "@/lib/admin-page-data";
 import { getSchedulingConfig } from "@/lib/admin-store";
-
 export const dynamic = "force-dynamic";
 
 export default async function AdminSettingsPage() {
@@ -141,7 +147,7 @@ export default async function AdminSettingsPage() {
                 defaultValue={schedulingConfig.globalBookingLookaheadDays}
                 className="mt-2 w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]"
               />
-              <p className="mt-2 text-xs text-[#5d7267]">How many days ahead customers can book (used if service doesn't specify)</p>
+              <p className="mt-2 text-xs text-[#5d7267]">How many days ahead customers can book (used if service doesn&apos;t specify)</p>
             </div>
 
             <div>
@@ -167,6 +173,14 @@ export default async function AdminSettingsPage() {
           </button>
         </form>
       </section>
+
+      <TriageAnomalyDetectionCard />
+      <TriageOperationalControlsCard />
+      <TriageAssessmentOverrideCard />
+      <TriageWebhookNotificationsCard />
+      <TriageAssessmentExportCard />
+      <TriageRetentionOpsCard />
+      <TriageRetentionHistoryCard />
       </>
       )}
     </AdminShell>

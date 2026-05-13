@@ -239,6 +239,24 @@ function buildRecommendations(snapshot: CustomerAccountSnapshot, protectionScore
     },
   ];
 
+  const latestTriage = snapshot.triageAssessments?.[0] ?? null;
+
+  if (latestTriage) {
+    recommendations.push({
+      id: "triage",
+      title: "AI triage follow-up is available",
+      detail:
+        latestTriage.urgency === "urgent" || latestTriage.urgency === "immediate"
+          ? `Latest triage marked ${latestTriage.urgency} urgency for ${latestTriage.likelyPest}. Prioritize immediate scheduling.`
+          : `Latest triage suggests ${latestTriage.likelyPest} and recommends ${latestTriage.recommendedTimeline.toLowerCase()}.`,
+      priority: latestTriage.urgency === "urgent" || latestTriage.urgency === "immediate" ? "High" : "Medium",
+      confidenceLabel: latestTriage.confidence >= 0.7 ? "High confidence" : "Modeled",
+      tone: latestTriage.urgency === "urgent" || latestTriage.urgency === "immediate" ? "warning" : "info",
+      actionLabel: "Review triage",
+      href: "/account",
+    });
+  }
+
   return recommendations.sort((left, right) => {
     const order = { High: 0, Medium: 1, Routine: 2 } as const;
     return order[left.priority] - order[right.priority];
@@ -248,6 +266,10 @@ function buildRecommendations(snapshot: CustomerAccountSnapshot, protectionScore
 function mapTimelineCategory(type: CustomerAccountSnapshot["timeline"][number]["type"]): TimelineFeedItem["category"] {
   if (type === "invoice" || type === "payment") {
     return "billing";
+  }
+
+  if (type === "triage") {
+    return "ai";
   }
 
   if (type === "note") {
@@ -330,7 +352,9 @@ export function buildAccountHomeIntelligence(snapshot: CustomerAccountSnapshot, 
   const servicePenalty = Math.min(30, Math.floor(lastServiceDaysAgo / 6));
   const scorePenaltyFromInvoices = Math.min(20, billing.openInvoices.length * 6);
   const lifecyclePenalty = snapshot.customer.lifecycle === "past_due" ? 18 : 0;
-  const protectionScore = Math.max(42, 100 - servicePenalty - scorePenaltyFromInvoices - lifecyclePenalty);
+  const latestTriage = snapshot.triageAssessments?.[0] ?? null;
+  const triagePenalty = latestTriage && (latestTriage.urgency === "urgent" || latestTriage.urgency === "immediate") ? 6 : 0;
+  const protectionScore = Math.max(42, 100 - servicePenalty - scorePenaltyFromInvoices - lifecyclePenalty - triagePenalty);
   const protectionTone = toTone(protectionScore);
   const profile = inferPropertyProfile(snapshot);
   const warmSeason = now.getMonth() >= 4 && now.getMonth() <= 8;
@@ -338,6 +362,9 @@ export function buildAccountHomeIntelligence(snapshot: CustomerAccountSnapshot, 
   const summary = warmSeason
     ? `Recent seasonal conditions may increase exterior pest activity${profile.moisture ? " around moisture-prone edges" : " near your perimeter"}. ${billing.openInvoices.length > 0 ? "Open billing items could create service interruptions if left unresolved." : "Your current plan posture is keeping protection continuity stable."}`
     : `${lastServiceDaysAgo > 60 ? "Protection confidence is softening because your last treatment is aging out of the preferred cadence." : "Protection coverage remains steady with current service recency and account status."} ${profile.wooded ? "Wooded property signals slightly increase outdoor exposure this cycle." : "Seasonal exposure appears stable this cycle."}`;
+  const triageSummary = latestTriage
+    ? ` Latest AI triage signal: ${latestTriage.likelyPest} (${Math.round(latestTriage.confidence * 100)}% confidence, ${latestTriage.urgency} urgency).`
+    : "";
 
   const spotlight = protectionScore >= 82
     ? "Your home is operating inside a strong protection envelope."
@@ -357,7 +384,7 @@ export function buildAccountHomeIntelligence(snapshot: CustomerAccountSnapshot, 
     protectionTone,
     activeRiskHeadline,
     spotlight,
-    summary,
+    summary: `${summary}${triageSummary}`,
     nextServiceDate,
     nextServiceLabel: formatDate(nextServiceDate),
     lastServiceDate,

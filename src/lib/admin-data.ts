@@ -86,7 +86,10 @@ export type AutomationEvent = {
     | "invoice_reminder"
     | "failed_payment_retry"
     | "review_request"
-    | "seasonal_reservice";
+    | "seasonal_reservice"
+    | "triage_high_urgency"
+    | "triage_unresolved_high_risk"
+    | "triage_follow_up_due";
   target: string;
   status: "queued" | "sent" | "failed";
   scheduledFor: string;

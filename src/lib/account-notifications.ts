@@ -29,6 +29,16 @@ export const ACCOUNT_NOTIFICATION_PREFERENCE_DEFINITIONS = [
     label: "Profile completeness alerts",
     detail: "Notify when property profile details are incomplete.",
   },
+  {
+    sourceKey: "triage_high_risk",
+    label: "High-risk triage alerts",
+    detail: "Notify when AI triage indicates high urgency or elevated safety risk.",
+  },
+  {
+    sourceKey: "triage_follow_up",
+    label: "Triage follow-up reminders",
+    detail: "Notify when unresolved triage assessments need follow-up actions.",
+  },
 ] as const;
 
 const ACCOUNT_NOTIFICATION_SOURCE_CONFIG = {
@@ -36,6 +46,8 @@ const ACCOUNT_NOTIFICATION_SOURCE_CONFIG = {
   billing_open_balance: { expiresAfterDays: 14 },
   visit_missing: { expiresAfterDays: 10 },
   profile_incomplete: { expiresAfterDays: 30 },
+  triage_high_risk: { expiresAfterDays: 5 },
+  triage_follow_up: { expiresAfterDays: 7 },
   account_healthy: { expiresAfterDays: 2 },
 } as const;
 
@@ -102,6 +114,7 @@ function buildPersistedNotificationCandidates(snapshot: CustomerAccountSnapshot,
     .filter((job) => job.scheduledAt.getTime() >= now.getTime())
     .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())[0] ?? null;
   const nextVisit = futureJob ?? upcomingBookings[0] ?? null;
+  const latestTriage = snapshot.triageAssessments?.[0] ?? null;
   const protectionScore = Math.max(
     42,
     100 - Math.min(30, Math.floor(lastServiceDaysAgo / 6)) - Math.min(20, openInvoices.length * 6) - (snapshot.customer.lifecycle === "past_due" ? 18 : 0),
@@ -149,6 +162,30 @@ function buildPersistedNotificationCandidates(snapshot: CustomerAccountSnapshot,
       title: "Property profile is still incomplete",
       detail: "Add your street address to improve technician routing and service prep guidance.",
       href: "/account/profile",
+    });
+  }
+
+  if (
+    latestTriage &&
+    (latestTriage.urgency === "urgent" || latestTriage.urgency === "immediate" || latestTriage.severity === "high" || latestTriage.severity === "critical") &&
+    preferenceMap.get("triage_high_risk")
+  ) {
+    candidates.push({
+      sourceKey: "triage_high_risk",
+      tone: "warning",
+      title: "High-risk triage signal detected",
+      detail: `AI triage flagged ${latestTriage.likelyPest} with ${latestTriage.urgency} urgency.`,
+      href: "/account",
+    });
+  }
+
+  if (latestTriage?.needsFollowUp && preferenceMap.get("triage_follow_up")) {
+    candidates.push({
+      sourceKey: "triage_follow_up",
+      tone: "info",
+      title: "Triage follow-up recommended",
+      detail: "Your latest AI triage assessment still needs follow-up confirmation.",
+      href: "/account",
     });
   }
 

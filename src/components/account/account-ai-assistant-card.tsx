@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackTriageEvent } from "@/lib/analytics";
+import { isTriageUiEnabled } from "@/lib/triage-runtime";
 
 type ChatRole = "assistant" | "user";
 
@@ -41,6 +42,16 @@ type AccountAiAssistantCardProps = {
   context: AssistantContext;
 };
 
+type TriageCardResult = {
+  likelyPest: string;
+  confidence: number;
+  urgency: "monitor" | "soon" | "urgent" | "immediate";
+  recommendedService: string;
+  estimatedPriceRange: string;
+  recommendedTimeline: string;
+  safetyConsiderations: string[];
+};
+
 function makeId() {
   return crypto.randomUUID();
 }
@@ -53,6 +64,7 @@ const suggestionPrompts = [
 ];
 
 export function AccountAiAssistantCard({ context }: AccountAiAssistantCardProps) {
+  const triageEnabled = isTriageUiEnabled();
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState<UiMessage[]>([
     {
@@ -63,6 +75,11 @@ export function AccountAiAssistantCard({ context }: AccountAiAssistantCardProps)
   ]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [triageInput, setTriageInput] = useState("");
+  const [triageLoading, setTriageLoading] = useState(false);
+  const [triageResult, setTriageResult] = useState<TriageCardResult | null>(null);
+  const [triageError, setTriageError] = useState("");
+  const [triageHumanReviewNotice, setTriageHumanReviewNotice] = useState("");
   const [handoff, setHandoff] = useState<ApiChatResponse["handoff"]>({
     callHref: "tel:+15169432318",
     smsHref: "sms:+15169432318",
@@ -90,7 +107,7 @@ export function AccountAiAssistantCard({ context }: AccountAiAssistantCardProps)
     setInput("");
     setSending(true);
     setMessages((current) => [...current, userMessage]);
-    trackEvent("ai_chat_message_sent", { source: "account_dashboard" });
+    trackEvent("ai_chat_message_sent", { source: "account_dashboard", lineageSource: "legacy_chat" });
 
     try {
       const response = await fetch("/api/ai/chat", {
@@ -141,6 +158,65 @@ export function AccountAiAssistantCard({ context }: AccountAiAssistantCardProps)
     await sendMessage(input);
   }
 
+  async function runTriage() {
+    const message = triageInput.trim();
+
+    if (!message || triageLoading) {
+      return;
+    }
+
+    setTriageLoading(true);
+    setTriageError("");
+
+    try {
+      const response = await fetch("/api/ai/triage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message,
+          answers: [
+            {
+              question: "Dashboard symptom summary",
+              answer: message,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("triage_failed");
+      }
+
+      const payload = (await response.json()) as {
+        triage: TriageCardResult;
+        requiresHumanReview: boolean;
+        humanReviewReason: "critical_risk" | "low_confidence" | "safety_escalation" | null;
+        humanReviewThreshold: number;
+      };
+      setTriageResult(payload.triage);
+      setTriageHumanReviewNotice(
+        payload.requiresHumanReview
+          ? payload.humanReviewReason === "low_confidence"
+            ? `Confidence is below ${Math.round(payload.humanReviewThreshold * 100)}%. Human review is recommended.`
+            : "Human review is recommended before final treatment decisions."
+          : "",
+      );
+      trackTriageEvent("dashboard_completed", {
+        lineageSource: "triage_engine",
+        completionQualityScore: payload.triage.confidence,
+        userConfidenceSelection: payload.triage.confidence >= 0.75 ? "high" : payload.triage.confidence >= 0.55 ? "medium" : "low",
+      });
+    } catch {
+      setTriageError("Could not run symptom analysis right now.");
+      setTriageHumanReviewNotice("");
+      trackTriageEvent("dashboard_failed", { lineageSource: "triage_engine" });
+    } finally {
+      setTriageLoading(false);
+    }
+  }
+
   return (
     <section className="dashboard-atmosphere rounded-3xl border border-[#d8ccaf] p-5 dark:border-[#4d6751] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -180,7 +256,50 @@ export function AccountAiAssistantCard({ context }: AccountAiAssistantCardProps)
             {prompt}
           </button>
         ))}
+        {triageEnabled ? (
+          <button
+            type="button"
+            onClick={() => setTriageInput("Persistent activity near baseboards and kitchen at night")}
+            className="rounded-full border border-[#d2c5a9] bg-[#fff7e8] px-3 py-2 text-xs font-semibold text-[#294236] transition hover:bg-[#f1e5cf] dark:border-[#506a54] dark:bg-[#243a2f] dark:text-[#e8ddc7]"
+          >
+            Analyze symptoms
+          </button>
+        ) : null}
       </div>
+
+      {triageEnabled ? (
+        <div className="mt-4 rounded-2xl border border-[#ddd2b7] bg-[rgba(255,248,234,0.92)] p-3 dark:border-[#516b55] dark:bg-[rgba(36,58,47,0.9)]">
+        <div className="flex items-center gap-2">
+          <input
+            className="field flex-1"
+            value={triageInput}
+            onChange={(event) => setTriageInput(event.target.value)}
+            placeholder="Describe symptoms for AI triage"
+            aria-label="Symptom triage input"
+          />
+          <button
+            type="button"
+            onClick={() => void runTriage()}
+            disabled={triageLoading}
+            className="rounded-xl bg-[#163526] px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+          >
+            {triageLoading ? "..." : "Analyze"}
+          </button>
+        </div>
+          {triageError ? <p className="mt-2 text-xs text-red-700">{triageError}</p> : null}
+          {triageHumanReviewNotice ? <p className="mt-2 text-xs font-semibold text-[#6e3f13] dark:text-[#f0c997]">{triageHumanReviewNotice}</p> : null}
+        {triageResult ? (
+          <article className="mt-2 rounded-xl border border-[#d9c8a8] bg-[#fffdf6] p-3 text-xs text-[#253a2f] dark:border-[#536d56] dark:bg-[#21362b] dark:text-[#eee3ce]">
+            <p><strong>Likely pest:</strong> {triageResult.likelyPest}</p>
+            <p className="mt-1"><strong>Confidence:</strong> {Math.round(triageResult.confidence * 100)}%</p>
+            <p className="mt-1"><strong>Urgency:</strong> {triageResult.urgency}</p>
+            <p className="mt-1"><strong>Recommended service:</strong> {triageResult.recommendedService}</p>
+            <p className="mt-1"><strong>Price range:</strong> {triageResult.estimatedPriceRange}</p>
+            <p className="mt-1"><strong>Timeline:</strong> {triageResult.recommendedTimeline}</p>
+          </article>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-[#ddd2b7] bg-[rgba(255,248,234,0.92)] p-3 dark:border-[#516b55] dark:bg-[rgba(36,58,47,0.9)]">
         {messages.map((message) => (

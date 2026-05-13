@@ -992,6 +992,61 @@ export async function setAutomationEventStatus(id: string, status: AutomationEve
   });
 }
 
+export async function queueTriageRetentionAutomationEvents(args: {
+  customerId: string;
+  assessmentId: string;
+  urgency: "monitor" | "soon" | "urgent" | "immediate";
+  severity: "low" | "moderate" | "high" | "critical";
+  needsFollowUp: boolean;
+}) {
+  const scheduledNow = new Date();
+  const scheduledFollowUp = new Date(Date.now() + 1000 * 60 * 60 * 24);
+  const events: Array<Pick<AutomationEvent, "type" | "target" | "status" | "scheduledFor">> = [];
+
+  if (args.urgency === "urgent" || args.urgency === "immediate") {
+    events.push({
+      type: "triage_high_urgency",
+      target: `${args.customerId}:${args.assessmentId}`,
+      status: "queued",
+      scheduledFor: scheduledNow.toISOString(),
+    });
+  }
+
+  if (args.severity === "high" || args.severity === "critical") {
+    events.push({
+      type: "triage_unresolved_high_risk",
+      target: `${args.customerId}:${args.assessmentId}`,
+      status: "queued",
+      scheduledFor: scheduledNow.toISOString(),
+    });
+  }
+
+  if (args.needsFollowUp) {
+    events.push({
+      type: "triage_follow_up_due",
+      target: `${args.customerId}:${args.assessmentId}`,
+      status: "queued",
+      scheduledFor: scheduledFollowUp.toISOString(),
+    });
+  }
+
+  if (!events.length) {
+    return [] as Array<{ id: string }>;
+  }
+
+  return Promise.all(
+    events.map((event, index) =>
+      prisma.automationEvent.create({
+        data: toAutomationEventRecord({
+          id: `a_triage_${Date.now()}_${index}`,
+          ...event,
+        }),
+        select: { id: true },
+      }),
+    ),
+  );
+}
+
 type AdminUserMutationInput = {
   name: string;
   email: string;

@@ -15,6 +15,7 @@
     "db:push:postgres": "prisma db push --schema prisma/schema.postgresql.prisma",
     "db:seed": "prisma db seed",
     "db:dedupe:technicians": "node --env-file=.env scripts/dedupe-technicians.mjs",
+    "db:purge:triage": "node --env-file=.env scripts/purge-triage-retention.mjs",
     "db:seed:prod": "prisma generate --schema prisma/schema.postgresql.prisma && tsx prisma/seed-production.ts"
   },
   "prisma": {
@@ -25,6 +26,7 @@
     "@stripe/react-stripe-js": "^6.3.0",
     "@stripe/stripe-js": "^9.4.0",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/blob": "^2.3.3",
     "@vercel/speed-insights": "^2.0.0",
     "ai": "^6.0.177",
     "next": "16.2.6",
