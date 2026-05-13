@@ -8,7 +8,12 @@ import {
   PaymentElement,
   useCheckoutElements,
 } from "@stripe/react-stripe-js/checkout";
-import { loadStripe, type StripeCheckoutElementsSdkOptions } from "@stripe/stripe-js";
+import {
+  loadStripe,
+  type StripeCheckoutAddressElementOptions,
+  type StripeCheckoutElementsSdkOptions,
+  type StripeContactDetailsElementOptions,
+} from "@stripe/stripe-js";
 import { AchDiscountBadge } from "@/components/payment-methods/AchDiscountBadge";
 import { SavePaymentMethodCheckbox } from "@/components/payment-methods/SavePaymentMethodCheckbox";
 import type { PaymentMethodType } from "@/types/payment-preferences";
@@ -43,6 +48,8 @@ type CheckoutFormInnerProps = {
   successPath: string;
   showContactDetails: boolean;
   paymentElementOptions?: Record<string, unknown>;
+  billingAddressOptions?: StripeCheckoutAddressElementOptions;
+  contactDetailsOptions?: StripeContactDetailsElementOptions;
   achDiscount?: {
     discountedAmount: number;
     savingsAmount: number;
@@ -57,6 +64,8 @@ function CheckoutFormInner({
   successPath,
   showContactDetails,
   paymentElementOptions,
+  billingAddressOptions,
+  contactDetailsOptions,
   achDiscount,
   preferredPaymentMethod,
   savePaymentMethod,
@@ -100,10 +109,15 @@ function CheckoutFormInner({
     }
   };
 
+  const safePaymentElementOptions = {
+    ...(paymentElementOptions ?? {}),
+  };
+  delete safePaymentElementOptions.defaultValues;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {showContactDetails ? <ContactDetailsElement /> : null}
-      <BillingAddressElement />
+      {showContactDetails ? <ContactDetailsElement options={contactDetailsOptions} /> : null}
+      <BillingAddressElement options={billingAddressOptions} />
       {achDiscount ? (
         <AchDiscountBadge
           savingsAmount={achDiscount.savingsAmount}
@@ -113,7 +127,7 @@ function CheckoutFormInner({
       <PaymentElement
         options={{
           layout: "accordion",
-          ...(paymentElementOptions ?? {}),
+          ...safePaymentElementOptions,
         }}
       />
       <SavePaymentMethodCheckbox
@@ -175,6 +189,30 @@ export function StripeCheckoutElementsForm({
 
   const payload = useMemo(() => initPayload, [initPayload]);
 
+  const contactDetailsOptions: StripeContactDetailsElementOptions | undefined = showContactDetails && defaultValues?.email
+    ? {
+        defaultValues: {
+          email: defaultValues.email,
+        },
+      }
+    : undefined;
+
+  const billingAddressOptions: StripeCheckoutAddressElementOptions = {
+    mode: "billing",
+    defaultValues: {
+      name: defaultValues?.billingName,
+      phone: defaultValues?.phoneNumber,
+      address: {
+        country: defaultValues?.country || defaultCountry,
+        line1: defaultValues?.addressLine1,
+        line2: defaultValues?.addressLine2,
+        city: defaultValues?.city,
+        postal_code: defaultValues?.postalCode,
+        state: defaultValues?.stateProvince,
+      },
+    },
+  };
+
   useEffect(() => {
     if (!stripePromise) {
       return;
@@ -217,6 +255,7 @@ export function StripeCheckoutElementsForm({
       }
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     initializeCheckout();
   }, [initUrl, payload, savePaymentMethod]);
@@ -252,21 +291,6 @@ export function StripeCheckoutElementsForm({
 
   const options: StripeCheckoutElementsSdkOptions = {
     clientSecret,
-    defaultValues: {
-      email: defaultValues?.email,
-      phoneNumber: defaultValues?.phoneNumber,
-      billingAddress: {
-        name: defaultValues?.billingName,
-        address: {
-          country: defaultValues?.country || defaultCountry,
-          line1: defaultValues?.addressLine1,
-          line2: defaultValues?.addressLine2,
-          city: defaultValues?.city,
-          postal_code: defaultValues?.postalCode,
-          state: defaultValues?.stateProvince,
-        },
-      },
-    },
     elementsOptions: {
       appearance: {
         theme: "stripe",
@@ -294,6 +318,8 @@ export function StripeCheckoutElementsForm({
             successPath={successPath}
             showContactDetails={showContactDetails}
             paymentElementOptions={paymentElementOptions ?? undefined}
+            billingAddressOptions={billingAddressOptions}
+            contactDetailsOptions={contactDetailsOptions}
             achDiscount={achDiscount}
             preferredPaymentMethod={preferredPaymentMethod}
             savePaymentMethod={savePaymentMethod}
