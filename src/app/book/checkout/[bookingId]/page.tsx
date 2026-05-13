@@ -79,7 +79,6 @@ export default async function BookingCheckoutPage({ params, searchParams }: Book
             amount={confirmation.invoice.amount}
             title="Payment Details"
             defaultValues={{
-              email: confirmation.booking.contactEmail || signedInPrefill?.email,
               phoneNumber: confirmation.booking.contactPhone || signedInPrefill?.phone,
               billingName: confirmation.booking.contactName || signedInPrefill?.fullName,
               addressLine1: confirmation.booking.addressLine1 || signedInPrefill?.addressLine1,
