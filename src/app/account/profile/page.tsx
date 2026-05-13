@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AccountShell } from "@/components/account/account-shell";
 import { AccountAiAssistantCard } from "@/components/account/account-ai-assistant-card";
-import { AssuranceRibbon, DashboardCard, InsightList, SignalMeter, StatKpi, StatusBadge, TimelinePanel } from "@/components/account/protection-ui";
+import { DashboardCard, InsightList, SignalMeter, StatKpi, StatusBadge } from "@/components/account/protection-ui";
 import { logoutCustomer, updateCustomerProfileAction } from "@/app/account/actions";
 import { buildProfileDashboardMetrics } from "@/lib/account-dashboard-metrics";
+import { buildAccountHomeIntelligence } from "@/lib/account-home-intelligence";
 import { requireCustomerSession } from "@/lib/customer-auth";
 import { buildAccountShellState } from "@/lib/account-shell-data";
 import { getCustomerAccountSnapshot } from "@/lib/customer-account-data";
@@ -45,6 +46,7 @@ export default async function AccountProfilePage({ searchParams }: ProfilePagePr
 
   const { lastServiceDate, addressSummary, propertyInsights, profileReadinessScore, profileTimeline, trustItems } =
     buildProfileDashboardMetrics(snapshot);
+  const homeIntelligence = buildAccountHomeIntelligence(snapshot);
   const statusBanner =
     params?.status === "updated"
       ? {
@@ -77,35 +79,86 @@ export default async function AccountProfilePage({ searchParams }: ProfilePagePr
         </section>
       ) : null}
 
-      <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <DashboardCard title="Property Snapshot" subtitle="Service-ready details and operational property context">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <StatKpi label="Service city" value={snapshot.customer.city} detail="Primary service territory" />
-            <StatKpi label="Last treatment" value={formatDate(lastServiceDate)} detail={lastServiceDate ? "Most recent completed visit on file" : "Schedule your first visit"} />
-            <StatKpi label="Lifecycle" value={humanize(snapshot.customer.lifecycle)} detail="Current account standing" />
-          </div>
-          <div className="mt-4 rounded-2xl border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4d6751] dark:bg-[#22382d]">
-            <p className="text-xs uppercase tracking-[0.14em] text-[#61776c] dark:text-[#cabda2]">Property record</p>
-            <p className="mt-2 text-base text-[#173126] dark:text-[#f1e7d2]">{addressSummary || "Add your address to improve technician routing and preparation guidance."}</p>
-          </div>
-        </DashboardCard>
+      <section className="grid gap-4 xl:grid-cols-[1.3fr_0.9fr]">
+        <section className="dashboard-atmosphere premium-card animated-entry overflow-hidden rounded-[2rem] p-6 sm:p-7">
+          <div className="relative z-10 grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
+            <div className="grid gap-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone={profileReadinessScore >= 82 ? "success" : profileReadinessScore >= 62 ? "warning" : "danger"} label="Property readiness" />
+                <span className="rounded-full border border-[#d8caad] bg-[rgba(255,250,240,0.72)] px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[#335043] dark:border-[#536d57] dark:bg-[rgba(35,55,44,0.74)] dark:text-[#e0d4bc]">
+                  Home context system
+                </span>
+              </div>
+              <div>
+                <h2 className="max-w-3xl text-3xl leading-tight text-[#152b21] dark:text-[#f3ead7] sm:text-4xl">Your property profile shapes routing, safety prep, and the quality of every recommendation.</h2>
+                <p className="mt-4 max-w-3xl text-base leading-7 text-[#365042] dark:text-[#d6caaf]">{homeIntelligence.summary}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <StatKpi label="Service city" value={snapshot.customer.city} detail="Primary service territory" />
+                <StatKpi label="Last treatment" value={formatDate(lastServiceDate)} detail={lastServiceDate ? "Most recent completed visit on file" : "Schedule your first visit"} />
+                <StatKpi label="Lifecycle" value={humanize(snapshot.customer.lifecycle)} detail="Current account standing" />
+              </div>
+            </div>
 
-        <DashboardCard title="Property Intelligence" subtitle="Rule-based insights from your current account and service profile">
+            <DashboardCard title="Property intelligence" subtitle="Signals derived from your current account and service profile">
+              <div className="grid gap-3">
+                <SignalMeter
+                  label="Profile readiness"
+                  value={profileReadinessScore}
+                  tone={profileReadinessScore >= 82 ? "success" : profileReadinessScore >= 62 ? "warning" : "danger"}
+                  summary="Readiness reflects data completeness for routing, safety prep, and account guidance quality."
+                />
+                <InsightList items={propertyInsights} />
+              </div>
+            </DashboardCard>
+          </div>
+        </section>
+
+        <DashboardCard title="Property record" subtitle="Service-ready details and operational property context">
           <div className="grid gap-3">
-            <SignalMeter
-              label="Profile readiness"
-              value={profileReadinessScore}
-              tone={profileReadinessScore >= 82 ? "success" : profileReadinessScore >= 62 ? "warning" : "danger"}
-              summary="Readiness reflects data completeness for routing, safety prep, and account guidance quality."
-            />
-            <InsightList items={propertyInsights} />
+            <article className="rounded-[1.5rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4d6751] dark:bg-[#22382d]">
+              <p className="text-xs uppercase tracking-[0.14em] text-[#61776c] dark:text-[#cabda2]">Address on file</p>
+              <p className="mt-2 text-base leading-6 text-[#173126] dark:text-[#f1e7d2]">{addressSummary || "Add your address to improve technician routing and preparation guidance."}</p>
+            </article>
+            <article className="rounded-[1.5rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4d6751] dark:bg-[#22382d]">
+              <p className="text-xs uppercase tracking-[0.14em] text-[#61776c] dark:text-[#cabda2]">Model watchpoints</p>
+              <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">The platform currently emphasizes perimeter thresholds, shaded edges, and moisture-prone exterior zones when evaluating property readiness.</p>
+            </article>
+            <article className="rounded-[1.5rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4d6751] dark:bg-[#22382d]">
+              <p className="text-xs uppercase tracking-[0.14em] text-[#61776c] dark:text-[#cabda2]">Alert controls</p>
+              <Link
+                href="/account/profile/alerts"
+                className="mt-3 inline-flex rounded-full bg-[#163526] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white"
+              >
+                Manage alerts
+              </Link>
+            </article>
           </div>
         </DashboardCard>
       </section>
 
-      <section className="mt-4">
-        <DashboardCard title="Profile Timeline" subtitle="Critical profile signals that shape operations">
-          <TimelinePanel events={profileTimeline} />
+      <section className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <DashboardCard title="Profile timeline" subtitle="Critical profile signals that shape operations">
+          <div className="grid gap-3">
+            {profileTimeline.map((event) => (
+              <article key={event.id} className="rounded-[1.5rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4d6751] dark:bg-[#22382d]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-[#173126] dark:text-[#f1e8d4]">{event.title}</p>
+                  <StatusBadge tone={event.tone} label={event.badge} />
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">{event.detail}</p>
+              </article>
+            ))}
+          </div>
+        </DashboardCard>
+
+        <DashboardCard title="Coverage signals" subtitle="What is currently shaping your property profile quality">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <StatKpi label="Address confidence" value={snapshot.customer.addressLine1 ? "High" : "Needs address"} detail="Complete property details improve visit readiness" />
+            <StatKpi label="Contact readiness" value={snapshot.customer.phone ? "Verified" : "Missing phone"} detail="Phone helps same-day service coordination" />
+            <StatKpi label="Protection readiness" value={lastServiceDate ? "Active history" : "New profile"} detail="Service history improves AI recommendations" />
+            <StatKpi label="Plan linkage" value={humanize(snapshot.customer.activePlan)} detail="Connected to billing and service cadence" />
+          </div>
         </DashboardCard>
       </section>
 
@@ -156,7 +209,7 @@ export default async function AccountProfilePage({ searchParams }: ProfilePagePr
         <AccountAiAssistantCard
           context={{
             currentPage: "Property & Account",
-            pageSummary: "Property profile editing, intelligence insights, and trust/safety guidance.",
+            pageSummary: `${homeIntelligence.summary} This page focuses on profile editing, property readiness, routing context, and trust/safety guidance.`,
             customerName: snapshot.customer.name,
             activePlan: humanize(snapshot.customer.activePlan),
             lifecycle: humanize(snapshot.customer.lifecycle),
@@ -167,33 +220,15 @@ export default async function AccountProfilePage({ searchParams }: ProfilePagePr
         />
       </section>
 
-      <section className="mt-4 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-        <DashboardCard title="Trust & Safety" subtitle="What ExtraSure documents and communicates to keep treatment professional and clear">
-          <AssuranceRibbon items={trustItems} />
-        </DashboardCard>
-
-        <DashboardCard title="Coverage Signals" subtitle="Key indicators that influence the health of your property profile">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <StatKpi label="Address confidence" value={snapshot.customer.addressLine1 ? "High" : "Needs address"} detail="Complete property details improve visit readiness" />
-            <StatKpi label="Contact readiness" value={snapshot.customer.phone ? "Verified" : "Missing phone"} detail="Phone helps same-day service coordination" />
-            <StatKpi label="Protection readiness" value={lastServiceDate ? "Active history" : "New profile"} detail="Service history improves AI recommendations" />
-            <StatKpi label="Plan linkage" value={humanize(snapshot.customer.activePlan)} detail="Connected to billing and service cadence" />
-          </div>
-        </DashboardCard>
-      </section>
-
       <section className="mt-4">
-        <DashboardCard title="Alert Preferences" subtitle="Choose which proactive dashboard alerts you want to receive">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4d6751] dark:bg-[#22382d]">
-            <p className="text-sm text-[#33453a] dark:text-[#d8ccb0]">
-              Customize protection risk, billing, visit, and profile completeness alerts without losing account coverage visibility.
-            </p>
-            <Link
-              href="/account/profile/alerts"
-              className="elevated-action rounded-full bg-[#163526] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white"
-            >
-              Manage Alerts
-            </Link>
+        <DashboardCard title="Trust & safety" subtitle="What ExtraSure documents and communicates to keep treatment professional and clear">
+          <div className="grid gap-3 md:grid-cols-3">
+            {trustItems.map((item) => (
+              <article key={item.id} className="rounded-[1.5rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4d6751] dark:bg-[#22382d]">
+                <p className="text-base font-semibold text-[#173126] dark:text-[#f1e8d4]">{item.title}</p>
+                <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">{item.detail}</p>
+              </article>
+            ))}
           </div>
         </DashboardCard>
       </section>
