@@ -55,7 +55,7 @@ function jobTone(status: string): DashboardTimelineEntry["tone"] {
   return "info";
 }
 
-type TimelineType = "invoice" | "payment" | "service" | "booking" | "note";
+type TimelineType = "invoice" | "payment" | "service" | "booking" | "note" | "triage";
 
 const eventToneMap: Record<TimelineType, DashboardTimelineEntry["tone"]> = {
   invoice: "warning",
@@ -63,6 +63,7 @@ const eventToneMap: Record<TimelineType, DashboardTimelineEntry["tone"]> = {
   service: "info",
   booking: "info",
   note: "info",
+  triage: "info",
 };
 
 const eventLabelMap: Record<TimelineType, string> = {
@@ -71,6 +72,7 @@ const eventLabelMap: Record<TimelineType, string> = {
   service: "Service",
   booking: "Booking",
   note: "Support",
+  triage: "Triage",
 };
 
 export function buildServicesDashboardMetrics(snapshot: CustomerAccountSnapshot, now = new Date()) {
