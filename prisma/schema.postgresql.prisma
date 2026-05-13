@@ -182,6 +182,7 @@ model ServiceBooking {
   addressLine2       String?
   city               String
   postalCode         String?
+  stateProvince      String?
   notes              String?
   status             ServiceBookingStatus @default(checkout_pending)
   scheduledAt        DateTime?

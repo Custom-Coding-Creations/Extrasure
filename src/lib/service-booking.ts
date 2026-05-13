@@ -271,6 +271,7 @@ export async function createBookingCheckout(input: BookingCheckoutInput): Promis
         addressLine2: normalized.addressLine2,
         city: normalized.city,
         postalCode: normalized.postalCode,
+        stateProvince: normalized.stateProvince,
         notes: normalized.notes,
         status: "checkout_pending",
       },
