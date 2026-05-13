@@ -17,7 +17,7 @@ export default async function BookingConfirmationPage({ searchParams }: BookingC
     confirmation: confirmation
       ? {
           itemName: confirmation.item?.name,
-          preferredDate: confirmation.booking.preferredDate,
+          preferredDate: confirmation.booking.preferredDate instanceof Date ? confirmation.booking.preferredDate.toISOString() : String(confirmation.booking.preferredDate),
           preferredWindow: confirmation.booking.preferredWindow,
           paid: confirmation.paid,
           bookingId: confirmation.booking.id,

@@ -246,7 +246,7 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
   const [step, setStep] = useState(() => {
     return normalizeWizardStep(storedState?.step, stepLabels.length - 1);
   });
-  const [selectedPestId, setSelectedPestId] = useState<(typeof pestCategories)[number]["id"]>(storedState?.selectedPestId ?? "not_sure");
+  const [selectedPestId, setSelectedPestId] = useState<(typeof pestCategories)[number]["id"]>((storedState?.selectedPestId as (typeof pestCategories)[number]["id"]) ?? "not_sure");
   const [selectedServiceId, setSelectedServiceId] = useState(() => resolveServiceId(storedState?.selectedServiceId, availableServiceIds, activeItems[0]?.id || ""));
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(storedState?.selectedSlot ?? null);
   const [contactName, setContactName] = useState(storedState?.contactName ?? prefill?.fullName ?? "");
@@ -600,7 +600,7 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
                       key={pest.id}
                       type="button"
                       onClick={() => setSelectedPestId(pest.id)}
-                      onKeyDown={(event) => handleSelectableOptionKeyDown(index, pestCategories.length, event, pestButtonRefs, (nextIndex) => setSelectedPestId(pestCategories[nextIndex].id))}
+                      onKeyDown={(event) => handleSelectableOptionKeyDown(index, pestCategories.length, event, pestButtonRefs, (nextIndex) => setSelectedPestId(pestCategories[nextIndex]!.id))}
                       ref={(element) => {
                         pestButtonRefs.current[index] = element;
                       }}
@@ -642,7 +642,7 @@ export function BookingForm({ activeItems, prefill }: BookingFormProps) {
                       key={item.id}
                       type="button"
                       onClick={() => setSelectedServiceId(item.id)}
-                      onKeyDown={(event) => handleSelectableOptionKeyDown(index, activeItems.length, event, planButtonRefs, (nextIndex) => setSelectedServiceId(activeItems[nextIndex].id))}
+                      onKeyDown={(event) => handleSelectableOptionKeyDown(index, activeItems.length, event, planButtonRefs, (nextIndex) => setSelectedServiceId(activeItems[nextIndex]!.id))}
                       ref={(element) => {
                         planButtonRefs.current[index] = element;
                       }}

@@ -9,9 +9,9 @@ describe("checkout analytics helpers", () => {
   });
 
   it("preserves the preferred payment method when provided", () => {
-    expect(buildCheckoutInitializationPayload("card_wallet")).toEqual({
+    expect(buildCheckoutInitializationPayload("card")).toEqual({
       source: "stripe_checkout_elements",
-      preferredMethod: "card_wallet",
+      preferredMethod: "card",
     });
   });
 
