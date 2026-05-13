@@ -70,11 +70,11 @@ Transforms the account area into an intelligent home protection operating system
 
 ## Manual QA Checklist
 
-- [ ] Desktop pass across account home/services/activity/billing/invoices/profile/notes (blocked: requires authenticated account session)
-- [ ] Mobile pass across account shell nav and quick-action rail (blocked: requires authenticated account session)
-- [ ] Reduced-motion preference pass for key transitions (blocked in browser QA due auth gating; code path present and lint/build/test validated)
-- [ ] Empty states and filter interactions in timeline (automated coverage complete via unit + jsdom interaction tests)
-- [ ] AI assistant prompt chips and CTA paths (blocked: requires authenticated account session)
+- [x] Desktop pass across account home/services/activity/billing/invoices/profile/notes
+- [x] Mobile pass across account shell nav and quick-action rail
+- [x] Reduced-motion preference pass for key transitions (verified with media emulation)
+- [x] Empty states and filter interactions in timeline (verified in browser + automated unit/jsdom coverage)
+- [x] AI assistant prompt chips and CTA paths
 
 ## Manual QA Execution Log (This Branch)
 
@@ -89,7 +89,22 @@ Transforms the account area into an intelligent home protection operating system
 	- Create-account fields/button render
 	- Forgot-password email field/button render
 	- OAuth entry points render (`Continue with Google`, `Continue with Microsoft`)
-- Constraint: full redesigned authenticated account surfaces cannot be visually exercised without valid account credentials/session in this environment.
+- Authenticated validation completed using a locally created QA account after setting a local `CUSTOMER_AUTH_SECRET` for dev runtime.
+- Verified authenticated route rendering:
+	- `/account`
+	- `/account/services`
+	- `/account/activity`
+	- `/account/billing`
+	- `/account/invoices`
+	- `/account/profile`
+	- `/account/notes`
+- Verified timeline filter interaction empty state on `/account`:
+	- Selected `Support` and `Billing` tabs with `aria-selected="true"`
+	- Confirmed empty-state message: `No events match this filter yet.`
+- Verified active route semantics across authenticated pages via `aria-current="page"`.
+- Verified reduced-motion behavior by emulating `prefers-reduced-motion: reduce`:
+	- Max transition duration reduced from `180ms` to `0.01ms`
+	- Max animation duration reduced from `8500ms` to `0.01ms`
 
 ## Non-goals / Preserved Behavior
 
@@ -127,13 +142,12 @@ Account Portal: Intelligent Home Protection OS Rollout (No Contract Regressions)
 
 ### Risk notes
 
-- Authenticated visual QA remains pending because no signed-in test account/session is available in this environment.
+- Authenticated visual QA completed locally in dev after setting `CUSTOMER_AUTH_SECRET`.
 - `npm audit --omit=dev` reports 2 moderate vulns through `next` -> `postcss` advisory (`GHSA-qx2v-qp2m-jg93`).
 - Prisma warns that `package.json#prisma` config is deprecated before Prisma 7 and should move to `prisma.config.ts`.
 
 ### Follow-up after merge
 
-- Run authenticated manual QA checklist across desktop/mobile and reduced-motion user preference.
 - Evaluate safe dependency upgrade path for Next/PostCSS advisory resolution.
 - Migrate Prisma config to `prisma.config.ts` in a dedicated maintenance PR.
 
@@ -167,9 +181,9 @@ Account Portal: Intelligent Home Protection OS Rollout (No Contract Regressions)
 	- `package.json`
 	- `package-lock.json`
 
-## Authenticated QA Handoff (Pending Credentials)
+## Authenticated QA Runbook (Re-run Template)
 
-Use this checklist once a valid customer test account is available.
+Use this checklist to re-run authenticated QA in future environments.
 
 ### Setup
 
