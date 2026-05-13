@@ -78,8 +78,8 @@ export default async function BookingCheckoutPage({ params, searchParams }: Book
             successPath={`/book/confirmation?booking=${bookingId}&invoice=${invoiceId}&session_id={CHECKOUT_SESSION_ID}`}
             amount={confirmation.invoice.amount}
             title="Payment Details"
+            showContactDetails={false}
             defaultValues={{
-              phoneNumber: confirmation.booking.contactPhone || signedInPrefill?.phone,
               billingName: confirmation.booking.contactName || signedInPrefill?.fullName,
               addressLine1: confirmation.booking.addressLine1 || signedInPrefill?.addressLine1,
               addressLine2: confirmation.booking.addressLine2 || signedInPrefill?.addressLine2,

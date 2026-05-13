@@ -22,6 +22,7 @@ type StripeCheckoutElementsFormProps = {
   amount: number;
   title?: string;
   defaultCountry?: string;
+  showContactDetails?: boolean;
   defaultValues?: {
     email?: string;
     phoneNumber?: string;
@@ -37,9 +38,10 @@ type StripeCheckoutElementsFormProps = {
 
 type CheckoutFormInnerProps = {
   successPath: string;
+  showContactDetails: boolean;
 };
 
-function CheckoutFormInner({ successPath }: CheckoutFormInnerProps) {
+function CheckoutFormInner({ successPath, showContactDetails }: CheckoutFormInnerProps) {
   const checkoutState = useCheckoutElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -79,7 +81,7 @@ function CheckoutFormInner({ successPath }: CheckoutFormInnerProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <ContactDetailsElement />
+      {showContactDetails ? <ContactDetailsElement /> : null}
       <BillingAddressElement />
       <PaymentElement
         options={{
@@ -119,6 +121,7 @@ export function StripeCheckoutElementsForm({
   amount,
   title = "Payment Details",
   defaultCountry = "US",
+  showContactDetails = true,
   defaultValues,
 }: StripeCheckoutElementsFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -227,7 +230,7 @@ export function StripeCheckoutElementsForm({
       <p className="mt-1 text-sm text-[#5d7267]">Amount: ${amount}</p>
       <div className="mt-6">
         <CheckoutElementsProvider stripe={stripePromise} options={options}>
-          <CheckoutFormInner successPath={successPath} />
+          <CheckoutFormInner successPath={successPath} showContactDetails={showContactDetails} />
         </CheckoutElementsProvider>
       </div>
     </div>

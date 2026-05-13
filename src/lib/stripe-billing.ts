@@ -247,6 +247,9 @@ export async function createInvoiceCheckoutElementsSession(
     client_reference_id: invoice.id,
     mode: isRecurring ? "subscription" : "payment",
     ui_mode: "elements",
+    phone_number_collection: {
+      enabled: true,
+    },
     return_url: returnUrl,
     metadata: {
       localInvoiceId: invoice.id,
