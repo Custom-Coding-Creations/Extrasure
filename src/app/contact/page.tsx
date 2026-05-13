@@ -1,9 +1,12 @@
 import { LeadForm } from "@/components/lead-form";
 import { TrackedContactLink } from "@/components/tracked-contact-link";
+import { getSignedInCustomerFormPrefill } from "@/lib/customer-form-prefill";
 import { company } from "@/lib/site";
 import Link from "next/link";
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const prefill = await getSignedInCustomerFormPrefill();
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
       <p className="text-xs uppercase tracking-[0.18em] text-[#3f5a49]">Contact</p>
@@ -53,7 +56,15 @@ export default function ContactPage() {
         </section>
         <section className="paper-panel rounded-2xl border border-[#d3c7ad] p-6">
           <h2 className="text-2xl text-[#203328]">Inspection Form</h2>
-          <LeadForm source="contact_page_form" />
+          <LeadForm
+            source="contact_page_form"
+            defaults={prefill ? {
+              fullName: prefill.fullName,
+              phone: prefill.phone,
+              email: prefill.email,
+              addressOrZip: prefill.addressOrZip,
+            } : undefined}
+          />
         </section>
       </div>
     </div>

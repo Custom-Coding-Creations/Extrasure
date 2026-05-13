@@ -8,6 +8,12 @@ type LeadFormProps = {
   includeEmail?: boolean;
   includeService?: boolean;
   compact?: boolean;
+  defaults?: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    addressOrZip?: string;
+  };
 };
 
 export function LeadForm({
@@ -15,6 +21,7 @@ export function LeadForm({
   includeEmail = true,
   includeService = true,
   compact = false,
+  defaults,
 }: LeadFormProps) {
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -65,15 +72,16 @@ export function LeadForm({
 
   return (
     <form className="mt-4 space-y-3" onSubmit={onSubmit}>
-      <input className="field" name="fullName" placeholder="Full name" aria-label="Full name" required />
-      <input className="field" name="phone" placeholder="Phone number" aria-label="Phone number" required />
-      {includeEmail ? <input className="field" name="email" placeholder="Email" aria-label="Email" type="email" /> : null}
+      <input className="field" name="fullName" placeholder="Full name" aria-label="Full name" required defaultValue={defaults?.fullName ?? ""} />
+      <input className="field" name="phone" placeholder="Phone number" aria-label="Phone number" required defaultValue={defaults?.phone ?? ""} />
+      {includeEmail ? <input className="field" name="email" placeholder="Email" aria-label="Email" type="email" defaultValue={defaults?.email ?? ""} /> : null}
       <input
         className="field"
         name="addressOrZip"
         placeholder={compact ? "Service address or ZIP" : "Address / ZIP"}
         aria-label="Address or ZIP"
         required
+        defaultValue={defaults?.addressOrZip ?? ""}
       />
       {includeService ? (
         <select className="field" name="serviceNeeded" aria-label="Service needed" defaultValue="">

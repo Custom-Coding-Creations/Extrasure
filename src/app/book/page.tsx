@@ -1,4 +1,5 @@
 import { BookingForm } from "@/components/booking-form";
+import { getSignedInCustomerFormPrefill } from "@/lib/customer-form-prefill";
 import { listServiceCatalogItems } from "@/lib/service-catalog";
 
 type BookPageProps = {
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function BookPage({ searchParams }: BookPageProps) {
   const params = searchParams ? await searchParams : undefined;
+  const prefill = await getSignedInCustomerFormPrefill();
   const items = await listServiceCatalogItems(false);
   const activeItems = items.filter((item) => item.active);
   const continueCheckoutUrl = params?.continue;
@@ -52,7 +54,19 @@ export default async function BookPage({ searchParams }: BookPageProps) {
         ) : null}
       </section>
 
-      <BookingForm activeItems={activeItems} />
+      <BookingForm
+        activeItems={activeItems}
+        prefill={prefill ? {
+          fullName: prefill.fullName,
+          email: prefill.email,
+          phone: prefill.phone,
+          addressLine1: prefill.addressLine1,
+          addressLine2: prefill.addressLine2,
+          city: prefill.city,
+          postalCode: prefill.postalCode,
+          stateProvince: prefill.stateProvince,
+        } : undefined}
+      />
     </div>
   );
 }

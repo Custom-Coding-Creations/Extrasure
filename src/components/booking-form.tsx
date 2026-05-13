@@ -13,9 +13,19 @@ interface BookingFormProps {
     billingCycle?: string;
     amount: number;
   }>;
+  prefill?: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    city?: string;
+    postalCode?: string;
+    stateProvince?: string;
+  };
 }
 
-export function BookingForm({ activeItems }: BookingFormProps) {
+export function BookingForm({ activeItems, prefill }: BookingFormProps) {
   const [selectedServiceId, setSelectedServiceId] = useState(activeItems[0]?.id || "");
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
 
@@ -57,6 +67,7 @@ export function BookingForm({ activeItems }: BookingFormProps) {
           <input
             name="contactName"
             required
+            defaultValue={prefill?.fullName ?? ""}
             placeholder="Full name"
             className="rounded-xl border border-[#cfbf9f] bg-white px-4 py-3 text-sm text-[#1e3026]"
           />
@@ -65,12 +76,14 @@ export function BookingForm({ activeItems }: BookingFormProps) {
               name="contactEmail"
               type="email"
               required
+              defaultValue={prefill?.email ?? ""}
               placeholder="Email"
               className="rounded-xl border border-[#cfbf9f] bg-white px-4 py-3 text-sm text-[#1e3026]"
             />
             <input
               name="contactPhone"
               required
+              defaultValue={prefill?.phone ?? ""}
               placeholder="Phone"
               className="rounded-xl border border-[#cfbf9f] bg-white px-4 py-3 text-sm text-[#1e3026]"
             />
@@ -85,18 +98,21 @@ export function BookingForm({ activeItems }: BookingFormProps) {
           <input
             name="addressLine1"
             required
+            defaultValue={prefill?.addressLine1 ?? ""}
             placeholder="Service address"
             className="rounded-xl border border-[#cfbf9f] bg-white px-4 py-3 text-sm text-[#1e3026]"
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <input
               name="addressLine2"
+              defaultValue={prefill?.addressLine2 ?? ""}
               placeholder="Apt / suite (optional)"
               className="rounded-xl border border-[#cfbf9f] bg-white px-4 py-3 text-sm text-[#1e3026]"
             />
             <input
               name="city"
               required
+              defaultValue={prefill?.city ?? ""}
               placeholder="City"
               className="rounded-xl border border-[#cfbf9f] bg-white px-4 py-3 text-sm text-[#1e3026]"
             />
@@ -105,12 +121,14 @@ export function BookingForm({ activeItems }: BookingFormProps) {
             <input
               name="postalCode"
               required
+              defaultValue={prefill?.postalCode ?? ""}
               placeholder="Postal code"
               className="rounded-xl border border-[#cfbf9f] bg-white px-4 py-3 text-sm text-[#1e3026]"
             />
             <input
               name="stateProvince"
               required
+              defaultValue={prefill?.stateProvince ?? ""}
               placeholder="State / Province"
               className="rounded-xl border border-[#cfbf9f] bg-white px-4 py-3 text-sm text-[#1e3026]"
             />

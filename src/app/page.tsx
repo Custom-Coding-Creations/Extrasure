@@ -2,9 +2,12 @@ import Link from "next/link";
 import { CtaStrip } from "@/components/cta-strip";
 import { LeadForm } from "@/components/lead-form";
 import { TrackedContactLink } from "@/components/tracked-contact-link";
+import { getSignedInCustomerFormPrefill } from "@/lib/customer-form-prefill";
 import { company, serviceAreas, services, testimonials, trustBadges } from "@/lib/site";
 
-export default function Home() {
+export default async function Home() {
+  const prefill = await getSignedInCustomerFormPrefill();
+
   return (
     <div>
       <section className="relative overflow-hidden border-b border-emerald-900/10 bg-[#133325] text-stone-100">
@@ -43,7 +46,17 @@ export default function Home() {
             <p className="text-xs uppercase tracking-[0.2em] text-[#5f6d63]">Free Inspection Request</p>
             <h2 className="mt-2 text-2xl">Tell Us What You Are Seeing</h2>
             <p className="mt-2 text-sm text-[#445349]">We respond quickly and route every new request to email, SMS, and dispatch tracking.</p>
-            <LeadForm source="home_hero_form" includeEmail={false} includeService={false} compact />
+            <LeadForm
+              source="home_hero_form"
+              includeEmail={false}
+              includeService={false}
+              compact
+              defaults={prefill ? {
+                fullName: prefill.fullName,
+                phone: prefill.phone,
+                addressOrZip: prefill.addressOrZip,
+              } : undefined}
+            />
           </div>
         </div>
       </section>
