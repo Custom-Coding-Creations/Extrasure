@@ -1,4 +1,3 @@
-import { AvailabilityPicker } from "@/components/availability-picker";
 import { BookingForm } from "@/components/booking-form";
 import { listServiceCatalogItems } from "@/lib/service-catalog";
 
@@ -53,9 +52,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
         ) : null}
       </section>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <BookingForm activeItems={activeItems} />
-      </div>
+      <BookingForm activeItems={activeItems} />
     </div>
   );
 }
