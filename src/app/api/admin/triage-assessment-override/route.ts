@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       reason: reason as import("@/lib/triage-assessment-override").AssessmentOverrideReason,
       notes,
       actorId: session.name,
+      actorRole: session.role,
     });
 
     if (!result.success) {

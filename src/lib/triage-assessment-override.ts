@@ -34,12 +34,14 @@ export async function overrideTriageAssessment({
   reason,
   notes,
   actorId,
+  actorRole,
 }: {
   assessmentId: string;
   newConfidence: number;
   reason: AssessmentOverrideReason;
   notes?: string;
   actorId: string;
+  actorRole: string;
 }): Promise<OverrideResult> {
   try {
     // Fetch the existing assessment
@@ -78,15 +80,13 @@ export async function overrideTriageAssessment({
 
     // Record audit event
     await recordAuditEvent({
-      action: "triage_assessment_overridden",
-      targetType: "TriageAssessment",
-      targetId: assessmentId,
-      changes: {
-        confidence: [assessment.confidence, newConfidence],
-        reason,
-        notes,
-      },
       actor: actorId,
+      role: actorRole,
+      action: "triage_assessment_overridden",
+      entity: "triage_assessment",
+      entityId: assessmentId,
+      before: { confidence: assessment.confidence },
+      after: { confidence: newConfidence, reason, notes },
     });
 
     return {

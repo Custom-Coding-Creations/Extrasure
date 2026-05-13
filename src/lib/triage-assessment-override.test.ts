@@ -64,6 +64,7 @@ describe("triage assessment override", () => {
         reason: "incorrect_confidence",
         notes: "Model underestimated confidence",
         actorId: "admin_user",
+        actorRole: "owner",
       });
 
       expect(result.success).toBe(true);
@@ -83,6 +84,7 @@ describe("triage assessment override", () => {
         newConfidence: 0.8,
         reason: "model_misclassification",
         actorId: "admin_user",
+        actorRole: "owner",
       });
 
       expect(result.success).toBe(false);
@@ -98,6 +100,7 @@ describe("triage assessment override", () => {
         newConfidence: 1.5,
         reason: "incorrect_confidence",
         actorId: "admin_user",
+        actorRole: "owner",
       });
 
       expect(result.success).toBe(false);
@@ -114,6 +117,7 @@ describe("triage assessment override", () => {
         newConfidence: 0.8,
         reason: "incorrect_confidence",
         actorId: "admin_user",
+        actorRole: "owner",
       });
 
       expect(result.success).toBe(false);
