@@ -137,6 +137,10 @@ model Customer {
   phone           String
   email           String
   city            String
+  addressLine1    String?
+  addressLine2    String?
+  postalCode      String?
+  stateProvince   String?
   activePlan      ActivePlan
   lifecycle       Lifecycle
   lastServiceDate DateTime

@@ -22,6 +22,17 @@ type StripeCheckoutElementsFormProps = {
   amount: number;
   title?: string;
   defaultCountry?: string;
+  defaultValues?: {
+    email?: string;
+    phoneNumber?: string;
+    billingName?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    city?: string;
+    postalCode?: string;
+    stateProvince?: string;
+    country?: string;
+  };
 };
 
 type CheckoutFormInnerProps = {
@@ -108,6 +119,7 @@ export function StripeCheckoutElementsForm({
   amount,
   title = "Payment Details",
   defaultCountry = "US",
+  defaultValues,
 }: StripeCheckoutElementsFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,8 +129,6 @@ export function StripeCheckoutElementsForm({
 
   useEffect(() => {
     if (!stripePromise) {
-      setError("Stripe is not configured. Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.");
-      setLoading(false);
       return;
     }
 
@@ -149,6 +159,15 @@ export function StripeCheckoutElementsForm({
   }, [initUrl, payload]);
 
   if (loading) {
+    if (!stripePromise) {
+      return (
+        <div className="rounded-2xl border border-red-300 bg-red-50 p-6">
+          <h3 className="text-lg font-semibold text-red-900">Payment Error</h3>
+          <p className="mt-2 text-sm text-red-700">Stripe is not configured. Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</p>
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-8">
         <div className="flex flex-col items-center justify-center space-y-3">
@@ -171,9 +190,17 @@ export function StripeCheckoutElementsForm({
   const options: StripeCheckoutElementsSdkOptions = {
     clientSecret,
     defaultValues: {
+      email: defaultValues?.email,
+      phoneNumber: defaultValues?.phoneNumber,
       billingAddress: {
+        name: defaultValues?.billingName,
         address: {
-          country: defaultCountry,
+          country: defaultValues?.country || defaultCountry,
+          line1: defaultValues?.addressLine1,
+          line2: defaultValues?.addressLine2,
+          city: defaultValues?.city,
+          postal_code: defaultValues?.postalCode,
+          state: defaultValues?.stateProvince,
         },
       },
     },

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { StripeCheckoutElementsForm } from "@/components/stripe-checkout-elements-form";
+import { getSignedInCustomerFormPrefill } from "@/lib/customer-form-prefill";
 import { getBookingConfirmation } from "@/lib/service-booking";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ export default async function BookingCheckoutPage({ params, searchParams }: Book
   const { bookingId } = await params;
   const query = searchParams ? await searchParams : undefined;
   const invoiceId = String(query?.invoice ?? "").trim();
+  const signedInPrefill = await getSignedInCustomerFormPrefill();
 
   if (!invoiceId) {
     notFound();
@@ -76,6 +78,17 @@ export default async function BookingCheckoutPage({ params, searchParams }: Book
             successPath={`/book/confirmation?booking=${bookingId}&invoice=${invoiceId}&session_id={CHECKOUT_SESSION_ID}`}
             amount={confirmation.invoice.amount}
             title="Payment Details"
+            defaultValues={{
+              email: confirmation.booking.contactEmail || signedInPrefill?.email,
+              phoneNumber: confirmation.booking.contactPhone || signedInPrefill?.phone,
+              billingName: confirmation.booking.contactName || signedInPrefill?.fullName,
+              addressLine1: confirmation.booking.addressLine1 || signedInPrefill?.addressLine1,
+              addressLine2: confirmation.booking.addressLine2 || signedInPrefill?.addressLine2,
+              city: confirmation.booking.city || signedInPrefill?.city,
+              postalCode: confirmation.booking.postalCode || signedInPrefill?.postalCode,
+              stateProvince: signedInPrefill?.stateProvince,
+              country: "US",
+            }}
           />
         </div>
       </section>

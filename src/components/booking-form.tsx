@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { type ComponentProps, useState } from "react";
 import { AvailabilityPicker } from "@/components/availability-picker";
 import { startBookingCheckoutAction } from "@/app/book/actions";
+
+type SelectedSlot = Parameters<
+  ComponentProps<typeof AvailabilityPicker>["onSlotSelected"]
+>[0];
 
 interface BookingFormProps {
   activeItems: Array<{
@@ -27,7 +31,7 @@ interface BookingFormProps {
 
 export function BookingForm({ activeItems, prefill }: BookingFormProps) {
   const [selectedServiceId, setSelectedServiceId] = useState(activeItems[0]?.id || "");
-  const [selectedSlot, setSelectedSlot] = useState<any>(null);
+  const [selectedSlot, setSelectedSlot] = useState<SelectedSlot>(null);
 
   return (
     <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">

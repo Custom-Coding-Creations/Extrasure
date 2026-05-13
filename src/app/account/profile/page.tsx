@@ -33,7 +33,7 @@ export default async function AccountProfilePage({ searchParams }: ProfilePagePr
       ) : null}
       {params?.status === "invalid" ? (
         <section className="mb-4 rounded-2xl border border-[#dec3a9] bg-[#fff4e8] p-4 text-sm text-[#7b3d13]">
-          Name, phone, and city are required.
+          Name, phone, and city are required. Address fields are optional.
         </section>
       ) : null}
 
@@ -77,6 +77,42 @@ export default async function AccountProfilePage({ searchParams }: ProfilePagePr
               name="city"
               required
               defaultValue={snapshot.customer.city}
+              className="mt-1 w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-base text-[#1d2f25]"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs uppercase tracking-[0.12em] text-[#5d7267]" htmlFor="addressLine1">Address line 1</label>
+            <input
+              id="addressLine1"
+              name="addressLine1"
+              defaultValue={snapshot.customer.addressLine1 ?? ""}
+              className="mt-1 w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-base text-[#1d2f25]"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs uppercase tracking-[0.12em] text-[#5d7267]" htmlFor="addressLine2">Address line 2</label>
+            <input
+              id="addressLine2"
+              name="addressLine2"
+              defaultValue={snapshot.customer.addressLine2 ?? ""}
+              className="mt-1 w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-base text-[#1d2f25]"
+            />
+          </div>
+          <div>
+            <label className="text-xs uppercase tracking-[0.12em] text-[#5d7267]" htmlFor="postalCode">Postal code</label>
+            <input
+              id="postalCode"
+              name="postalCode"
+              defaultValue={snapshot.customer.postalCode ?? ""}
+              className="mt-1 w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-base text-[#1d2f25]"
+            />
+          </div>
+          <div>
+            <label className="text-xs uppercase tracking-[0.12em] text-[#5d7267]" htmlFor="stateProvince">State / Province</label>
+            <input
+              id="stateProvince"
+              name="stateProvince"
+              defaultValue={snapshot.customer.stateProvince ?? ""}
               className="mt-1 w-full rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-base text-[#1d2f25]"
             />
           </div>

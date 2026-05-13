@@ -52,6 +52,10 @@ export async function updateCustomerProfileAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
+  const addressLine1 = String(formData.get("addressLine1") ?? "").trim();
+  const addressLine2 = String(formData.get("addressLine2") ?? "").trim();
+  const postalCode = String(formData.get("postalCode") ?? "").trim();
+  const stateProvince = String(formData.get("stateProvince") ?? "").trim();
 
   if (!name || !phone || !city) {
     redirect("/account/profile?status=invalid");
@@ -65,6 +69,10 @@ export async function updateCustomerProfileAction(formData: FormData) {
       name,
       phone,
       city,
+      addressLine1: addressLine1 || null,
+      addressLine2: addressLine2 || null,
+      postalCode: postalCode || null,
+      stateProvince: stateProvince || null,
     },
   });
 

@@ -30,6 +30,10 @@ export async function getSignedInCustomerFormPrefill(): Promise<CustomerFormPref
       email: true,
       phone: true,
       city: true,
+      addressLine1: true,
+      addressLine2: true,
+      postalCode: true,
+      stateProvince: true,
     },
   });
 
@@ -69,11 +73,11 @@ export async function getSignedInCustomerFormPrefill(): Promise<CustomerFormPref
   const fullName = customer.name || session.name || latestBooking?.contactName || "";
   const email = customer.email || session.email || latestBooking?.contactEmail || "";
   const phone = customer.phone || latestBooking?.contactPhone || "";
-  const city = latestBooking?.city || customer.city || "";
-  const addressLine1 = latestBooking?.addressLine1 || "";
-  const addressLine2 = latestBooking?.addressLine2 || "";
-  const postalCode = latestBooking?.postalCode || "";
-  const stateProvince = latestBooking?.stateProvince || "";
+  const city = customer.city || latestBooking?.city || "";
+  const addressLine1 = customer.addressLine1 || latestBooking?.addressLine1 || "";
+  const addressLine2 = customer.addressLine2 || latestBooking?.addressLine2 || "";
+  const postalCode = customer.postalCode || latestBooking?.postalCode || "";
+  const stateProvince = customer.stateProvince || latestBooking?.stateProvince || "";
   const addressOrZip = addressLine1 || postalCode || city;
 
   return {
