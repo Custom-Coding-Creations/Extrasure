@@ -1,4 +1,5 @@
 import {
+  openCustomerBillingPortal,
   updateCustomerProfileAction,
   updateCustomerSubscriptionAction,
 } from "@/app/account/actions";
@@ -62,6 +63,10 @@ const { setCustomerSubscriptionLifecycle } = jest.requireMock("@/lib/stripe-bill
   setCustomerSubscriptionLifecycle: jest.Mock;
 };
 
+const { createBillingPortalSession } = jest.requireMock("@/lib/stripe-billing") as {
+  createBillingPortalSession: jest.Mock;
+};
+
 function createFormData(data: Record<string, string>) {
   const formData = new FormData();
 
@@ -97,6 +102,18 @@ describe("account actions", () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
+  it("opens Stripe billing portal with billing page return URL", async () => {
+    createBillingPortalSession.mockResolvedValue({
+      url: "https://billing.example.com/session",
+    });
+
+    await expect(openCustomerBillingPortal()).rejects.toThrow("NEXT_REDIRECT:https://billing.example.com/session");
+
+    expect(createBillingPortalSession).toHaveBeenCalledWith("c_1", {
+      returnUrl: "https://example.com/account/billing?stripe=portal_return",
+    });
+  });
+
   it("updates customer profile and redirects with updated status", async () => {
     prisma.customer.update.mockResolvedValue({ id: "c_1" });
 
@@ -116,6 +133,10 @@ describe("account actions", () => {
         name: "Megan R.",
         phone: "(315) 555-0000",
         city: "Syracuse",
+        addressLine1: null,
+        addressLine2: null,
+        postalCode: null,
+        stateProvince: null,
       },
     });
     expect(revalidatePath).toHaveBeenCalledWith("/account");

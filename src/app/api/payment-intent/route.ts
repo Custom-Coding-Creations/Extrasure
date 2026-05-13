@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPaymentClientSecret } from "@/lib/stripe-billing";
+import { applyAchDiscountIfEligible, attachPaymentMethodPreference, getPaymentClientSecret } from "@/lib/stripe-billing";
 import { inspectInvoiceAccessToken } from "@/lib/customer-billing-access";
 
 /**
@@ -31,11 +31,22 @@ export async function POST(request: NextRequest) {
       returnPath: `/pay/${token}?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
     });
 
+    if (result.paymentIntentId) {
+      await attachPaymentMethodPreference(result.paymentIntentId, result.preferredPaymentMethod);
+
+      if (result.preferredPaymentMethod === "ach") {
+        await applyAchDiscountIfEligible(result.paymentIntentId, result.customerId, result.amount);
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       clientSecret: result.clientSecret,
       sessionId: result.sessionId,
       type: result.type,
+      paymentElementOptions: result.paymentElementOptions,
+      achDiscount: result.achDiscount,
+      preferredPaymentMethod: result.preferredPaymentMethod,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create payment";

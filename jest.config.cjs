@@ -6,5 +6,6 @@ module.exports = {
   clearMocks: true,
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^server-only$': '<rootDir>/src/test/server-only.ts',
   },
 };

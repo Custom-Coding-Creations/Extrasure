@@ -17,7 +17,7 @@ export async function openCustomerBillingPortal() {
   const session = await requireCustomerSession();
 
   const portal = await createBillingPortalSession(session.customerId, {
-    returnUrl: `${getBaseUrl()}/account?stripe=portal_return`,
+    returnUrl: `${getBaseUrl()}/account/billing?stripe=portal_return`,
   });
 
   redirect(portal.url);

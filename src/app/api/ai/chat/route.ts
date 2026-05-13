@@ -14,6 +14,16 @@ type ChatRequest = {
   sessionId?: string;
   message?: string;
   history?: ChatMessage[];
+  context?: {
+    currentPage?: string;
+    pageSummary?: string;
+    customerName?: string;
+    activePlan?: string;
+    lifecycle?: string;
+    city?: string;
+    lastServiceDate?: string;
+    propertyAddress?: string;
+  };
 };
 
 type ChatResponsePayload = {
@@ -76,11 +86,31 @@ function shouldSuggestLeadCapture(input: string) {
   return /\b(quote|estimate|pricing|book|appointment|inspection|help|issue|problem|precio|cotizacion|cita|inspeccion|ayuda)\b/i.test(input);
 }
 
+function buildContextSummary(context: ChatRequest["context"]) {
+  if (!context) {
+    return "";
+  }
+
+  const lines = [
+    context.currentPage ? `Current dashboard area: ${context.currentPage}` : null,
+    context.pageSummary ? `Page summary: ${context.pageSummary}` : null,
+    context.customerName ? `Customer first name: ${context.customerName}` : null,
+    context.activePlan ? `Active plan: ${context.activePlan}` : null,
+    context.lifecycle ? `Customer lifecycle: ${context.lifecycle}` : null,
+    context.city ? `Service city: ${context.city}` : null,
+    context.lastServiceDate ? `Last service date: ${context.lastServiceDate}` : null,
+    context.propertyAddress ? `Property address: ${context.propertyAddress}` : null,
+  ].filter(Boolean);
+
+  return lines.length ? lines.join("\n") : "";
+}
+
 async function callOpenAiAnswer(args: {
   language: AiLanguage;
   message: string;
   history: ChatMessage[];
   contextText: string;
+  accountContextText: string;
 }) {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -106,13 +136,15 @@ async function callOpenAiAnswer(args: {
           "Do not provide medical or legal guidance.",
           "Do not provide definitive pesticide safety claims.",
           "Do not guarantee final pricing without inspection; only non-binding ranges.",
+          "Use provided account dashboard context when available to make the answer feel personalized.",
+          "Use provided account dashboard context when available to make the answer feel personalized.",
           "Always offer a human handoff option at the end.",
         ].join(" ");
 
   const userPrompt =
     args.language === "es"
-      ? `Mensaje del cliente: ${args.message}\n\nContexto interno:\n${args.contextText}`
-      : `Customer message: ${args.message}\n\nInternal context:\n${args.contextText}`;
+      ? `Mensaje del cliente: ${args.message}\n\nContexto de cuenta:\n${args.accountContextText || "No disponible"}\n\nContexto interno:\n${args.contextText}`
+      : `Customer message: ${args.message}\n\nAccount context:\n${args.accountContextText || "Not available"}\n\nInternal context:\n${args.contextText}`;
 
   const conversation = args.history.map((item) => ({ role: item.role, content: item.content }));
 
@@ -237,6 +269,7 @@ export async function POST(request: NextRequest) {
   const language = detectLanguage(message);
   const history = normalizeHistory(payload.history);
   const guardrail = evaluateGuardrails(message);
+  const accountContextText = buildContextSummary(payload.context);
 
   if (guardrail.blocked && guardrail.reasonCode) {
     const policyReference = policySnippetFor(guardrail.reasonCode, language);
@@ -277,6 +310,7 @@ export async function POST(request: NextRequest) {
     message,
     history,
     contextText: knowledge.contextText,
+    accountContextText,
   });
 
   const answer = aiAnswer ?? fallbackAnswer(language, knowledge.contextText, knowledge.confidence, message);

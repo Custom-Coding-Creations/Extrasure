@@ -2,13 +2,15 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 
-type TimelineItem = {
+export type TimelineItem = {
   id: string;
   type: "invoice" | "payment" | "service" | "booking" | "note";
   title: string;
   detail: string;
   occurredAt: string;
 };
+
+export type CustomerAccountSnapshot = NonNullable<Awaited<ReturnType<typeof getCustomerAccountSnapshot>>>;
 
 export async function getCustomerAccountSnapshot(customerId: string, emailHint?: string) {
   const customer = await prisma.customer.findUnique({

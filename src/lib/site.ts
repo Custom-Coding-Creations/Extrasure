@@ -10,9 +10,9 @@ export type Service = {
 export const company = {
   name: "ExtraSure Pest Control",
   city: "Syracuse, NY",
-  phoneDisplay: "(315) 555-0198",
-  phoneHref: "tel:+13155550198",
-  smsHref: "sms:+13155550198",
+  phoneDisplay: "(516) 943-2318",
+  phoneHref: "tel:+15169432318",
+  smsHref: "sms:+15169432318",
   email: "help@extrasurepest.com",
   emergencyPolicy: "Extended evening response available for urgent pest issues.",
   hours: [

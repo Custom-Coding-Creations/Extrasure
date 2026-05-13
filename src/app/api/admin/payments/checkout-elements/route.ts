@@ -27,6 +27,9 @@ export async function POST(request: NextRequest) {
       clientSecret: result.clientSecret,
       sessionId: result.sessionId,
       type: result.type,
+      paymentElementOptions: result.paymentElementOptions,
+      achDiscount: result.achDiscount,
+      preferredPaymentMethod: result.preferredPaymentMethod,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to initialize admin checkout";

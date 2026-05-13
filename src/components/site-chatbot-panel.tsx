@@ -53,8 +53,8 @@ export function SiteChatbotPanel({ onClose }: SiteChatbotPanelProps) {
   const [leadStatus, setLeadStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [leadMessage, setLeadMessage] = useState("");
   const [handoff, setHandoff] = useState<ApiChatResponse["handoff"]>({
-    callHref: "tel:+13155550198",
-    smsHref: "sms:+13155550198",
+    callHref: "tel:+15169432318",
+    smsHref: "sms:+15169432318",
     contactPath: "/contact",
   });
 

@@ -1,9 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { Prisma } from "@prisma/client";
+import { PaymentPreferenceMethod, Prisma } from "@prisma/client";
+import type { PaymentElementOptions } from "@stripe/stripe-js";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { createInvoiceAccessToken } from "@/lib/customer-billing-access";
+import { calculateAchDiscount, isAchDiscountEligible, syncSavedPaymentMethodsFromStripe } from "@/lib/payment-preferences";
 import { getBaseUrl, stripe } from "@/lib/stripe";
+import type { AchDiscountSummary, PaymentMethodType } from "@/types/payment-preferences";
 
 type CheckoutContext = "admin" | "customer";
 
@@ -31,6 +34,97 @@ type LocalInvoiceStatus = "open" | "paid" | "past_due" | "refunded";
 
 function toUnitAmount(amount: number) {
   return Math.round(amount * 100);
+}
+
+export async function applyAchDiscountIfEligible(
+  paymentIntentId: string,
+  customerId: string,
+  originalAmount: number,
+) {
+  const eligible = await isAchDiscountEligible(customerId);
+
+  if (!eligible) {
+    return {
+      applied: false,
+      discountedAmount: originalAmount,
+    };
+  }
+
+  const discount = calculateAchDiscount(originalAmount);
+
+  await stripe.paymentIntents.update(paymentIntentId, {
+    amount: toUnitAmount(discount.discountedAmount),
+    metadata: {
+      achDiscountApplied: "true",
+      achSavingsAmount: String(discount.savingsAmount),
+      achOriginalAmount: String(discount.originalAmount),
+    },
+  });
+
+  return {
+    applied: true,
+    discountedAmount: discount.discountedAmount,
+  };
+}
+
+export async function attachPaymentMethodPreference(
+  paymentIntentId: string,
+  preferredMethod: PaymentMethodType,
+) {
+  await stripe.paymentIntents.update(paymentIntentId, {
+    metadata: {
+      preferredPaymentMethod: preferredMethod,
+    },
+  });
+}
+
+export async function getPaymentElementOptionsForAch(
+  customerId: string,
+  isRecurring: boolean,
+): Promise<PaymentElementOptions> {
+  const customer = await prisma.customer.findUnique({
+    where: { id: customerId },
+    select: {
+      preferredPaymentMethod: true,
+      achDiscountEligible: true,
+    },
+  });
+
+  const preferredMethod = customer?.preferredPaymentMethod ?? "none";
+  const achPreferred = preferredMethod === "ach";
+  const achEligible = customer?.achDiscountEligible ?? false;
+
+  const paymentMethodOrder = achEligible || achPreferred
+    ? ["us_bank_account", "card"]
+    : ["card", "us_bank_account"];
+
+  return {
+    layout: {
+      type: "tabs",
+      defaultCollapsed: false,
+    },
+    fields: {
+      billingDetails: {
+        address: "auto",
+        email: "auto",
+        name: "auto",
+      },
+    },
+    paymentMethodOrder,
+    defaultValues: {
+      billingDetails: {
+        email: undefined,
+        name: undefined,
+      },
+    },
+    business: {
+      name: "ExtraSure Pest Control",
+    },
+    terms: {
+      card: "always",
+      usBankAccount: isRecurring ? "always" : "auto",
+    },
+  };
 }
 
 function mapPaymentMethod(methods: string[] | null | undefined) {
@@ -324,12 +418,47 @@ export async function getPaymentClientSecret(
   invoiceId: string,
   options?: CheckoutElementsSessionOptions,
 ) {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: {
+      id: true,
+      customerId: true,
+      amount: true,
+      billingCycle: true,
+    },
+  });
+
+  if (!invoice) {
+    throw new Error("Invoice not found");
+  }
+
+  const customer = await prisma.customer.findUnique({
+    where: { id: invoice.customerId },
+    select: {
+      preferredPaymentMethod: true,
+      achDiscountEligible: true,
+    },
+  });
+
   const session = await createInvoiceCheckoutElementsSession(invoiceId, options);
+  const isRecurring = invoice.billingCycle !== "one_time";
+  const paymentElementOptions = await getPaymentElementOptionsForAch(invoice.customerId, isRecurring);
+  const achDiscount: AchDiscountSummary | null = customer?.achDiscountEligible
+    ? calculateAchDiscount(invoice.amount)
+    : null;
 
   return {
     clientSecret: session.client_secret,
     type: "checkout_session" as const,
     sessionId: session.id,
+    customerId: invoice.customerId,
+    amount: invoice.amount,
+    isRecurring,
+    paymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+    preferredPaymentMethod: (customer?.preferredPaymentMethod ?? PaymentPreferenceMethod.none) as PaymentMethodType,
+    achDiscountEligible: customer?.achDiscountEligible ?? false,
+    achDiscount,
+    paymentElementOptions,
   };
 }
 
@@ -384,7 +513,7 @@ export async function createInvoiceCheckoutSession(invoiceId: string, options?: 
   // For subscription checkouts, we need to use the Prices API with explicit interval configuration
   const billingInterval = isRecurring ? getBillingInterval(invoice.billingCycle as "monthly" | "quarterly" | "annual") : null;
   
-  let sessionConfig: Record<string, unknown> = {
+  const sessionConfig: Record<string, unknown> = {
     customer: stripeCustomerId,
     client_reference_id: invoice.id,
     mode: isRecurring ? "subscription" : "payment",
@@ -1649,7 +1778,13 @@ export async function handleStripeEvent(event: Stripe.Event) {
   switch (event.type) {
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded": {
-      await upsertPaymentFromCheckoutSession(event.data.object as Stripe.Checkout.Session, "succeeded");
+      const session = event.data.object as Stripe.Checkout.Session;
+      await upsertPaymentFromCheckoutSession(session, "succeeded");
+
+      if (typeof session.customer === "string") {
+        await syncSavedPaymentMethodsFromStripe(session.customer);
+      }
+
       return;
     }
     case "checkout.session.async_payment_failed": {
@@ -1663,6 +1798,24 @@ export async function handleStripeEvent(event: Stripe.Event) {
     }
     case "payment_intent.payment_failed": {
       await handlePaymentIntentFailure(event.data.object as Stripe.PaymentIntent);
+      return;
+    }
+    case "payment_method.attached": {
+      const paymentMethod = event.data.object as Stripe.PaymentMethod;
+
+      if (typeof paymentMethod.customer === "string") {
+        await syncSavedPaymentMethodsFromStripe(paymentMethod.customer);
+      }
+
+      return;
+    }
+    case "charge.succeeded": {
+      const charge = event.data.object as Stripe.Charge;
+
+      if (typeof charge.customer === "string") {
+        await syncSavedPaymentMethodsFromStripe(charge.customer);
+      }
+
       return;
     }
     case "charge.refunded": {

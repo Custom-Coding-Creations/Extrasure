@@ -1,5 +1,9 @@
 import { handleStripeEvent } from "@/lib/stripe-billing";
 
+jest.mock("@/lib/payment-preferences", () => ({
+  syncSavedPaymentMethodsFromStripe: jest.fn(),
+}));
+
 jest.mock("@/lib/customer-billing-access", () => ({
   createInvoiceAccessToken: jest.fn(() => "token"),
 }));
@@ -60,6 +64,10 @@ const { stripe } = jest.requireMock("@/lib/stripe") as {
   };
 };
 
+const { syncSavedPaymentMethodsFromStripe } = jest.requireMock("@/lib/payment-preferences") as {
+  syncSavedPaymentMethodsFromStripe: jest.Mock;
+};
+
 describe("stripe booking sync", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -106,5 +114,20 @@ describe("stripe booking sync", () => {
         }),
       }),
     );
+    expect(syncSavedPaymentMethodsFromStripe).toHaveBeenCalledWith("cus_123");
+  });
+
+  it("syncs payment methods when payment_method.attached is received", async () => {
+    await handleStripeEvent({
+      type: "payment_method.attached",
+      data: {
+        object: {
+          id: "pm_123",
+          customer: "cus_999",
+        },
+      },
+    } as never);
+
+    expect(syncSavedPaymentMethodsFromStripe).toHaveBeenCalledWith("cus_999");
   });
 });

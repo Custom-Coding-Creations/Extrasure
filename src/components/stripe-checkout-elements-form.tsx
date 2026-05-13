@@ -9,6 +9,9 @@ import {
   useCheckoutElements,
 } from "@stripe/react-stripe-js/checkout";
 import { loadStripe, type StripeCheckoutElementsSdkOptions } from "@stripe/stripe-js";
+import { AchDiscountBadge } from "@/components/payment-methods/AchDiscountBadge";
+import { SavePaymentMethodCheckbox } from "@/components/payment-methods/SavePaymentMethodCheckbox";
+import type { PaymentMethodType } from "@/types/payment-preferences";
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
@@ -39,12 +42,19 @@ type StripeCheckoutElementsFormProps = {
 type CheckoutFormInnerProps = {
   successPath: string;
   showContactDetails: boolean;
+  paymentElementOptions?: Record<string, unknown>;
+  achDiscount?: {
+    discountedAmount: number;
+    savingsAmount: number;
+  } | null;
+  preferredPaymentMethod?: PaymentMethodType;
 };
 
-function CheckoutFormInner({ successPath, showContactDetails }: CheckoutFormInnerProps) {
+function CheckoutFormInner({ successPath, showContactDetails, paymentElementOptions, achDiscount, preferredPaymentMethod }: CheckoutFormInnerProps) {
   const checkoutState = useCheckoutElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [savePaymentMethod, setSavePaymentMethod] = useState(true);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -83,11 +93,24 @@ function CheckoutFormInner({ successPath, showContactDetails }: CheckoutFormInne
     <form onSubmit={handleSubmit} className="space-y-6">
       {showContactDetails ? <ContactDetailsElement /> : null}
       <BillingAddressElement />
+      {achDiscount ? (
+        <AchDiscountBadge
+          savingsAmount={achDiscount.savingsAmount}
+          discountedAmount={achDiscount.discountedAmount}
+        />
+      ) : null}
       <PaymentElement
         options={{
           layout: "accordion",
+          ...(paymentElementOptions ?? {}),
         }}
       />
+      <SavePaymentMethodCheckbox checked={savePaymentMethod} onChange={setSavePaymentMethod} />
+      {preferredPaymentMethod && preferredPaymentMethod !== "none" ? (
+        <p className="text-xs text-[#5d7267]">
+          Preferred method detected: <span className="font-semibold uppercase">{preferredPaymentMethod}</span>
+        </p>
+      ) : null}
 
       {message ? (
         <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{message}</div>
@@ -127,6 +150,9 @@ export function StripeCheckoutElementsForm({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [paymentElementOptions, setPaymentElementOptions] = useState<Record<string, unknown> | null>(null);
+  const [achDiscount, setAchDiscount] = useState<{ discountedAmount: number; savingsAmount: number } | null>(null);
+  const [preferredPaymentMethod, setPreferredPaymentMethod] = useState<PaymentMethodType | undefined>(undefined);
 
   const payload = useMemo(() => initPayload, [initPayload]);
 
@@ -150,6 +176,16 @@ export function StripeCheckoutElementsForm({
         }
 
         setClientSecret(data.clientSecret);
+        setPaymentElementOptions((data.paymentElementOptions ?? null) as Record<string, unknown> | null);
+        setAchDiscount(
+          data.achDiscount
+            ? {
+                discountedAmount: Number(data.achDiscount.discountedAmount),
+                savingsAmount: Number(data.achDiscount.savingsAmount),
+              }
+            : null,
+        );
+        setPreferredPaymentMethod(data.preferredPaymentMethod as PaymentMethodType | undefined);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to load payment form";
         setError(message);
@@ -230,7 +266,13 @@ export function StripeCheckoutElementsForm({
       <p className="mt-1 text-sm text-[#5d7267]">Amount: ${amount}</p>
       <div className="mt-6">
         <CheckoutElementsProvider stripe={stripePromise} options={options}>
-          <CheckoutFormInner successPath={successPath} showContactDetails={showContactDetails} />
+          <CheckoutFormInner
+            successPath={successPath}
+            showContactDetails={showContactDetails}
+            paymentElementOptions={paymentElementOptions ?? undefined}
+            achDiscount={achDiscount}
+            preferredPaymentMethod={preferredPaymentMethod}
+          />
         </CheckoutElementsProvider>
       </div>
     </div>

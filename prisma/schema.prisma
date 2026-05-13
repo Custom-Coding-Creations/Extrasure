@@ -38,6 +38,12 @@ enum CustomerNoteVisibility {
   customer
 }
 
+enum AccountNotificationTone {
+  info
+  warning
+  success
+}
+
 enum TechnicianStatus {
   available
   in_route
@@ -89,6 +95,12 @@ enum ServiceBookingStatus {
 enum PaymentMethod {
   card
   ach
+}
+
+enum PaymentPreferenceMethod {
+  card
+  ach
+  none
 }
 
 enum PaymentStatus {
@@ -147,6 +159,24 @@ model Customer {
   stripeCustomerId String?    @unique
   stripeSubscriptionId String?
   stripeSubscriptionStatus String?
+  preferredPaymentMethod PaymentPreferenceMethod @default(none)
+  autopayEnabled   Boolean @default(false)
+  autopayMethodType PaymentPreferenceMethod @default(none)
+  achDiscountEligible Boolean @default(true)
+}
+
+model SavedPaymentMethod {
+  id                    String        @id
+  customerId            String
+  stripePaymentMethodId String        @unique
+  type                  PaymentMethod
+  brand                 String
+  last4                 String
+  isDefault             Boolean       @default(false)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([customerId, isDefault], map: "customer_payment_pref_idx")
 }
 
 model ServiceCatalogItem {
@@ -219,6 +249,38 @@ model CustomerNote {
   visibility  CustomerNoteVisibility @default(customer)
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
+}
+
+model CustomerAccountNotification {
+  id          String                  @id
+  customerId  String
+  sourceKey   String
+  tone        AccountNotificationTone
+  title       String
+  detail      String
+  href        String
+  readAt      DateTime?
+  dismissedAt DateTime?
+  snoozedUntil DateTime?
+  expiresAt   DateTime?
+  resolvedAt  DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@unique([customerId, sourceKey])
+  @@index([customerId, dismissedAt, resolvedAt, snoozedUntil, expiresAt, updatedAt])
+}
+
+model CustomerNotificationPreference {
+  id         String   @id
+  customerId String
+  sourceKey  String
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([customerId, sourceKey])
+  @@index([customerId, enabled])
 }
 
 model Technician {
