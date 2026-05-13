@@ -96,8 +96,8 @@ export async function getPaymentElementOptionsForAch(
   const achEligible = customer?.achDiscountEligible ?? false;
 
   const paymentMethodOrder = achEligible || achPreferred
-    ? ["us_bank_account", "card"]
-    : ["card", "us_bank_account"];
+    ? ["us_bank_account", "card", "card_wallet"]
+    : ["card_wallet", "card", "us_bank_account"];
 
   return {
     layout: {

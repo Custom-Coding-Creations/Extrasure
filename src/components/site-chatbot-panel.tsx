@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
+import type { BookingAiHandoff } from "@/lib/booking-assistant-handoff";
 
 type ChatRole = "assistant" | "user";
 
@@ -28,6 +29,7 @@ type ApiChatResponse = {
 
 type SiteChatbotPanelProps = {
   onClose: () => void;
+  handoff?: BookingAiHandoff | null;
 };
 
 function makeId() {
@@ -38,7 +40,7 @@ function initialGreeting() {
   return "Hi, I can answer ExtraSure service questions, suggest appointment windows, and help you request a follow-up in English or Spanish.";
 }
 
-export function SiteChatbotPanel({ onClose }: SiteChatbotPanelProps) {
+export function SiteChatbotPanel({ onClose, handoff }: SiteChatbotPanelProps) {
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState<UiMessage[]>([
     {
@@ -52,7 +54,7 @@ export function SiteChatbotPanel({ onClose }: SiteChatbotPanelProps) {
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [leadStatus, setLeadStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [leadMessage, setLeadMessage] = useState("");
-  const [handoff, setHandoff] = useState<ApiChatResponse["handoff"]>({
+  const [handoffLinks, setHandoffLinks] = useState<ApiChatResponse["handoff"]>({
     callHref: "tel:+15169432318",
     smsHref: "sms:+15169432318",
     contactPath: "/contact",
@@ -63,19 +65,17 @@ export function SiteChatbotPanel({ onClose }: SiteChatbotPanelProps) {
     [messages],
   );
 
-  async function sendMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submitMessage(message: string) {
+    const normalizedMessage = message.trim();
 
-    const message = input.trim();
-
-    if (!message || sending) {
+    if (!normalizedMessage || sending) {
       return;
     }
 
     const userMessage: UiMessage = {
       id: makeId(),
       role: "user",
-      content: message,
+      content: normalizedMessage,
     };
 
     setInput("");
@@ -91,8 +91,9 @@ export function SiteChatbotPanel({ onClose }: SiteChatbotPanelProps) {
         },
         body: JSON.stringify({
           sessionId: sessionId || undefined,
-          message,
+          message: normalizedMessage,
           history,
+          context: handoff?.context,
         }),
       });
 
@@ -104,7 +105,7 @@ export function SiteChatbotPanel({ onClose }: SiteChatbotPanelProps) {
 
       setSessionId(data.sessionId);
       setShowLeadForm(data.suggestLeadCapture || data.escalateToHuman);
-      setHandoff(data.handoff);
+      setHandoffLinks(data.handoff);
       setMessages((current) => [
         ...current,
         {
@@ -131,6 +132,11 @@ export function SiteChatbotPanel({ onClose }: SiteChatbotPanelProps) {
     } finally {
       setSending(false);
     }
+  }
+
+  async function sendMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitMessage(input);
   }
 
   async function submitLead(event: FormEvent<HTMLFormElement>) {
@@ -198,7 +204,7 @@ export function SiteChatbotPanel({ onClose }: SiteChatbotPanelProps) {
         </button>
       </header>
 
-      <div className="max-h-80 space-y-3 overflow-y-auto px-3 py-3">
+      <div className="max-h-80 space-y-3 overflow-y-auto px-3 py-3" aria-live="polite" aria-label="Chat conversation">
         {messages.map((message) => (
           <article
             key={message.id}
@@ -233,27 +239,39 @@ export function SiteChatbotPanel({ onClose }: SiteChatbotPanelProps) {
 
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
           <a
-            href={handoff.callHref}
+            href={handoffLinks.callHref}
             className="rounded-full border border-[#b8a57f] bg-[#f3e4c7] px-3 py-1 text-[#294236]"
             onClick={() => trackEvent("ai_chat_handoff_click", { channel: "call" })}
           >
             Call Team
           </a>
           <a
-            href={handoff.smsHref}
+            href={handoffLinks.smsHref}
             className="rounded-full border border-[#b8a57f] bg-[#f3e4c7] px-3 py-1 text-[#294236]"
             onClick={() => trackEvent("ai_chat_handoff_click", { channel: "sms" })}
           >
             Text Team
           </a>
           <a
-            href={handoff.contactPath}
+            href={handoffLinks.contactPath}
             className="rounded-full border border-[#b8a57f] bg-[#f3e4c7] px-3 py-1 text-[#294236]"
             onClick={() => trackEvent("ai_chat_handoff_click", { channel: "web" })}
           >
             Contact Form
           </a>
         </div>
+
+        {handoff?.prompt ? (
+          <button
+            type="button"
+            onClick={() => void submitMessage(handoff.prompt)}
+            disabled={sending}
+            className="mt-3 w-full rounded-xl border border-[#d5c29a] bg-[#fff2d8] px-3 py-2 text-left text-xs font-semibold text-[#4e3c17] disabled:opacity-60"
+            aria-label="Continue assistant conversation from booking"
+          >
+            Continue from booking: {handoff.prompt}
+          </button>
+        ) : null}
 
         {showLeadForm ? (
           <form className="mt-3 space-y-2 rounded-xl border border-[#d9c8a8] bg-[#fff4de] p-3" onSubmit={submitLead}>

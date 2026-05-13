@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { inspectInvoiceAccessToken } from "@/lib/customer-billing-access";
 import { getCustomerInvoiceSnapshot, getStripeInvoiceDocumentLinks } from "@/lib/stripe-billing";
 import { StripePaymentElement } from "@/components/stripe-payment-element";
+import { testimonials, trustBadges } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -120,7 +121,7 @@ export default async function TokenPayPage({ params, searchParams }: TokenPayPag
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
       <p className="text-xs uppercase tracking-[0.18em] text-[#3f5a49]">Customer Billing</p>
       <h1 className="mt-2 text-4xl text-[#15281f]">Invoice {snapshot.invoice.id}</h1>
       <p className="mt-4 max-w-2xl text-[#33453a]">
@@ -141,65 +142,84 @@ export default async function TokenPayPage({ params, searchParams }: TokenPayPag
         </section>
       ) : null}
 
-      <section className="paper-panel mt-8 rounded-2xl border border-[#d3c7ad] p-6">
-        <dl className="grid gap-3 text-sm text-[#33453a] sm:grid-cols-2">
-          <div>
-            <dt className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Customer</dt>
-            <dd className="mt-1 text-base text-[#1b2f25]">{snapshot.customer.name}</dd>
+      <section className="mt-8 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <aside className="h-fit space-y-4 rounded-3xl border border-[#d4c6a8] bg-[linear-gradient(170deg,#fffaf0_0%,#f5ebd6_60%,#ebddbd_100%)] p-6 shadow-[0_20px_42px_rgba(22,53,38,0.16)] lg:sticky lg:top-6">
+          <p className="text-xs uppercase tracking-[0.12em] text-[#5d5a40]">Payment summary</p>
+          <dl className="space-y-3 text-sm text-[#33453a]">
+            <div>
+              <dt className="text-xs uppercase tracking-[0.1em] text-[#5d7267]">Customer</dt>
+              <dd className="mt-1 text-base font-semibold text-[#1b2f25]">{snapshot.customer.name}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-[0.1em] text-[#5d7267]">Amount due</dt>
+              <dd className="mt-1 text-xl font-semibold text-[#1b2f25]">${snapshot.invoice.amount}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-[0.1em] text-[#5d7267]">Billing cycle</dt>
+              <dd className="mt-1 capitalize text-[#1b2f25]">{snapshot.invoice.billingCycle.replace("_", " ")}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-[0.1em] text-[#5d7267]">Current status</dt>
+              <dd className="mt-1 capitalize text-[#1b2f25]">{snapshot.invoice.status.replace("_", " ")}</dd>
+            </div>
+          </dl>
+          <div className="grid gap-2">
+            {trustBadges.map((badge) => (
+              <p key={badge} className="rounded-full border border-[#c8b58f] bg-[#f7e8c6] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5c4a25]">
+                {badge}
+              </p>
+            ))}
           </div>
-          <div>
-            <dt className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Amount Due</dt>
-            <dd className="mt-1 text-base text-[#1b2f25]">${snapshot.invoice.amount}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Billing Cycle</dt>
-            <dd className="mt-1 capitalize text-[#1b2f25]">{snapshot.invoice.billingCycle.replace("_", " ")}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Status</dt>
-            <dd className="mt-1 capitalize text-[#1b2f25]">{snapshot.invoice.status.replace("_", " ")}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Last Billing Update</dt>
-            <dd className="mt-1 text-[#1b2f25]">
-              {snapshot.invoice.paymentStatusUpdatedAt
-                ? new Date(snapshot.invoice.paymentStatusUpdatedAt).toLocaleString()
-                : "No updates yet"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Latest Attempt</dt>
-            <dd className="mt-1 capitalize text-[#1b2f25]">
-              {snapshot.latestPayment ? snapshot.latestPayment.status.replace("_", " ") : "No attempts yet"}
-            </dd>
-          </div>
-        </dl>
+          <article className="rounded-2xl border border-[#d7c8ac] bg-white/75 p-4">
+            <p className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Customer voice</p>
+            <p className="mt-2 text-sm text-[#30453a]">&ldquo;{testimonials[1]?.quote}&rdquo;</p>
+            <p className="mt-2 text-xs font-semibold text-[#1b2f25]">{testimonials[1]?.name} - {testimonials[1]?.area}</p>
+          </article>
+        </aside>
 
-        {!isPaid && !isRefunded ? (
-          <div className="mt-6">
-            <StripePaymentElement token={token} amount={snapshot.invoice.amount} />
-          </div>
-        ) : null}
+        <div className="paper-panel rounded-3xl border border-[#d3c7ad] p-6">
+          <dl className="grid gap-3 text-sm text-[#33453a] sm:grid-cols-2">
+            <div>
+              <dt className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Last billing update</dt>
+              <dd className="mt-1 text-[#1b2f25]">
+                {snapshot.invoice.paymentStatusUpdatedAt
+                  ? new Date(snapshot.invoice.paymentStatusUpdatedAt).toLocaleString()
+                  : "No updates yet"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-[0.12em] text-[#5d7267]">Latest attempt</dt>
+              <dd className="mt-1 capitalize text-[#1b2f25]">
+                {snapshot.latestPayment ? snapshot.latestPayment.status.replace("_", " ") : "No attempts yet"}
+              </dd>
+            </div>
+          </dl>
 
-        <div className="mt-6 flex flex-wrap gap-3">
-          <form action={`/pay/${token}/portal`} method="post">
-            <button
-              type="submit"
-              className="rounded-full border border-[#163526] px-6 py-3 text-sm font-semibold text-[#163526] transition hover:bg-[#163526] hover:text-white"
-            >
-              Manage Billing
-            </button>
-          </form>
-          {invoiceLinks?.pdfUrl ? (
-            <a
-              href={invoiceLinks.pdfUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full border border-[#6e6c4f] px-6 py-3 text-sm font-semibold text-[#545237] transition hover:bg-[#545237] hover:text-white"
-            >
-              Download Invoice PDF
-            </a>
+          {!isPaid && !isRefunded ? (
+            <div className="mt-6">
+              <StripePaymentElement token={token} amount={snapshot.invoice.amount} />
+            </div>
           ) : null}
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <form action={`/pay/${token}/portal`} method="post">
+              <button
+                type="submit"
+                className="rounded-full border border-[#163526] px-6 py-3 text-sm font-semibold text-[#163526] transition hover:bg-[#163526] hover:text-white"
+              >
+                Manage Billing
+              </button>
+            </form>
+            {invoiceLinks?.pdfUrl ? (
+              <a
+                href={invoiceLinks.pdfUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full border border-[#6e6c4f] px-6 py-3 text-sm font-semibold text-[#545237] transition hover:bg-[#545237] hover:text-white"
+              >
+                Download Invoice PDF
+              </a>
+            ) : null}
             {snapshot.customer.stripeSubscriptionId && snapshot.invoice.billingCycle !== "one_time" ? (
               <div className="mt-3 flex flex-wrap gap-3">
                 <form action={`/pay/${token}/subscription`} method="post">
@@ -231,6 +251,7 @@ export default async function TokenPayPage({ params, searchParams }: TokenPayPag
                 </form>
               </div>
             ) : null}
+          </div>
         </div>
       </section>
     </div>

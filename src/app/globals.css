@@ -167,8 +167,57 @@ h4 {
   transition: width 450ms ease;
 }
 
+.booking-shell {
+  border: 1px solid rgba(22, 53, 38, 0.12);
+  border-radius: 1.5rem;
+  background: linear-gradient(168deg, #fffdf6 0%, #fff5de 52%, #f2e6c8 100%);
+  box-shadow: 0 14px 34px rgba(20, 40, 30, 0.14);
+}
+
+.booking-surface {
+  border: 1px solid rgba(22, 53, 38, 0.14);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(8px);
+}
+
+.chip-button {
+  border-radius: 0.95rem;
+  border: 1px solid rgba(22, 53, 38, 0.18);
+  background: linear-gradient(180deg, #fffdf9 0%, #f8f0dd 100%);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.chip-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(22, 53, 38, 0.34);
+  box-shadow: 0 8px 18px rgba(20, 40, 30, 0.14);
+}
+
+.chip-button:active {
+  transform: translateY(0);
+}
+
 .animated-entry {
   animation: dashboard-enter 380ms ease both;
+}
+
+.success-glow {
+  animation: success-glow 620ms ease both;
+}
+
+.shimmer-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.35) 48%, transparent 100%);
+  animation: shimmer-slide 1200ms ease;
 }
 
 @keyframes dashboard-enter {
@@ -179,6 +228,27 @@ h4 {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes success-glow {
+  0% {
+    box-shadow: 0 0 0 rgba(31, 106, 58, 0);
+  }
+  50% {
+    box-shadow: 0 0 0.9rem rgba(31, 106, 58, 0.24);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(31, 106, 58, 0);
+  }
+}
+
+@keyframes shimmer-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
   }
 }
 
@@ -253,5 +323,10 @@ h4 {
   .elevated-action:hover,
   .elevated-action:active {
     transform: none;
+  }
+
+  .success-glow,
+  .shimmer-line::after {
+    animation: none !important;
   }
 }

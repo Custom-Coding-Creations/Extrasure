@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getNextSlotIndex } from "@/lib/availability-navigation";
 
-interface AvailableSlot {
+export interface AvailableSlot {
   start: string; // ISO date string
   end: string; // ISO date string
   technicianId: string | null;
@@ -16,16 +17,23 @@ interface AvailabilityPickerProps {
   initialDate?: string;
 }
 
+type AvailabilityResponse = {
+  isSameDayBooking: boolean;
+  availableSlots: AvailableSlot[];
+};
+
 export function AvailabilityPicker({ serviceId, onSlotSelected, initialDate }: AvailabilityPickerProps) {
   const [date, setDate] = useState(initialDate || "");
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const slotButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // Fetch available slots when date or serviceId changes
   useEffect(() => {
     if (!date || !serviceId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSlots([]);
       return;
     }
@@ -45,7 +53,7 @@ export function AvailabilityPicker({ serviceId, onSlotSelected, initialDate }: A
           throw new Error(data.error || "Failed to fetch availability");
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as AvailabilityResponse;
 
         if (data.isSameDayBooking && !data.availableSlots.length) {
           setError("Same-day booking is not available for this service.");
@@ -53,8 +61,7 @@ export function AvailabilityPicker({ serviceId, onSlotSelected, initialDate }: A
           return;
         }
 
-        // Convert ISO strings to Date objects for display
-        const parsedSlots = data.availableSlots.map((slot: any) => ({
+        const parsedSlots = data.availableSlots.map((slot) => ({
           ...slot,
           start: slot.start,
           end: slot.end,
@@ -81,7 +88,6 @@ export function AvailabilityPicker({ serviceId, onSlotSelected, initialDate }: A
     onSlotSelected(selectedSlot);
   }, [selectedSlot, onSlotSelected]);
 
-  // Format a date for display
   function formatTime(dateString: string): string {
     const date = new Date(dateString);
     return date.toLocaleTimeString("en-US", {
@@ -89,6 +95,42 @@ export function AvailabilityPicker({ serviceId, onSlotSelected, initialDate }: A
       minute: "2-digit",
       hour12: true,
     });
+  }
+
+  function getDayPart(dateString: string): "Morning" | "Midday" | "Afternoon" | "Evening" {
+    const hour = new Date(dateString).getHours();
+
+    if (hour < 11) {
+      return "Morning";
+    }
+
+    if (hour < 14) {
+      return "Midday";
+    }
+
+    if (hour < 18) {
+      return "Afternoon";
+    }
+
+    return "Evening";
+  }
+
+  function getSlotBadge(slot: AvailableSlot, sortedSlots: AvailableSlot[], groupIndex: number) {
+    const firstSlot = sortedSlots[0];
+
+    if (slot.start === firstSlot?.start) {
+      return "Fastest";
+    }
+
+    if (groupIndex === 0) {
+      return "Recommended";
+    }
+
+    if (slot.technicianName) {
+      return "Technician match";
+    }
+
+    return null;
   }
 
   // Get minimum date (today + minimum notice hours)
@@ -103,6 +145,44 @@ export function AvailabilityPicker({ serviceId, onSlotSelected, initialDate }: A
     const max = new Date();
     max.setDate(max.getDate() + 30); // Default lookahead
     return max.toISOString().split("T")[0];
+  }
+
+  const sortedSlots = useMemo(
+    () => [...slots].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()),
+    [slots],
+  );
+
+  useEffect(() => {
+    slotButtonRefs.current = [];
+  }, [sortedSlots]);
+
+  const groupedSlots = sortedSlots.reduce<Record<string, AvailableSlot[]>>((accumulator, slot) => {
+    const dayPart = getDayPart(slot.start);
+
+    if (!accumulator[dayPart]) {
+      accumulator[dayPart] = [];
+    }
+
+    accumulator[dayPart].push(slot);
+    return accumulator;
+  }, {});
+
+  const dayPartOrder: Array<"Morning" | "Midday" | "Afternoon" | "Evening"> = [
+    "Morning",
+    "Midday",
+    "Afternoon",
+    "Evening",
+  ];
+
+  function handleSlotKeyDown(index: number, event: React.KeyboardEvent<HTMLButtonElement>) {
+    const nextIndex = getNextSlotIndex(index, sortedSlots.length, event.key);
+
+    if (nextIndex === index || nextIndex === -1) {
+      return;
+    }
+
+    event.preventDefault();
+    slotButtonRefs.current[nextIndex]?.focus();
   }
 
   return (
@@ -143,8 +223,10 @@ export function AvailabilityPicker({ serviceId, onSlotSelected, initialDate }: A
           </label>
 
           {loading && (
-            <div className="mt-2 rounded-lg border border-[#d3c7ad] bg-[#fff9eb] px-4 py-3 text-sm text-[#5d7267]">
-              Loading available times...
+            <div className="mt-3 space-y-2">
+              <div className="h-12 animate-pulse rounded-xl border border-[#d3c7ad] bg-[#fff7e5]" />
+              <div className="h-12 animate-pulse rounded-xl border border-[#d3c7ad] bg-[#fff7e5]" />
+              <div className="h-12 animate-pulse rounded-xl border border-[#d3c7ad] bg-[#fff7e5]" />
             </div>
           )}
 
@@ -154,38 +236,73 @@ export function AvailabilityPicker({ serviceId, onSlotSelected, initialDate }: A
             </div>
           )}
 
-          {!loading && slots.length > 0 && (
-            <div className="mt-2 space-y-2">
-              {slots.map((slot, idx) => {
-                const isSelected = selectedSlot === slot;
+          {!loading && sortedSlots.length > 0 && (
+            <div className="mt-3 space-y-3">
+              {dayPartOrder.map((dayPart) => {
+                const dayPartSlots = groupedSlots[dayPart] ?? [];
+
+                if (dayPartSlots.length === 0) {
+                  return null;
+                }
+
                 return (
-                  <button
-                    key={`${slot.start}-${idx}`}
-                    type="button"
-                    onClick={() => setSelectedSlot(slot)}
-                    className={`w-full rounded-lg border-2 px-4 py-3 text-sm font-medium transition ${
-                      isSelected
-                        ? "border-[#163526] bg-[#f0f8f4] text-[#163526]"
-                        : "border-[#deceb0] bg-white text-[#33453a] hover:border-[#163526]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>
-                        {formatTime(slot.start)} – {formatTime(slot.end)}
-                      </span>
-                      {slot.technicianName && (
-                        <span className="text-xs text-[#5d7267]">
-                          {slot.technicianName}
-                        </span>
-                      )}
+                  <section key={dayPart} className="space-y-2 rounded-2xl border border-[#dfd1b4] bg-[#fffaf0] p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-[#173226]">{dayPart}</p>
+                      <p className="text-xs text-[#5d7267]">
+                        {dayPartSlots.length} slot{dayPartSlots.length > 1 ? "s" : ""} available
+                      </p>
                     </div>
-                  </button>
+                    <div className="grid gap-2 sm:grid-cols-2" role="listbox" aria-label={`${dayPart} appointment times`}>
+                      {dayPartSlots.map((slot, idx) => {
+                        const overallIndex = sortedSlots.findIndex((candidate) => candidate.start === slot.start && candidate.technicianId === slot.technicianId);
+                        const isSelected = selectedSlot?.start === slot.start;
+                        const badge = getSlotBadge(slot, sortedSlots, idx);
+
+                        return (
+                          <button
+                            key={`${slot.start}-${idx}`}
+                            type="button"
+                            onClick={() => setSelectedSlot(slot)}
+                            onKeyDown={(event) => handleSlotKeyDown(overallIndex, event)}
+                            ref={(element) => {
+                              slotButtonRefs.current[overallIndex] = element;
+                            }}
+                            aria-selected={isSelected}
+                            role="option"
+                            className={`rounded-xl border px-3 py-3 text-left transition ${
+                              isSelected
+                                ? "border-[#163526] bg-[#eff8f2] shadow-[0_6px_18px_rgba(22,53,38,0.16)]"
+                                : "border-[#deceb0] bg-white hover:border-[#275740] hover:shadow-[0_6px_16px_rgba(22,53,38,0.1)]"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="text-sm font-semibold text-[#1e3026]">
+                                {formatTime(slot.start)} - {formatTime(slot.end)}
+                              </span>
+                              {badge ? (
+                                <span className="rounded-full border border-[#c9b488] bg-[#f8e8c8] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#5b4928]">
+                                  {badge}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-1 flex items-center justify-between gap-2">
+                              <span className="text-xs text-[#506257]">
+                                {slot.technicianName || "Next available technician"}
+                              </span>
+                              <span className="text-[11px] text-[#617469]">~{slot.estimatedDriveTimeMinutes}m away</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
                 );
               })}
             </div>
           )}
 
-          {!loading && slots.length === 0 && !error && date && (
+          {!loading && sortedSlots.length === 0 && !error && date && (
             <div className="mt-2 rounded-lg border border-[#d3c7ad] bg-[#fff9eb] px-4 py-3 text-sm text-[#5d7267]">
               No available slots for this date. Please try another date.
             </div>

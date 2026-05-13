@@ -15,6 +15,8 @@ import {
 } from "@stripe/stripe-js";
 import { AchDiscountBadge } from "@/components/payment-methods/AchDiscountBadge";
 import { SavePaymentMethodCheckbox } from "@/components/payment-methods/SavePaymentMethodCheckbox";
+import { trackEvent } from "@/lib/analytics";
+import { buildCheckoutInitializationPayload, buildCheckoutOutcomePayload } from "@/lib/checkout-analytics";
 import type { PaymentMethodType } from "@/types/payment-preferences";
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
@@ -88,10 +90,12 @@ function CheckoutFormInner({
 
       if (result.type === "error") {
         setMessage(result.error.message ?? "Payment failed");
+        trackEvent("checkout_payment_confirm_error", buildCheckoutOutcomePayload());
         return;
       }
 
       if (result.type === "success") {
+        trackEvent("checkout_payment_confirm_success", buildCheckoutOutcomePayload());
         const location = successPath.replace(
           "{CHECKOUT_SESSION_ID}",
           encodeURIComponent(result.session.id),
@@ -101,6 +105,7 @@ function CheckoutFormInner({
     } catch (error) {
       const message = error instanceof Error ? error.message : "An unexpected error occurred";
       setMessage(message);
+      trackEvent("checkout_payment_confirm_exception", buildCheckoutOutcomePayload());
     } finally {
       setIsProcessing(false);
     }
@@ -113,6 +118,9 @@ function CheckoutFormInner({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="rounded-2xl border border-[#d8caac] bg-[#fff7e6] px-4 py-3 text-xs text-[#435348]">
+        Your payment is encrypted and processed securely by Stripe. Apple Pay and Google Pay appear automatically on supported devices.
+      </div>
       {showContactDetails ? <ContactDetailsElement options={contactDetailsOptions} /> : null}
       <BillingAddressElement />
       {achDiscount ? (
@@ -154,7 +162,7 @@ function CheckoutFormInner({
       <button
         type="submit"
         disabled={checkoutState.type !== "success" || isProcessing}
-        className="w-full rounded-full bg-[#163526] px-6 py-3 text-base font-semibold text-white transition hover:bg-[#10271d] disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-full bg-[linear-gradient(135deg,#163526_0%,#214e37_56%,#2e6649_100%)] px-6 py-3 text-base font-semibold text-white shadow-[0_10px_20px_rgba(22,53,38,0.2)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isProcessing ? "Processing..." : "Pay Now"}
       </button>
@@ -227,10 +235,15 @@ export function StripeCheckoutElementsForm({
             : null,
         );
         setPreferredPaymentMethod(data.preferredPaymentMethod as PaymentMethodType | undefined);
+        trackEvent(
+          "checkout_payment_initialized",
+          buildCheckoutInitializationPayload(data.preferredPaymentMethod as PaymentMethodType | undefined),
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to load payment form";
         setError(message);
         setClientSecret(null);
+        trackEvent("checkout_payment_init_error", buildCheckoutOutcomePayload());
       } finally {
         setLoading(false);
       }
@@ -305,9 +318,9 @@ export function StripeCheckoutElementsForm({
   };
 
   return (
-    <div className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-6">
+    <div className="rounded-2xl border border-[#d3c7ad] bg-[linear-gradient(160deg,#fffaf0_0%,#fff2d9_100%)] p-6">
       <h3 className="text-xl font-semibold text-[#1b2f25]">{title}</h3>
-      <p className="mt-1 text-sm text-[#5d7267]">Amount: ${amount}</p>
+      <p className="mt-1 text-sm text-[#5d7267]">Amount due today: ${amount}</p>
       <div className="mt-6">
         <CheckoutElementsProvider stripe={stripePromise} options={options}>
           <CheckoutFormInner

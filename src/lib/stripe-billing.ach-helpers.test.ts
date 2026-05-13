@@ -111,7 +111,7 @@ describe("stripe-billing ACH helpers", () => {
 
     const options = await getPaymentElementOptionsForAch("c_1", false);
 
-    expect(options.paymentMethodOrder).toEqual(["us_bank_account", "card"]);
+    expect(options.paymentMethodOrder).toEqual(["us_bank_account", "card", "card_wallet"]);
     expect(options.terms?.usBankAccount).toBe("auto");
   });
 
@@ -123,7 +123,7 @@ describe("stripe-billing ACH helpers", () => {
 
     const options = await getPaymentElementOptionsForAch("c_1", true);
 
-    expect(options.paymentMethodOrder).toEqual(["card", "us_bank_account"]);
+    expect(options.paymentMethodOrder).toEqual(["card_wallet", "card", "us_bank_account"]);
     expect(options.terms?.usBankAccount).toBe("always");
   });
 });
