@@ -32,6 +32,7 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
   };
 
   const unreadNotifications = (shellNotifications ?? []).filter((notification) => !notification.readAt).length;
+  const mobileQuickActions = (shellQuickActions ?? []).slice(0, 3);
 
   return (
     <div className="dashboard-shell mx-auto w-full max-w-7xl px-4 pb-28 pt-8 sm:px-6 lg:px-8 lg:pb-10 lg:pt-12">
@@ -82,6 +83,7 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
             <Link
               key={link.href}
               href={link.href}
+              aria-current={active ? "page" : undefined}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:focus-ring ${
                 active
                   ? "bg-[#163526] text-white"
@@ -94,10 +96,31 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
         })}
       </nav>
 
+      {mobileQuickActions.length ? (
+        <section className="relative z-10 mt-4 lg:hidden" aria-label="Mobile smart shortcuts">
+          <div className="mb-2 flex items-center justify-between gap-3 px-1">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[#60776a] dark:text-[#c7bba1]">Smart shortcuts</p>
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#71877b] dark:text-[#bfae90]">Thumb-ready actions</p>
+          </div>
+          <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {mobileQuickActions.map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="premium-card min-w-[15.5rem] snap-start rounded-[1.4rem] px-4 py-3"
+              >
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-[#697f72] dark:text-[#c8bca1]">Quick action</p>
+                <p className="mt-2 text-sm font-semibold text-[#173126] dark:text-[#f0e6d1]">{action.label}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <div className="relative z-10 mt-4">{children}</div>
 
       <nav
-        className="glass-panel fixed bottom-4 left-1/2 z-30 flex w-[min(96vw,760px)] -translate-x-1/2 items-center justify-between rounded-2xl px-2 py-2 lg:hidden"
+        className="glass-panel fixed bottom-4 left-1/2 z-30 flex w-[min(96vw,760px)] -translate-x-1/2 items-center justify-between gap-1 rounded-2xl px-2 py-2 lg:hidden"
         aria-label="Mobile account navigation"
       >
         {accountLinks.slice(0, 5).map((link) => {
@@ -107,7 +130,8 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
             <Link
               key={link.href}
               href={link.href}
-              className={`rounded-xl px-3 py-2 text-center text-[0.7rem] font-semibold uppercase tracking-[0.08em] focus-visible:focus-ring ${
+              aria-current={active ? "page" : undefined}
+              className={`min-w-0 flex-1 rounded-xl px-2 py-2 text-center text-[0.64rem] font-semibold uppercase tracking-[0.08em] focus-visible:focus-ring ${
                 active
                   ? "bg-[#163526] text-white"
                   : "text-[#163526] dark:text-[#ecdcc0]"

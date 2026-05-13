@@ -46,9 +46,10 @@ function makeId() {
 }
 
 const suggestionPrompts = [
+  "Explain my current protection status.",
+  "What should I watch for around my property this month?",
+  "How can I reduce mosquito activity near my home?",
   "What should I prepare before my next treatment?",
-  "Explain my current protection plan in plain language.",
-  "What risks should I watch for around my property this month?",
 ];
 
 export function AccountAiAssistantCard({ context }: AccountAiAssistantCardProps) {
@@ -57,7 +58,7 @@ export function AccountAiAssistantCard({ context }: AccountAiAssistantCardProps)
     {
       id: makeId(),
       role: "assistant",
-      content: `I can help with ${context.currentPage.toLowerCase()}, property questions, treatment preparation, billing clarity, and next-step recommendations.`,
+      content: `I can interpret your ${context.currentPage.toLowerCase()} data, explain current risks, and recommend the next best action for your property.`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -141,12 +142,30 @@ export function AccountAiAssistantCard({ context }: AccountAiAssistantCardProps)
   }
 
   return (
-    <section className="rounded-3xl border border-[#d8ccaf] bg-[#fffdf6] p-5 dark:border-[#4d6751] dark:bg-[#1f3328]">
+    <section className="dashboard-atmosphere rounded-3xl border border-[#d8ccaf] p-5 dark:border-[#4d6751] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.14em] text-[#61776c] dark:text-[#cabda2]">Account AI Assistant</p>
-          <h3 className="mt-2 text-xl text-[#173126] dark:text-[#f1e7d2]">Context-aware help for your property and plan</h3>
-          <p className="mt-2 text-sm text-[#40584a] dark:text-[#d5c8ad]">Ask about your property profile, service cadence, treatment preparation, or billing status.</p>
+          <p className="text-xs uppercase tracking-[0.14em] text-[#61776c] dark:text-[#cabda2]">Property intelligence system</p>
+          <h3 className="mt-2 text-xl text-[#173126] dark:text-[#f1e7d2]">Context-aware guidance for protection, service prep, and risk awareness</h3>
+          <p className="mt-2 max-w-2xl text-sm text-[#40584a] dark:text-[#d5c8ad]">Ask for a plain-language explanation of your current protection state, seasonal watchpoints, billing impact, or preparation steps before the next visit.</p>
+        </div>
+        <div className="rounded-full border border-[#d8cbaf] bg-[rgba(255,250,240,0.74)] px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#305145] dark:border-[#4f6953] dark:bg-[rgba(32,53,42,0.78)] dark:text-[#e4d8c0]">
+          Embedded AI support
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-2xl border border-[#dbcdb1] bg-[rgba(255,252,244,0.78)] p-4 dark:border-[#4f6953] dark:bg-[rgba(30,48,39,0.82)]">
+          <p className="text-xs uppercase tracking-[0.14em] text-[#657c70] dark:text-[#c6bba0]">Current dashboard context</p>
+          <p className="mt-2 text-sm leading-6 text-[#40584a] dark:text-[#d5c8ad]">{context.pageSummary}</p>
+        </div>
+        <div className="rounded-2xl border border-[#dbcdb1] bg-[rgba(255,252,244,0.78)] p-4 dark:border-[#4f6953] dark:bg-[rgba(30,48,39,0.82)]">
+          <p className="text-xs uppercase tracking-[0.14em] text-[#657c70] dark:text-[#c6bba0]">Suggested uses</p>
+          <ul className="mt-2 grid gap-2 text-sm text-[#40584a] dark:text-[#d5c8ad]">
+            <li>Interpret your protection score and risk signals.</li>
+            <li>Explain treatment preparation and safety expectations.</li>
+            <li>Recommend seasonal prevention steps for your property.</li>
+          </ul>
         </div>
       </div>
 
@@ -163,7 +182,7 @@ export function AccountAiAssistantCard({ context }: AccountAiAssistantCardProps)
         ))}
       </div>
 
-      <div className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-[#ddd2b7] bg-[#fff8ea] p-3 dark:border-[#516b55] dark:bg-[#243a2f]">
+      <div className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-[#ddd2b7] bg-[rgba(255,248,234,0.92)] p-3 dark:border-[#516b55] dark:bg-[rgba(36,58,47,0.9)]">
         {messages.map((message) => (
           <article
             key={message.id}
@@ -183,7 +202,7 @@ export function AccountAiAssistantCard({ context }: AccountAiAssistantCardProps)
           className="field flex-1"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Ask about your property, treatment plan, or billing"
+          placeholder="Ask about your protection status, seasonal risks, or next best action"
           aria-label="Account AI message"
         />
         <button
