@@ -166,3 +166,41 @@ Account Portal: Intelligent Home Protection OS Rollout (No Contract Regressions)
 	- `src/components/account/account-home-timeline.interaction.test.tsx`
 	- `package.json`
 	- `package-lock.json`
+
+## Authenticated QA Handoff (Pending Credentials)
+
+Use this checklist once a valid customer test account is available.
+
+### Setup
+
+- Start app: `npm run dev -- --port 3000`
+- Login route: `/account/login`
+- Authenticate with customer test credentials.
+
+### Route checks
+
+- `/account`
+	- Protection dial, trend, recommendations, and map/trust cards render.
+	- No layout overlap or clipping on desktop/mobile.
+- `/account/services`
+	- Upcoming/last service context renders.
+	- Timeline defaults and category tabs behave correctly.
+- `/account/activity`
+	- Timeline entries render with expected category badges.
+	- Empty-filter state messaging appears when a category has no entries.
+- `/account/billing` and `/account/invoices`
+	- Invoice/billing cards and timeline data render without action regressions.
+- `/account/profile` and `/account/notes`
+	- Existing profile/notes actions still submit and persist expected behavior.
+
+### Accessibility and motion checks
+
+- Confirm active account nav item exposes `aria-current="page"` on each route.
+- Confirm timeline tabs expose selection state (`aria-selected`) as filters change.
+- With OS/browser reduced motion enabled, confirm transitions are visually reduced.
+
+### Exit criteria
+
+- No route crashes or hydration errors.
+- No action regressions in profile/notes/billing flows.
+- Mobile shell and quick actions remain usable across account routes.
