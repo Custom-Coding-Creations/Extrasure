@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import { AccountShell } from "@/components/account/account-shell";
 import { AccountAiAssistantCard } from "@/components/account/account-ai-assistant-card";
-import { AssuranceRibbon, DashboardCard, SignalMeter, StatKpi, StatusBadge, TimelinePanel } from "@/components/account/protection-ui";
+import { AccountHomeTimeline } from "@/components/account/account-home-timeline";
+import { DashboardCard, SignalMeter, StatKpi, StatusBadge } from "@/components/account/protection-ui";
 import { logoutCustomer } from "@/app/account/actions";
 import { buildServicesDashboardMetrics } from "@/lib/account-dashboard-metrics";
+import { buildAccountHomeIntelligence, buildAccountTimelineFeed } from "@/lib/account-home-intelligence";
 import { requireCustomerSession } from "@/lib/customer-auth";
 import { buildAccountShellState } from "@/lib/account-shell-data";
 import { getCustomerAccountSnapshot } from "@/lib/customer-account-data";
@@ -69,23 +71,27 @@ export default async function AccountServicesPage() {
 
   const { upcomingBookings, recentJobs, nextVisit, completedVisitsCount, visitHealthScore, timelineEvents, readinessAssurance } =
     buildServicesDashboardMetrics(snapshot);
+  const homeIntelligence = buildAccountHomeIntelligence(snapshot);
+  const timelineFeed = buildAccountTimelineFeed(snapshot);
+  const serviceTimeline = {
+    filters: timelineFeed.filters.filter((filter) => filter.id === "all" || filter.id === "service" || filter.id === "ai"),
+    items: timelineFeed.items.filter((item) => item.category === "service" || item.category === "ai"),
+  };
   const shellState = await buildAccountShellState(snapshot, "services");
 
   let nextVisitTone: "success" | "warning" | "danger" | "info" = "info";
   let nextVisitDateLabel = "";
   let nextVisitTitle = "Scheduled protection visit";
-  let nextVisitDetail = "";
 
   if (nextVisit) {
     if ("service" in nextVisit) {
       nextVisitTone = jobTone(nextVisit.status);
       nextVisitDateLabel = formatDateTime(nextVisit.scheduledAt);
       nextVisitTitle = nextVisit.service;
-      nextVisitDetail = `Technician route scheduled for ${formatDateTime(nextVisit.scheduledAt)}`;
     } else {
       nextVisitTone = bookingTone(nextVisit.status);
       nextVisitDateLabel = formatDate(nextVisit.preferredDate);
-      nextVisitDetail = `${nextVisit.preferredWindow} at ${nextVisit.addressLine1}, ${nextVisit.city}`;
+      nextVisitTitle = `${nextVisit.preferredWindow} at ${nextVisit.addressLine1}, ${nextVisit.city}`;
     }
   }
 
@@ -98,79 +104,115 @@ export default async function AccountServicesPage() {
       shellQuickActions={shellState.quickActions}
       shellNotifications={shellState.notifications}
     >
-      <section className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-        <DashboardCard
-          title="Next Protection Window"
-          subtitle="Your next visit, preparation expectations, and service readiness"
-          ctaHref="/contact"
-          ctaLabel="Request Service"
-        >
-          {nextVisit ? (
-            <div className="grid gap-4 sm:grid-cols-[1.2fr_0.8fr]">
-              <div className="rounded-3xl border border-[#d8ccaf] bg-[#fffcf4] p-5 dark:border-[#4d6751] dark:bg-[#1f3328]">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <StatusBadge
-                    tone={nextVisitTone}
-                    label={humanize(nextVisit.status)}
-                  />
-                  <p className="text-sm font-semibold text-[#173126] dark:text-[#f1e7d1]">
-                    {nextVisitDateLabel}
-                  </p>
-                </div>
-                <p className="mt-4 text-2xl text-[#152e24] dark:text-[#f2e8d3]">
-                  {nextVisitTitle}
-                </p>
-                <p className="mt-2 text-sm text-[#42594a] dark:text-[#d6c9ad]">
-                  {nextVisitDetail}
-                </p>
-                <div className="mt-4 rounded-2xl border border-[#dccfb5] bg-[#fff7e7] px-4 py-3 text-sm text-[#31483b] dark:border-[#4f6953] dark:bg-[#243a2e] dark:text-[#d8ccb2]">
-                  Preparation checklist: secure pets, clear gate access, and note any new pest activity before arrival.
-                </div>
+      <section className="grid gap-4 xl:grid-cols-[1.3fr_0.9fr]">
+        <section className="dashboard-atmosphere premium-card animated-entry overflow-hidden rounded-[2rem] p-6 sm:p-7">
+          <div className="relative z-10 grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
+            <div className="grid gap-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone={nextVisitTone} label={nextVisit ? humanize(nextVisit.status) : "Schedule needed"} />
+                <span className="rounded-full border border-[#d8caad] bg-[rgba(255,250,240,0.72)] px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[#335043] dark:border-[#536d57] dark:bg-[rgba(35,55,44,0.74)] dark:text-[#e0d4bc]">
+                  Field operations view
+                </span>
               </div>
-              <div className="grid gap-3">
-                <StatKpi
-                  label="Upcoming bookings"
-                  value={String(upcomingBookings.length)}
-                  detail="Pending and confirmed visit requests"
-                />
-                <StatKpi
-                  label="Completed visits"
-                  value={String(completedVisitsCount)}
-                  detail="Recorded protection outcomes"
-                />
+              <div>
+                <h2 className="max-w-3xl text-3xl leading-tight text-[#152b21] dark:text-[#f3ead7] sm:text-4xl">
+                  {nextVisit ? "Your next protection window is organized around readiness, safety, and continuity." : "Your service cadence needs a new visit to keep protection confidence strong."}
+                </h2>
+                <p className="mt-4 max-w-3xl text-base leading-7 text-[#365042] dark:text-[#d6caaf]">
+                  {nextVisit
+                    ? "This view combines the next scheduled stop, visit readiness, and modeled property risk so you can prepare for service with clarity."
+                    : "This page now highlights what is missing in the service workflow and what to do next to restore predictable coverage."}
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <article className="rounded-[1.55rem] border border-[#dbcdb1] bg-[rgba(255,252,246,0.82)] p-4 dark:border-[#4e6852] dark:bg-[rgba(29,46,37,0.86)]">
+                  <p className="text-xs uppercase tracking-[0.15em] text-[#677e71] dark:text-[#c8bca1]">Next visit</p>
+                  <p className="mt-2 text-xl font-semibold text-[#193327] dark:text-[#f1e8d3]">{nextVisit ? nextVisitDateLabel : "Not scheduled"}</p>
+                  <p className="mt-2 text-sm text-[#486153] dark:text-[#d1c4a8]">{nextVisit ? nextVisitTitle : "Book the next perimeter treatment to recover continuity."}</p>
+                </article>
+                <article className="rounded-[1.55rem] border border-[#dbcdb1] bg-[rgba(255,252,246,0.82)] p-4 dark:border-[#4e6852] dark:bg-[rgba(29,46,37,0.86)]">
+                  <p className="text-xs uppercase tracking-[0.15em] text-[#677e71] dark:text-[#c8bca1]">Upcoming requests</p>
+                  <p className="mt-2 text-3xl font-semibold text-[#193327] dark:text-[#f1e8d3]">{upcomingBookings.length}</p>
+                  <p className="mt-2 text-sm text-[#486153] dark:text-[#d1c4a8]">Pending and confirmed windows moving through the service queue.</p>
+                </article>
+                <article className="rounded-[1.55rem] border border-[#dbcdb1] bg-[rgba(255,252,246,0.82)] p-4 dark:border-[#4e6852] dark:bg-[rgba(29,46,37,0.86)]">
+                  <p className="text-xs uppercase tracking-[0.15em] text-[#677e71] dark:text-[#c8bca1]">Completed visits</p>
+                  <p className="mt-2 text-3xl font-semibold text-[#193327] dark:text-[#f1e8d3]">{completedVisitsCount}</p>
+                  <p className="mt-2 text-sm text-[#486153] dark:text-[#d1c4a8]">Recorded field outcomes and treatment history for the property.</p>
+                </article>
               </div>
             </div>
-          ) : (
-            <div className="rounded-2xl border border-[#d8ccaf] bg-[#fffaf0] p-5 text-sm text-[#486052] dark:border-[#4d6751] dark:bg-[#22382d] dark:text-[#d8ccb0]">
-              <p className="font-semibold text-[#183126] dark:text-[#efe5cf]">No visit is currently on the calendar.</p>
-              <p className="mt-2">Book a protection visit to maintain your service cadence and keep your protection score strong.</p>
-            </div>
-          )}
-        </DashboardCard>
 
-        <DashboardCard title="Visit Readiness" subtitle="Operational transparency for every scheduled stop">
+            <div className="grid gap-4">
+              <DashboardCard title="Visit readiness" subtitle="Operational transparency for every scheduled stop">
+                <div className="grid gap-3">
+                  <SignalMeter
+                    label="Visit readiness score"
+                    value={visitHealthScore}
+                    tone={visitHealthScore >= 78 ? "success" : visitHealthScore >= 60 ? "warning" : "danger"}
+                    summary="This score reflects schedule stability, completed service cadence, and disruption signals."
+                  />
+                  <StatKpi label="Property access" value="Verified" detail="Service address and contact details are on file" />
+                  <StatKpi label="Follow-up guidance" value={recentJobs.length ? "Available" : "Pending first visit"} detail="Recommendations appear after each completed service" />
+                </div>
+              </DashboardCard>
+            </div>
+          </div>
+        </section>
+
+        <DashboardCard title="Visit preparation" subtitle="What the field team needs from you before arrival" ctaHref="/contact" ctaLabel="Request service">
           <div className="grid gap-3">
-            <SignalMeter
-              label="Visit readiness score"
-              value={visitHealthScore}
-              tone={visitHealthScore >= 78 ? "success" : visitHealthScore >= 60 ? "warning" : "danger"}
-              summary="This score reflects schedule stability, completed service cadence, and disruption signals."
-            />
-            <StatKpi label="Property access" value="Verified" detail="Service address and contact details are on file" />
-            <StatKpi label="Follow-up guidance" value={recentJobs.length ? "Available" : "Pending first visit"} detail="Recommendations appear after each completed service" />
+            <article className="rounded-[1.55rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4b6550] dark:bg-[#22372c]">
+              <p className="text-base font-semibold text-[#173126] dark:text-[#f1e8d4]">Access and arrival</p>
+              <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">Keep side gates clear, note any locked entry points, and flag new activity before the technician arrives.</p>
+            </article>
+            <article className="rounded-[1.55rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4b6550] dark:bg-[#22372c]">
+              <p className="text-base font-semibold text-[#173126] dark:text-[#f1e8d4]">Family and pet safety</p>
+              <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">Secure pets, keep children away from treated zones until dry, and review any special site notes with support if needed.</p>
+            </article>
+            <article className="rounded-[1.55rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4b6550] dark:bg-[#22372c]">
+              <p className="text-base font-semibold text-[#173126] dark:text-[#f1e8d4]">AI service watch</p>
+              <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">{homeIntelligence.summary}</p>
+            </article>
           </div>
         </DashboardCard>
       </section>
 
-      <section className="mt-4">
-        <DashboardCard title="Visit Timeline" subtitle="Upcoming service checkpoints and queue status">
-          {timelineEvents.length ? (
-            <TimelinePanel events={timelineEvents} />
+      <section className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <DashboardCard title="Service timeline" subtitle="Upcoming checkpoints, queued visits, and AI service reviews">
+          {serviceTimeline.items.length > 1 ? (
+            <AccountHomeTimeline filters={serviceTimeline.filters} items={serviceTimeline.items} />
+          ) : timelineEvents.length ? (
+            <div className="grid gap-3">
+              {timelineEvents.map((event) => (
+                <article key={event.id} className="rounded-[1.5rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4b6550] dark:bg-[#22372c]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-[#173126] dark:text-[#f1e8d4]">{event.title}</p>
+                    <StatusBadge tone={event.tone} label={event.badge} />
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">{event.detail}</p>
+                </article>
+              ))}
+            </div>
           ) : (
             <div className="rounded-2xl border border-[#d8ccaf] bg-[#fffaf0] p-5 text-sm text-[#486052] dark:border-[#4d6751] dark:bg-[#22382d] dark:text-[#d8ccb0]">
               Service timeline checkpoints will appear once your next visit is queued.
             </div>
           )}
+        </DashboardCard>
+
+        <DashboardCard title="Modeled property pressure" subtitle="Where the next visit can have the biggest seasonal impact">
+          <div className="grid gap-3">
+            {homeIntelligence.heatmap.slice(0, 3).map((item) => (
+              <article key={item.id} className="rounded-[1.5rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4b6550] dark:bg-[#22372c]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-[#173126] dark:text-[#f1e8d4]">{item.label}</p>
+                  <StatusBadge tone={item.level === "high" ? "danger" : item.level === "elevated" ? "warning" : "success"} label={item.level} />
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">{item.rationale}</p>
+              </article>
+            ))}
+          </div>
         </DashboardCard>
       </section>
 
@@ -253,8 +295,15 @@ export default async function AccountServicesPage() {
       </section>
 
       <section className="mt-4">
-        <DashboardCard title="Readiness Assurance" subtitle="Standards that keep field operations predictable">
-          <AssuranceRibbon items={readinessAssurance} />
+        <DashboardCard title="Readiness assurance" subtitle="Standards that keep field operations predictable">
+          <div className="grid gap-3 md:grid-cols-3">
+            {readinessAssurance.map((item) => (
+              <article key={item.id} className="rounded-[1.5rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4b6550] dark:bg-[#22372c]">
+                <p className="text-base font-semibold text-[#173126] dark:text-[#f1e8d4]">{item.title}</p>
+                <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">{item.detail}</p>
+              </article>
+            ))}
+          </div>
         </DashboardCard>
       </section>
 
@@ -262,7 +311,7 @@ export default async function AccountServicesPage() {
         <AccountAiAssistantCard
           context={{
             currentPage: "Protection Visits",
-            pageSummary: "Upcoming booking requests, visit readiness, service history, and visit reports.",
+            pageSummary: `${homeIntelligence.summary} This page focuses on field readiness, scheduling, visit reports, and the property zones likely to need the most attention next.`,
             customerName: snapshot.customer.name,
             activePlan: humanize(snapshot.customer.activePlan),
             lifecycle: humanize(snapshot.customer.lifecycle),

@@ -2,9 +2,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AccountShell } from "@/components/account/account-shell";
 import { AccountAiAssistantCard } from "@/components/account/account-ai-assistant-card";
-import { AssuranceRibbon, DashboardCard, PremiumEmptyState, SignalMeter, StatKpi, StatusBadge, TimelinePanel } from "@/components/account/protection-ui";
+import { AccountHomeTimeline } from "@/components/account/account-home-timeline";
+import { DashboardCard, PremiumEmptyState, SignalMeter, StatKpi, StatusBadge } from "@/components/account/protection-ui";
 import { logoutCustomer } from "@/app/account/actions";
 import { buildInvoicesDashboardMetrics } from "@/lib/account-dashboard-metrics";
+import { buildAccountHomeIntelligence, buildAccountTimelineFeed } from "@/lib/account-home-intelligence";
 import { requireCustomerSession } from "@/lib/customer-auth";
 import { buildAccountShellState } from "@/lib/account-shell-data";
 import { getCustomerAccountSnapshot } from "@/lib/customer-account-data";
@@ -77,7 +79,15 @@ export default async function AccountInvoicesPage() {
   const invoiceLinkMap = new Map(invoiceLinks);
   const { paidInvoices, openInvoices, lifetimeValue, billingStabilityScore, invoiceTimeline, billingAssurance } =
     buildInvoicesDashboardMetrics(snapshot);
+  const homeIntelligence = buildAccountHomeIntelligence(snapshot);
+  const timelineFeed = buildAccountTimelineFeed(snapshot);
+  const billingFeed = {
+    filters: timelineFeed.filters.filter((filter) => filter.id === "all" || filter.id === "billing" || filter.id === "ai"),
+    items: timelineFeed.items.filter((item) => item.category === "billing" || item.category === "ai"),
+  };
   const shellState = await buildAccountShellState(snapshot, "invoices");
+  const hostedInvoiceCount = snapshot.invoices.filter((invoice) => invoiceLinkMap.get(invoice.id)?.hostedInvoiceUrl).length;
+  const pdfCount = snapshot.invoices.filter((invoice) => invoiceLinkMap.get(invoice.id)?.pdfUrl).length;
 
   return (
     <AccountShell
@@ -88,39 +98,66 @@ export default async function AccountInvoicesPage() {
       shellQuickActions={shellState.quickActions}
       shellNotifications={shellState.notifications}
     >
-      <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <DashboardCard title="Invoice Overview" subtitle="Your protection billing history in one place">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <StatKpi label="Invoices" value={String(snapshot.invoices.length)} detail="Total billing records" />
-            <StatKpi label="Paid" value={String(paidInvoices.length)} detail="Successfully completed charges" />
-            <StatKpi label="Lifetime billed" value={formatCurrency(lifetimeValue)} detail="Historical invoice value" />
-          </div>
-        </DashboardCard>
+      <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+        <section className="dashboard-atmosphere premium-card animated-entry overflow-hidden rounded-[2rem] p-6 sm:p-7">
+          <div className="relative z-10 grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
+            <div className="grid gap-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone={billingStabilityScore >= 80 ? "success" : billingStabilityScore >= 60 ? "warning" : "danger"} label="Billing records" />
+                <span className="rounded-full border border-[#d8caad] bg-[rgba(255,250,240,0.72)] px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[#335043] dark:border-[#536d57] dark:bg-[rgba(35,55,44,0.74)] dark:text-[#e0d4bc]">
+                  Invoice intelligence
+                </span>
+              </div>
+              <div>
+                <h2 className="max-w-3xl text-3xl leading-tight text-[#152b21] dark:text-[#f3ead7] sm:text-4xl">Your invoice history is organized for fast review, document access, and charge clarity.</h2>
+                <p className="mt-4 max-w-3xl text-base leading-7 text-[#365042] dark:text-[#d6caaf]">{homeIntelligence.summary}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-4">
+                <StatKpi label="Invoices" value={String(snapshot.invoices.length)} detail="Total billing records" />
+                <StatKpi label="Paid" value={String(paidInvoices.length)} detail="Successfully completed charges" />
+                <StatKpi label="Hosted docs" value={String(hostedInvoiceCount)} detail="Stripe hosted invoice links" />
+                <StatKpi label="PDFs" value={String(pdfCount)} detail="Downloadable invoice documents" />
+              </div>
+            </div>
 
-        <DashboardCard title="Attention Needed" subtitle="Items that may require action">
-          <div className="grid gap-3">
-            <SignalMeter
-              label="Billing stability"
-              value={billingStabilityScore}
-              tone={billingStabilityScore >= 80 ? "success" : billingStabilityScore >= 60 ? "warning" : "danger"}
-              summary="Stability reflects unresolved balances and invoice settlement momentum."
-            />
-            <StatKpi label="Open invoices" value={String(openInvoices.length)} detail="Records not yet marked paid" />
-            <StatKpi label="Billing clarity" value="Guided" detail="Hosted invoices and PDFs appear whenever Stripe provides them" />
-            <Link
-              href="/account/billing"
-              className="elevated-action rounded-2xl border border-[#d8ccaf] bg-[#fffaf0] px-4 py-3 text-sm font-semibold text-[#173126] hover:bg-[#f6ebd8] dark:border-[#4c6650] dark:bg-[#22382c] dark:text-[#efe5d0]"
-            >
-              Return to Protection Plan
-            </Link>
+            <DashboardCard title="Attention needed" subtitle="Items that may require action">
+              <div className="grid gap-3">
+                <SignalMeter
+                  label="Billing stability"
+                  value={billingStabilityScore}
+                  tone={billingStabilityScore >= 80 ? "success" : billingStabilityScore >= 60 ? "warning" : "danger"}
+                  summary="Stability reflects unresolved balances and invoice settlement momentum."
+                />
+                <StatKpi label="Open invoices" value={String(openInvoices.length)} detail="Records not yet marked paid" />
+                <StatKpi label="Lifetime billed" value={formatCurrency(lifetimeValue)} detail="Historical invoice value" />
+                <Link
+                  href="/account/billing"
+                  className="elevated-action rounded-2xl border border-[#d8ccaf] bg-[#fffaf0] px-4 py-3 text-sm font-semibold text-[#173126] hover:bg-[#f6ebd8] dark:border-[#4c6650] dark:bg-[#22382c] dark:text-[#efe5d0]"
+                >
+                  Return to protection plan
+                </Link>
+              </div>
+            </DashboardCard>
           </div>
-        </DashboardCard>
+        </section>
       </section>
 
-      <section className="mt-4">
-        <DashboardCard title="Recent Billing Timeline" subtitle="Invoice sequence with due-date and status context">
-          {invoiceTimeline.length ? (
-            <TimelinePanel events={invoiceTimeline} />
+      <section className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <DashboardCard title="Recent billing timeline" subtitle="Invoice sequence with due-date and status context">
+          {billingFeed.items.length > 1 ? (
+            <AccountHomeTimeline filters={billingFeed.filters} items={billingFeed.items} />
+          ) : invoiceTimeline.length ? (
+            <div className="grid gap-3">
+              {invoiceTimeline.map((event) => (
+                <article key={event.id} className="rounded-[1.5rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4b6550] dark:bg-[#22372c]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-[#173126] dark:text-[#f1e8d4]">{event.title}</p>
+                    <StatusBadge tone={event.tone} label={event.badge} />
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">{event.detail}</p>
+                </article>
+              ))}
+            </div>
           ) : (
             <PremiumEmptyState
               eyebrow="Billing Timeline"
@@ -130,6 +167,17 @@ export default async function AccountInvoicesPage() {
               actionLabel="Open Protection Plan"
             />
           )}
+        </DashboardCard>
+
+        <DashboardCard title="Records assurance" subtitle="How invoice documents and records stay dependable">
+          <div className="grid gap-3">
+            {billingAssurance.map((item) => (
+              <article key={item.id} className="rounded-[1.5rem] border border-[#d8ccaf] bg-[#fffaf0] p-4 dark:border-[#4b6550] dark:bg-[#22372c]">
+                <p className="text-base font-semibold text-[#173126] dark:text-[#f1e8d4]">{item.title}</p>
+                <p className="mt-2 text-sm leading-6 text-[#3f5648] dark:text-[#d4c7ab]">{item.detail}</p>
+              </article>
+            ))}
+          </div>
         </DashboardCard>
       </section>
 
@@ -208,16 +256,10 @@ export default async function AccountInvoicesPage() {
       </section>
 
       <section className="mt-4">
-        <DashboardCard title="Billing Assurance" subtitle="Safeguards around records and payment continuity">
-          <AssuranceRibbon items={billingAssurance} />
-        </DashboardCard>
-      </section>
-
-      <section className="mt-4">
         <AccountAiAssistantCard
           context={{
             currentPage: "Billing Records",
-            pageSummary: "Invoice history, hosted invoice links, downloadable PDFs, due dates, and payment state.",
+            pageSummary: `${homeIntelligence.summary} This page focuses on invoice history, hosted records, PDFs, due dates, and settlement state.`,
             customerName: snapshot.customer.name,
             activePlan: cycleLabel(snapshot.customer.activePlan ?? "plan"),
             lifecycle: snapshot.customer.lifecycle,
