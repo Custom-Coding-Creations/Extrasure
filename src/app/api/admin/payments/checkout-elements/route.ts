@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const invoiceId = String(body.invoiceId ?? "").trim();
+    const savePaymentMethod = typeof body.savePaymentMethod === "boolean" ? body.savePaymentMethod : true;
 
     if (!invoiceId) {
       return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest) {
     const result = await getPaymentClientSecret(invoiceId, {
       context: "admin",
       returnPath: `/admin/payments?stripe=success&invoice=${invoiceId}&session_id={CHECKOUT_SESSION_ID}`,
+      savePaymentMethod,
     });
 
     return NextResponse.json({

@@ -12,6 +12,7 @@ const links = [
   { href: "/admin/estimates", label: "Estimates" },
   { href: "/admin/invoices", label: "Invoices" },
   { href: "/admin/payments", label: "Payments" },
+  { href: "/admin/payments/ach-analytics", label: "ACH Analytics" },
   { href: "/admin/reporting", label: "Reporting" },
   { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/automations", label: "Automations" },

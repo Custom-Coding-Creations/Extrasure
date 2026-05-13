@@ -12,6 +12,10 @@ export type Customer = {
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
   stripeSubscriptionStatus?: string | null;
+  preferredPaymentMethod?: "card" | "ach" | "none";
+  autopayEnabled?: boolean;
+  autopayMethodType?: "card" | "ach" | "none";
+  achDiscountEligible?: boolean;
 };
 
 export type Technician = {

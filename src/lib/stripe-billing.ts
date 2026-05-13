@@ -19,6 +19,7 @@ type CheckoutSessionOptions = {
 type CheckoutElementsSessionOptions = {
   returnPath?: string;
   context?: CheckoutContext;
+  savePaymentMethod?: boolean;
 };
 
 type BillingPortalOptions = {
@@ -101,7 +102,6 @@ export async function getPaymentElementOptionsForAch(
   return {
     layout: {
       type: "tabs",
-      defaultCollapsed: false,
     },
     fields: {
       billingDetails: {
@@ -111,15 +111,6 @@ export async function getPaymentElementOptionsForAch(
       },
     },
     paymentMethodOrder,
-    defaultValues: {
-      billingDetails: {
-        email: undefined,
-        name: undefined,
-      },
-    },
-    business: {
-      name: "ExtraSure Pest Control",
-    },
     terms: {
       card: "always",
       usBankAccount: isRecurring ? "always" : "auto",
@@ -329,6 +320,7 @@ export async function createInvoiceCheckoutElementsSession(
   const { localCustomer, stripeCustomerId } = await ensureStripeCustomer(invoice.customerId);
   const baseUrl = getBaseUrl();
   const context = options?.context ?? "customer";
+  const savePaymentMethod = options?.savePaymentMethod ?? true;
   const returnUrl = `${baseUrl}${options?.returnPath ?? `/pay?stripe=success&invoice=${invoice.id}`}`;
   const isRecurring = invoice.billingCycle !== "one_time";
 
@@ -389,6 +381,7 @@ export async function createInvoiceCheckoutElementsSession(
         localCustomerId: localCustomer.id,
         billingCycle: invoice.billingCycle,
       },
+      ...(savePaymentMethod ? { setup_future_usage: "off_session" } : {}),
     };
   }
 

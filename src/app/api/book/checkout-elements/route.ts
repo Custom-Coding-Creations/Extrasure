@@ -9,6 +9,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const bookingId = String(body.bookingId ?? "").trim();
     const invoiceId = String(body.invoiceId ?? "").trim();
+    const savePaymentMethod = typeof body.savePaymentMethod === "boolean" ? body.savePaymentMethod : true;
 
     if (!bookingId || !invoiceId) {
       return NextResponse.json({ error: "bookingId and invoiceId are required" }, { status: 400 });
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
     const result = await getPaymentClientSecret(invoice.id, {
       context: "customer",
       returnPath: `/book/confirmation?booking=${booking.id}&invoice=${invoice.id}&session_id={CHECKOUT_SESSION_ID}`,
+      savePaymentMethod,
     });
 
     return NextResponse.json({

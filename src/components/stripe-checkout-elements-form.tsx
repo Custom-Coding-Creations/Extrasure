@@ -48,13 +48,24 @@ type CheckoutFormInnerProps = {
     savingsAmount: number;
   } | null;
   preferredPaymentMethod?: PaymentMethodType;
+  savePaymentMethod: boolean;
+  onSavePaymentMethodChange: (next: boolean) => void;
+  isRefreshing: boolean;
 };
 
-function CheckoutFormInner({ successPath, showContactDetails, paymentElementOptions, achDiscount, preferredPaymentMethod }: CheckoutFormInnerProps) {
+function CheckoutFormInner({
+  successPath,
+  showContactDetails,
+  paymentElementOptions,
+  achDiscount,
+  preferredPaymentMethod,
+  savePaymentMethod,
+  onSavePaymentMethodChange,
+  isRefreshing,
+}: CheckoutFormInnerProps) {
   const checkoutState = useCheckoutElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [savePaymentMethod, setSavePaymentMethod] = useState(true);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -105,7 +116,14 @@ function CheckoutFormInner({ successPath, showContactDetails, paymentElementOpti
           ...(paymentElementOptions ?? {}),
         }}
       />
-      <SavePaymentMethodCheckbox checked={savePaymentMethod} onChange={setSavePaymentMethod} />
+      <SavePaymentMethodCheckbox
+        checked={savePaymentMethod}
+        onChange={onSavePaymentMethodChange}
+        disabled={isRefreshing || isProcessing}
+      />
+      {isRefreshing ? (
+        <p className="text-xs text-[#5d7267]">Refreshing checkout configuration...</p>
+      ) : null}
       {preferredPaymentMethod && preferredPaymentMethod !== "none" ? (
         <p className="text-xs text-[#5d7267]">
           Preferred method detected: <span className="font-semibold uppercase">{preferredPaymentMethod}</span>
@@ -153,6 +171,7 @@ export function StripeCheckoutElementsForm({
   const [paymentElementOptions, setPaymentElementOptions] = useState<Record<string, unknown> | null>(null);
   const [achDiscount, setAchDiscount] = useState<{ discountedAmount: number; savingsAmount: number } | null>(null);
   const [preferredPaymentMethod, setPreferredPaymentMethod] = useState<PaymentMethodType | undefined>(undefined);
+  const [savePaymentMethod, setSavePaymentMethod] = useState(true);
 
   const payload = useMemo(() => initPayload, [initPayload]);
 
@@ -166,7 +185,10 @@ export function StripeCheckoutElementsForm({
         const response = await fetch(initUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            ...payload,
+            savePaymentMethod,
+          }),
         });
 
         const data = await response.json();
@@ -189,13 +211,15 @@ export function StripeCheckoutElementsForm({
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to load payment form";
         setError(message);
+        setClientSecret(null);
       } finally {
         setLoading(false);
       }
     }
 
+    setLoading(true);
     initializeCheckout();
-  }, [initUrl, payload]);
+  }, [initUrl, payload, savePaymentMethod]);
 
   if (loading) {
     if (!stripePromise) {
@@ -272,6 +296,9 @@ export function StripeCheckoutElementsForm({
             paymentElementOptions={paymentElementOptions ?? undefined}
             achDiscount={achDiscount}
             preferredPaymentMethod={preferredPaymentMethod}
+            savePaymentMethod={savePaymentMethod}
+            onSavePaymentMethodChange={setSavePaymentMethod}
+            isRefreshing={loading}
           />
         </CheckoutElementsProvider>
       </div>

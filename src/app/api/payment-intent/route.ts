@@ -8,7 +8,7 @@ import { inspectInvoiceAccessToken } from "@/lib/customer-billing-access";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { token } = body;
+    const { token, savePaymentMethod } = body;
 
     if (!token) {
       return NextResponse.json({ error: "Token is required" }, { status: 400 });
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     const result = await getPaymentClientSecret(invoiceId, {
       context: "customer",
       returnPath: `/pay/${token}?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
+      savePaymentMethod: typeof savePaymentMethod === "boolean" ? savePaymentMethod : true,
     });
 
     if (result.paymentIntentId) {
