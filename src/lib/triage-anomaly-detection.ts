@@ -42,18 +42,18 @@ export async function computeTriageHealthMetrics(hoursBack: number = 24): Promis
     },
     select: {
       id: true,
-      confidenceScore: true,
-      requiresHumanReview: true,
+      confidence: true,
+      needsFollowUp: true,
     },
     take: 1000,
   });
 
-  const autoApprovedCount = assessments.filter((a) => !a.requiresHumanReview).length;
-  const humanReviewFlaggedCount = assessments.filter((a) => a.requiresHumanReview).length;
+  const autoApprovedCount = assessments.filter((a) => !a.needsFollowUp).length;
+  const humanReviewFlaggedCount = assessments.filter((a) => a.needsFollowUp).length;
   const totalAssessments = assessments.length;
 
   const autoApproveRate = totalAssessments > 0 ? autoApprovedCount / totalAssessments : 0;
-  const averageConfidence = totalAssessments > 0 ? assessments.reduce((sum, a) => sum + a.confidenceScore, 0) / totalAssessments : 0;
+  const averageConfidence = totalAssessments > 0 ? assessments.reduce((sum, a) => sum + a.confidence, 0) / totalAssessments : 0;
 
   // Bucket confidence scores for trend analysis
   const confidentBuckets: Record<string, number> = {
@@ -65,7 +65,7 @@ export async function computeTriageHealthMetrics(hoursBack: number = 24): Promis
   };
 
   assessments.forEach((a) => {
-    const score = a.confidenceScore;
+    const score = a.confidence;
     if (score < 0.25) confidentBuckets["0.0-0.25"]++;
     else if (score < 0.5) confidentBuckets["0.25-0.50"]++;
     else if (score < 0.75) confidentBuckets["0.50-0.75"]++;
