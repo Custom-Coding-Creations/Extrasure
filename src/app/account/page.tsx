@@ -135,7 +135,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
         ? "Your next treatment window is booked. Keep side gates and access points clear for a faster service pass."
         : "Book a proactive visit now to maintain coverage cadence and keep protection confidence elevated.",
       badge: nextServiceDate ? "Service queued" : "Schedule now",
-      tone: (nextServiceDate ? "success" : "warning") as const,
+      tone: nextServiceDate ? ("success" as const) : ("warning" as const),
     },
     {
       id: "billing-state",
@@ -145,7 +145,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
           ? "Resolve outstanding charges to avoid disruptions to recurring treatment operations."
           : "No open balance detected. Recurring plan operations should continue without interruption.",
       badge: openInvoices.length > 0 ? "Needs review" : "Healthy",
-      tone: (openInvoices.length > 0 ? "warning" : "info") as const,
+      tone: openInvoices.length > 0 ? ("warning" as const) : ("info" as const),
     },
     {
       id: "seasonal-watch",
@@ -155,7 +155,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
           ? "Seasonal pressure is rising. Exterior moisture control and standing water checks can reduce exposure risk between visits."
           : "Perimeter stability is strong this period. Continue baseline prevention checks around crawlspaces and entry points.",
       badge: now.getMonth() >= 4 && now.getMonth() <= 8 ? "Seasonal risk" : "Stable",
-      tone: (now.getMonth() >= 4 && now.getMonth() <= 8 ? "warning" : "success") as const,
+      tone: now.getMonth() >= 4 && now.getMonth() <= 8 ? ("warning" as const) : ("success" as const),
     },
   ];
 

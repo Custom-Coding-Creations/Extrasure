@@ -45,10 +45,6 @@ function jobTone(status: string) {
     return "success" as const;
   }
 
-  if (status === "cancelled") {
-    return "danger" as const;
-  }
-
   if (status === "scheduled" || status === "in_progress") {
     return "warning" as const;
   }
@@ -75,6 +71,24 @@ export default async function AccountServicesPage() {
     buildServicesDashboardMetrics(snapshot);
   const shellState = await buildAccountShellState(snapshot, "services");
 
+  let nextVisitTone: "success" | "warning" | "danger" | "info" = "info";
+  let nextVisitDateLabel = "";
+  let nextVisitTitle = "Scheduled protection visit";
+  let nextVisitDetail = "";
+
+  if (nextVisit) {
+    if ("service" in nextVisit) {
+      nextVisitTone = jobTone(nextVisit.status);
+      nextVisitDateLabel = formatDateTime(nextVisit.scheduledAt);
+      nextVisitTitle = nextVisit.service;
+      nextVisitDetail = `Technician route scheduled for ${formatDateTime(nextVisit.scheduledAt)}`;
+    } else {
+      nextVisitTone = bookingTone(nextVisit.status);
+      nextVisitDateLabel = formatDate(nextVisit.preferredDate);
+      nextVisitDetail = `${nextVisit.preferredWindow} at ${nextVisit.addressLine1}, ${nextVisit.city}`;
+    }
+  }
+
   return (
     <AccountShell
       title="Protection Visits"
@@ -96,20 +110,18 @@ export default async function AccountServicesPage() {
               <div className="rounded-3xl border border-[#d8ccaf] bg-[#fffcf4] p-5 dark:border-[#4d6751] dark:bg-[#1f3328]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <StatusBadge
-                    tone={"scheduledAt" in nextVisit ? jobTone(nextVisit.status) : bookingTone(nextVisit.status)}
+                    tone={nextVisitTone}
                     label={humanize(nextVisit.status)}
                   />
                   <p className="text-sm font-semibold text-[#173126] dark:text-[#f1e7d1]">
-                    {"scheduledAt" in nextVisit ? formatDateTime(nextVisit.scheduledAt ?? nextVisit.preferredDate) : formatDate(nextVisit.preferredDate)}
+                    {nextVisitDateLabel}
                   </p>
                 </div>
                 <p className="mt-4 text-2xl text-[#152e24] dark:text-[#f2e8d3]">
-                  {"service" in nextVisit ? nextVisit.service : "Scheduled protection visit"}
+                  {nextVisitTitle}
                 </p>
                 <p className="mt-2 text-sm text-[#42594a] dark:text-[#d6c9ad]">
-                  {"preferredWindow" in nextVisit
-                    ? `${nextVisit.preferredWindow} at ${nextVisit.addressLine1}, ${nextVisit.city}`
-                    : `Technician route scheduled for ${formatDateTime(nextVisit.scheduledAt)}`}
+                  {nextVisitDetail}
                 </p>
                 <div className="mt-4 rounded-2xl border border-[#dccfb5] bg-[#fff7e7] px-4 py-3 text-sm text-[#31483b] dark:border-[#4f6953] dark:bg-[#243a2e] dark:text-[#d8ccb2]">
                   Preparation checklist: secure pets, clear gate access, and note any new pest activity before arrival.

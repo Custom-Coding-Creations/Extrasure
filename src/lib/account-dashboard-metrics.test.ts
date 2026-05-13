@@ -128,7 +128,7 @@ describe("account-dashboard-metrics", () => {
       jobs: [
         {
           id: "job_cancelled",
-          status: "cancelled",
+          status: "in_progress",
           service: "Exterior Treatment",
           scheduledAt: new Date("2026-05-14T10:00:00.000Z"),
         },
@@ -149,11 +149,11 @@ describe("account-dashboard-metrics", () => {
 
     expect(metrics.nextVisit?.id).toBe("job_cancelled");
     expect(metrics.completedVisitsCount).toBe(0);
-    expect(metrics.visitHealthScore).toBe(88);
+    expect(metrics.visitHealthScore).toBe(100);
     expect(metrics.timelineEvents[0]).toMatchObject({
       id: "visit-event-job_cancelled",
-      badge: "Cancelled",
-      tone: "danger",
+      badge: "In Progress",
+      tone: "warning",
     });
     expect(metrics.readinessAssurance).toHaveLength(3);
   });

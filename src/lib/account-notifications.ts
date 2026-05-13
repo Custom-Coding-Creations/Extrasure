@@ -238,7 +238,7 @@ export async function syncCustomerAccountNotifications(snapshot: CustomerAccount
     });
   }
 
-  const activeSourceKeys = new Set(candidates.map((candidate) => candidate.sourceKey));
+  const activeSourceKeys = new Set<string>(candidates.map((candidate) => candidate.sourceKey));
   const staleNotificationIds = existing
     .filter((item) => item.resolvedAt === null && !activeSourceKeys.has(item.sourceKey))
     .map((item) => item.id);

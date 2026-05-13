@@ -48,10 +48,6 @@ function jobTone(status: string): DashboardTimelineEntry["tone"] {
     return "success";
   }
 
-  if (status === "cancelled") {
-    return "danger";
-  }
-
   if (status === "scheduled" || status === "in_progress") {
     return "warning";
   }
@@ -84,10 +80,11 @@ export function buildServicesDashboardMetrics(snapshot: CustomerAccountSnapshot,
   const recentJobs = [...snapshot.jobs].sort((a, b) => b.scheduledAt.getTime() - a.scheduledAt.getTime());
   const nextVisit = recentJobs.find((job) => job.scheduledAt.getTime() >= now.getTime()) ?? upcomingBookings[0] ?? null;
   const completedVisitsCount = recentJobs.filter((job) => job.status === "completed").length;
+  const overdueIncompleteVisitsCount = recentJobs.filter((job) => job.status !== "completed" && job.scheduledAt.getTime() < now.getTime()).length;
 
   const visitHealthScore = Math.max(
     44,
-    100 - Math.min(38, upcomingBookings.length === 0 && !nextVisit ? 35 : 0) - Math.min(25, recentJobs.filter((job) => job.status === "cancelled").length * 12),
+    100 - Math.min(38, upcomingBookings.length === 0 && !nextVisit ? 35 : 0) - Math.min(25, overdueIncompleteVisitsCount * 10),
   );
 
   const timelineEvents: DashboardTimelineEntry[] = (nextVisit ? [nextVisit] : snapshot.bookings)
@@ -95,15 +92,15 @@ export function buildServicesDashboardMetrics(snapshot: CustomerAccountSnapshot,
     .map((event, index) => ({
       id: `visit-event-${event.id}`,
       title:
-        "scheduledAt" in event
+        "service" in event
           ? `${event.service} ${index === 0 ? "window" : "checkpoint"}`
           : `Requested visit ${index === 0 ? "window" : "queue"}`,
       detail:
-        "scheduledAt" in event
+        "service" in event
           ? `${formatDateTime(event.scheduledAt)} - Technician route status: ${humanize(event.status)}.`
           : `${formatDate(event.preferredDate)} (${event.preferredWindow}) - ${event.addressLine1}, ${event.city}.`,
       badge: humanize(event.status),
-      tone: "scheduledAt" in event ? jobTone(event.status) : bookingTone(event.status),
+      tone: "service" in event ? jobTone(event.status) : bookingTone(event.status),
     }));
 
   const readinessAssurance: DashboardAssuranceEntry[] = [
@@ -231,7 +228,7 @@ export function buildProfileDashboardMetrics(snapshot: CustomerAccountSnapshot) 
   const propertyInsights = [
     {
       id: "seasonal",
-      tone: (lastServiceDate ? "info" : "warning") as const,
+      tone: lastServiceDate ? ("info" as const) : ("warning" as const),
       title: lastServiceDate ? "Monitoring active" : "First visit still needed",
       detail:
         lastServiceDate

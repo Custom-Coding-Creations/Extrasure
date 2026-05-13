@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { PaymentPreferenceMethod, Prisma } from "@prisma/client";
-import type { PaymentElementOptions } from "@stripe/stripe-js";
+import type { StripePaymentElementOptions } from "@stripe/stripe-js";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { createInvoiceAccessToken } from "@/lib/customer-billing-access";
@@ -81,7 +81,7 @@ export async function attachPaymentMethodPreference(
 export async function getPaymentElementOptionsForAch(
   customerId: string,
   isRecurring: boolean,
-): Promise<PaymentElementOptions> {
+): Promise<StripePaymentElementOptions> {
   const customer = await prisma.customer.findUnique({
     where: { id: customerId },
     select: {
