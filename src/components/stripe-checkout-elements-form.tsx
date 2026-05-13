@@ -10,7 +10,6 @@ import {
 } from "@stripe/react-stripe-js/checkout";
 import {
   loadStripe,
-  type StripeCheckoutAddressElementOptions,
   type StripeCheckoutElementsSdkOptions,
   type StripeContactDetailsElementOptions,
 } from "@stripe/stripe-js";
@@ -48,7 +47,6 @@ type CheckoutFormInnerProps = {
   successPath: string;
   showContactDetails: boolean;
   paymentElementOptions?: Record<string, unknown>;
-  billingAddressOptions?: StripeCheckoutAddressElementOptions;
   contactDetailsOptions?: StripeContactDetailsElementOptions;
   achDiscount?: {
     discountedAmount: number;
@@ -64,7 +62,6 @@ function CheckoutFormInner({
   successPath,
   showContactDetails,
   paymentElementOptions,
-  billingAddressOptions,
   contactDetailsOptions,
   achDiscount,
   preferredPaymentMethod,
@@ -117,7 +114,7 @@ function CheckoutFormInner({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {showContactDetails ? <ContactDetailsElement options={contactDetailsOptions} /> : null}
-      <BillingAddressElement options={billingAddressOptions} />
+      <BillingAddressElement />
       {achDiscount ? (
         <AchDiscountBadge
           savingsAmount={achDiscount.savingsAmount}
@@ -197,22 +194,6 @@ export function StripeCheckoutElementsForm({
       }
     : undefined;
 
-  const billingAddressOptions: StripeCheckoutAddressElementOptions = {
-    mode: "billing",
-    defaultValues: {
-      name: defaultValues?.billingName,
-      phone: defaultValues?.phoneNumber,
-      address: {
-        country: defaultValues?.country || defaultCountry,
-        line1: defaultValues?.addressLine1,
-        line2: defaultValues?.addressLine2,
-        city: defaultValues?.city,
-        postal_code: defaultValues?.postalCode,
-        state: defaultValues?.stateProvince,
-      },
-    },
-  };
-
   useEffect(() => {
     if (!stripePromise) {
       return;
@@ -291,6 +272,21 @@ export function StripeCheckoutElementsForm({
 
   const options: StripeCheckoutElementsSdkOptions = {
     clientSecret,
+    defaultValues: {
+      email: defaultValues?.email,
+      phoneNumber: defaultValues?.phoneNumber,
+      billingAddress: {
+        name: defaultValues?.billingName,
+        address: {
+          country: defaultValues?.country || defaultCountry,
+          line1: defaultValues?.addressLine1,
+          line2: defaultValues?.addressLine2,
+          city: defaultValues?.city,
+          postal_code: defaultValues?.postalCode,
+          state: defaultValues?.stateProvince,
+        },
+      },
+    },
     elementsOptions: {
       appearance: {
         theme: "stripe",
@@ -318,7 +314,6 @@ export function StripeCheckoutElementsForm({
             successPath={successPath}
             showContactDetails={showContactDetails}
             paymentElementOptions={paymentElementOptions ?? undefined}
-            billingAddressOptions={billingAddressOptions}
             contactDetailsOptions={contactDetailsOptions}
             achDiscount={achDiscount}
             preferredPaymentMethod={preferredPaymentMethod}
