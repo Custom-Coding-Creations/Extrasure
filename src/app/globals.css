@@ -1,32 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f2ea;
-  --foreground: #211a16;
-  --brand-forest: #2f241d;
-  --brand-sand: #e8dcc9;
-  --brand-charcoal: #3b3028;
-  --brand-accent: #ae8051;
-  --surface-0: #fffdf9;
-  --surface-1: #f8f0e4;
-  --surface-2: #eee2d0;
-  --surface-glass: rgba(255, 252, 247, 0.74);
-  --status-success: #2d6b4c;
-  --status-warning: #8f612f;
-  --status-danger: #8a443b;
-  --status-info: #4d5b73;
-  --ring: rgba(47, 36, 29, 0.3);
-  --shadow-sm: 0 4px 14px rgba(42, 29, 19, 0.09);
-  --shadow-md: 0 18px 34px rgba(42, 29, 19, 0.14);
-  --shadow-lg: 0 26px 54px rgba(42, 29, 19, 0.18);
-  --grid-overlay: linear-gradient(rgba(47, 36, 29, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(47, 36, 29, 0.045) 1px, transparent 1px);
-  --site-header-bg: rgba(34, 27, 22, 0.94);
-  --site-header-fg: #f8efe2;
-  --site-header-border: rgba(232, 220, 201, 0.22);
-  --site-footer-bg: #271d17;
-  --site-footer-fg: #e6d8c3;
-  --site-footer-border: rgba(232, 220, 201, 0.24);
+  --background: #06040d;
+  --foreground: #f8f0ff;
+  --brand-forest: #120a21;
+  --brand-sand: #74f3ff;
+  --brand-charcoal: #210d33;
+  --brand-accent: #ff3db8;
+  --surface-0: #130a21;
+  --surface-1: #180d2a;
+  --surface-2: #210f35;
+  --surface-glass: rgba(20, 10, 34, 0.66);
+  --status-success: #33f0b4;
+  --status-warning: #ffe06f;
+  --status-danger: #ff7aa5;
+  --status-info: #74f3ff;
+  --ring: rgba(116, 243, 255, 0.56);
+  --shadow-sm: 0 8px 20px rgba(0, 0, 0, 0.56);
+  --shadow-md: 0 16px 36px rgba(0, 0, 0, 0.62);
+  --shadow-lg: 0 28px 56px rgba(0, 0, 0, 0.66);
+  --grid-overlay: linear-gradient(rgba(255, 61, 184, 0.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(116, 243, 255, 0.1) 1px, transparent 1px);
+  --site-header-bg: rgba(8, 4, 16, 0.8);
+  --site-header-fg: #e8deff;
+  --site-header-border: rgba(116, 243, 255, 0.36);
+  --site-footer-bg: #090414;
+  --site-footer-fg: #d9ccff;
+  --site-footer-border: rgba(255, 61, 184, 0.28);
 }
 
 @theme inline {
@@ -38,9 +38,9 @@
 
 body {
   background:
-    radial-gradient(circle at 6% 8%, rgba(174, 128, 81, 0.14), transparent 34%),
-    radial-gradient(circle at 86% 10%, rgba(63, 49, 37, 0.14), transparent 38%),
-    radial-gradient(circle at 52% 100%, rgba(232, 220, 201, 0.22), transparent 48%),
+    radial-gradient(circle at 8% 10%, rgba(255, 61, 184, 0.22), transparent 36%),
+    radial-gradient(circle at 94% 7%, rgba(116, 243, 255, 0.2), transparent 42%),
+    radial-gradient(circle at 50% 100%, rgba(122, 75, 255, 0.2), transparent 54%),
     var(--background);
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
@@ -55,7 +55,7 @@ h4 {
 }
 
 .paper-panel {
-  background: linear-gradient(155deg, #fffdf9 0%, #f4e8d6 100%);
+  background: linear-gradient(155deg, rgba(29, 14, 49, 0.9) 0%, rgba(16, 8, 29, 0.94) 100%);
 }
 
 .dashboard-shell {
@@ -82,13 +82,13 @@ h4 {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.24) 0%, transparent 36%, transparent 68%, rgba(47, 36, 29, 0.09) 100%);
+  background: linear-gradient(120deg, rgba(255, 61, 184, 0.16) 0%, transparent 36%, transparent 68%, rgba(116, 243, 255, 0.14) 100%);
 }
 
 .glass-panel {
-  border: 1px solid rgba(47, 36, 29, 0.14);
+  border: 1px solid rgba(116, 243, 255, 0.34);
   background: var(--surface-glass);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(18px);
   box-shadow: var(--shadow-sm);
 }
 
@@ -96,9 +96,9 @@ h4 {
   position: relative;
   isolation: isolate;
   background:
-    radial-gradient(circle at 14% 18%, rgba(174, 128, 81, 0.2), transparent 30%),
-    radial-gradient(circle at 88% 12%, rgba(80, 62, 47, 0.14), transparent 34%),
-    linear-gradient(145deg, rgba(255, 251, 245, 0.96) 0%, rgba(248, 240, 228, 0.92) 48%, rgba(237, 226, 208, 0.9) 100%);
+    radial-gradient(circle at 14% 18%, rgba(255, 61, 184, 0.22), transparent 32%),
+    radial-gradient(circle at 88% 12%, rgba(116, 243, 255, 0.2), transparent 36%),
+    linear-gradient(145deg, rgba(24, 10, 41, 0.94) 0%, rgba(16, 8, 29, 0.94) 48%, rgba(10, 5, 19, 0.96) 100%);
 }
 
 .dashboard-atmosphere::before {
@@ -107,8 +107,8 @@ h4 {
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(47, 36, 29, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(47, 36, 29, 0.035) 1px, transparent 1px);
+    linear-gradient(rgba(255, 61, 184, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(116, 243, 255, 0.1) 1px, transparent 1px);
   background-size: 28px 28px;
   opacity: 0.32;
   mask-image: radial-gradient(circle at center, black 38%, transparent 92%);
@@ -119,14 +119,14 @@ h4 {
 }
 
 .premium-card {
-  border: 1px solid rgba(47, 36, 29, 0.14);
+  border: 1px solid rgba(116, 243, 255, 0.28);
   background: linear-gradient(165deg, var(--surface-0) 0%, var(--surface-1) 54%, var(--surface-2) 100%);
   box-shadow: var(--shadow-sm);
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
 .premium-card:hover {
-  border-color: rgba(47, 36, 29, 0.28);
+  border-color: rgba(255, 61, 184, 0.52);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
@@ -189,42 +189,42 @@ h4 {
 .progress-track {
   height: 0.6rem;
   border-radius: 999px;
-  background: rgba(47, 36, 29, 0.14);
+  background: rgba(116, 243, 255, 0.22);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #4d3a2d 0%, #7a5d45 45%, #ae8051 100%);
+  background: linear-gradient(90deg, #ff3db8 0%, #a15eff 45%, #74f3ff 100%);
   transition: width 450ms ease;
 }
 
 .booking-shell {
-  border: 1px solid rgba(47, 36, 29, 0.15);
+  border: 1px solid rgba(116, 243, 255, 0.3);
   border-radius: 1.5rem;
-  background: linear-gradient(168deg, #fffdf9 0%, #f8efdf 52%, #eedecc 100%);
-  box-shadow: 0 14px 34px rgba(42, 29, 19, 0.16);
+  background: linear-gradient(168deg, rgba(24, 11, 40, 0.94) 0%, rgba(18, 8, 31, 0.92) 52%, rgba(13, 7, 22, 0.95) 100%);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.56);
 }
 
 .booking-surface {
-  border: 1px solid rgba(47, 36, 29, 0.16);
+  border: 1px solid rgba(116, 243, 255, 0.3);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.76);
-  backdrop-filter: blur(8px);
+  background: rgba(17, 8, 30, 0.72);
+  backdrop-filter: blur(16px);
 }
 
 .chip-button {
   border-radius: 0.95rem;
-  border: 1px solid rgba(47, 36, 29, 0.22);
-  background: linear-gradient(180deg, #fffdf9 0%, #f5ead9 100%);
+  border: 1px solid rgba(116, 243, 255, 0.34);
+  background: linear-gradient(180deg, rgba(29, 14, 49, 0.88) 0%, rgba(19, 9, 33, 0.9) 100%);
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
 .chip-button:hover {
   transform: translateY(-1px);
-  border-color: rgba(47, 36, 29, 0.34);
-  box-shadow: 0 8px 18px rgba(42, 29, 19, 0.15);
+  border-color: rgba(255, 61, 184, 0.52);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.56);
 }
 
 .chip-button:active {
@@ -300,10 +300,14 @@ h4 {
 .field {
   width: 100%;
   border-radius: 0.75rem;
-  border: 1px solid rgba(47, 36, 29, 0.24);
-  background: #fffdf9;
+  border: 1px solid rgba(116, 243, 255, 0.34);
+  background: rgba(17, 8, 30, 0.72);
   padding: 0.7rem 0.9rem;
   color: var(--foreground);
+}
+
+.field::placeholder {
+  color: rgba(232, 222, 255, 0.58);
 }
 
 .field:focus {
@@ -313,37 +317,37 @@ h4 {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #16110e;
-    --foreground: #f4e8d7;
-    --surface-0: #211915;
-    --surface-1: #2a2019;
-    --surface-2: #33271f;
-    --surface-glass: rgba(33, 25, 21, 0.76);
-    --ring: rgba(232, 220, 201, 0.42);
-    --grid-overlay: linear-gradient(rgba(232, 220, 201, 0.08) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(232, 220, 201, 0.08) 1px, transparent 1px);
-    --site-header-bg: rgba(22, 17, 14, 0.94);
-    --site-header-fg: #f4e8d7;
-    --site-header-border: rgba(232, 220, 201, 0.22);
-    --site-footer-bg: #120d0a;
-    --site-footer-fg: #e8dcc9;
-    --site-footer-border: rgba(232, 220, 201, 0.2);
+    --background: #04020a;
+    --foreground: #f8f0ff;
+    --surface-0: #10081d;
+    --surface-1: #150b27;
+    --surface-2: #1c0d30;
+    --surface-glass: rgba(18, 9, 31, 0.76);
+    --ring: rgba(116, 243, 255, 0.56);
+    --grid-overlay: linear-gradient(rgba(255, 61, 184, 0.11) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(116, 243, 255, 0.11) 1px, transparent 1px);
+    --site-header-bg: rgba(6, 3, 13, 0.84);
+    --site-header-fg: #e8deff;
+    --site-header-border: rgba(116, 243, 255, 0.36);
+    --site-footer-bg: #05020b;
+    --site-footer-fg: #d9ccff;
+    --site-footer-border: rgba(255, 61, 184, 0.28);
   }
 
   .paper-panel {
-    background: linear-gradient(160deg, #2b211b 0%, #1e1713 100%);
+    background: linear-gradient(160deg, rgba(26, 12, 44, 0.92) 0%, rgba(13, 7, 23, 0.95) 100%);
   }
 
   .dashboard-atmosphere {
     background:
-      radial-gradient(circle at 14% 18%, rgba(174, 128, 81, 0.2), transparent 30%),
-      radial-gradient(circle at 88% 12%, rgba(122, 93, 69, 0.18), transparent 36%),
-      linear-gradient(145deg, rgba(36, 27, 22, 0.98) 0%, rgba(29, 22, 18, 0.96) 48%, rgba(24, 18, 15, 0.96) 100%);
+      radial-gradient(circle at 14% 18%, rgba(255, 61, 184, 0.24), transparent 32%),
+      radial-gradient(circle at 88% 12%, rgba(116, 243, 255, 0.22), transparent 36%),
+      linear-gradient(145deg, rgba(20, 9, 35, 0.98) 0%, rgba(12, 6, 22, 0.96) 48%, rgba(7, 4, 14, 0.96) 100%);
   }
 
   .premium-card,
   .glass-panel {
-    border-color: rgba(232, 220, 201, 0.2);
+    border-color: rgba(116, 243, 255, 0.34);
   }
 
   .status-badge-success {
