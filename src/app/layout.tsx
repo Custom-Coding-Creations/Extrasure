@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
+import { Manrope, Outfit } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SiteChatbot } from "@/components/site-chatbot";
@@ -12,7 +12,7 @@ const bodyFont = Manrope({
   subsets: ["latin"],
 });
 
-const displayFont = Cormorant_Garamond({
+const displayFont = Outfit({
   variable: "--font-display",
   weight: ["500", "600", "700"],
   subsets: ["latin"],

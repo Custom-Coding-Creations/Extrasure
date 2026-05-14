@@ -36,18 +36,18 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
 
   return (
     <div className="dashboard-shell mx-auto w-full max-w-7xl px-4 pb-28 pt-8 sm:px-6 lg:px-8 lg:pb-10 lg:pt-12">
-      <div className="account-hero-layer relative z-10 overflow-hidden rounded-3xl border p-5 backdrop-blur-sm sm:p-7" style={{ borderColor: "rgba(47, 36, 29, 0.18)", background: "rgba(255, 251, 245, 0.82)" }}>
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_12%_18%,rgba(174,128,81,0.24),transparent_56%),radial-gradient(circle_at_88%_6%,rgba(47,36,29,0.2),transparent_48%)]" />
+      <div className="account-hero-layer relative z-10 overflow-hidden rounded-3xl border p-5 backdrop-blur-sm sm:p-7" style={{ borderColor: "rgba(255,255,255,0.84)", background: "rgba(232,237,244,0.9)" }}>
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.75),transparent_56%),radial-gradient(circle_at_88%_6%,rgba(125,157,255,0.14),transparent_48%)]" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "rgba(47, 36, 29, 0.62)" }}>ExtraSure Home Platform</p>
-          <h1 className="mt-2 text-3xl sm:text-4xl" style={{ color: "#2b211b" }}>{title}</h1>
-          <p className="mt-3 text-sm sm:text-base" style={{ color: "rgba(47, 36, 29, 0.72)" }}>{subtitle}</p>
+          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "rgba(68,89,111,0.6)" }}>ExtraSure Home Platform</p>
+          <h1 className="mt-2 text-3xl sm:text-4xl" style={{ color: "#304256" }}>{title}</h1>
+          <p className="mt-3 text-sm sm:text-base" style={{ color: "rgba(68,89,111,0.74)" }}>{subtitle}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <span className="rounded-full border bg-[#fffaf0] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em]" style={{ borderColor: "rgba(47, 36, 29, 0.2)", color: "rgba(47, 36, 29, 0.72)" }}>
+            <span className="rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em]" style={{ borderColor: "rgba(255,255,255,0.82)", background: "#e8edf4", color: "rgba(68,89,111,0.72)", boxShadow: "var(--shadow-sm)" }}>
               {unreadNotifications} active alert{unreadNotifications === 1 ? "" : "s"}
             </span>
-            <span className="rounded-full border bg-[#fffaf0] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em]" style={{ borderColor: "rgba(47, 36, 29, 0.2)", color: "rgba(47, 36, 29, 0.72)" }}>
+            <span className="rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em]" style={{ borderColor: "rgba(255,255,255,0.82)", background: "#e8edf4", color: "rgba(68,89,111,0.72)", boxShadow: "var(--shadow-sm)" }}>
               {(shellQuickActions ?? []).length} smart shortcut{(shellQuickActions ?? []).length === 1 ? "" : "s"}
             </span>
           </div>
@@ -63,8 +63,8 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
           <form action={logoutAction}>
             <button
               type="submit"
-                className="elevated-action rounded-full border bg-[#fffaf0] px-5 py-2 text-sm font-semibold transition hover:bg-[#2f241d] hover:text-white"
-                style={{ borderColor: "#2f241d", color: "#2f241d" }}
+                className="elevated-action rounded-full border px-5 py-2 text-sm font-semibold transition hover:text-white"
+                style={{ borderColor: "rgba(255,255,255,0.82)", background: "#e8edf4", color: "#44596f", boxShadow: "var(--shadow-sm)" }}
             >
               Sign Out
             </button>
@@ -88,9 +88,9 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
               className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:focus-ring ${
                 active
                   ? "text-white"
-                  : "border bg-[#fffdf6] hover:bg-[#f4ebd5]"
+                  : "border bg-[#e8edf4] hover:bg-[#edf2f8]"
               }`}
-              style={active ? { background: "#2f241d" } : { borderColor: "rgba(47, 36, 29, 0.2)", color: "#2f241d" }}
+              style={active ? { background: "#7d9dff" } : { borderColor: "rgba(255,255,255,0.82)", color: "#44596f", boxShadow: "var(--shadow-sm)" }}
             >
               {link.label}
             </Link>

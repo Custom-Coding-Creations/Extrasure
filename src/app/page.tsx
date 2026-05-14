@@ -10,15 +10,15 @@ export default async function Home() {
 
   return (
     <div>
-      <section className="relative overflow-hidden border-b" style={{ borderColor: "rgba(47, 36, 29, 0.14)", background: "linear-gradient(145deg, #2f241d 0%, #3d3027 55%, #2b211b 100%)", color: "#f8efe2" }}>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(232,220,201,0.22),_transparent_52%)]" />
+      <section className="relative overflow-hidden border-b" style={{ borderColor: "rgba(255, 255, 255, 0.7)", background: "linear-gradient(145deg, #dde5ef 0%, #e8edf4 55%, #dfe7f0 100%)", color: "#44596f" }}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.75),_transparent_52%)]" />
         <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-20">
           <div>
             <p className="text-sm uppercase tracking-[0.22em]" style={{ color: "var(--brand-sand)" }}>Syracuse Local Experts</p>
-            <h1 className="mt-4 text-4xl leading-tight sm:text-5xl" style={{ color: "#fbf4eb" }}>
+            <h1 className="mt-4 text-4xl leading-tight sm:text-5xl" style={{ color: "#304256" }}>
               Pest Problems Solved Fast, with Service You Can Trust
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-7" style={{ color: "rgba(248, 239, 226, 0.86)" }}>
+            <p className="mt-5 max-w-xl text-base leading-7" style={{ color: "rgba(68, 89, 111, 0.84)" }}>
               ExtraSure Pest Control protects homes, rentals, and businesses across {company.city} and nearby communities with same-day availability, clear communication, and guaranteed follow-through.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
@@ -31,13 +31,13 @@ export default async function Home() {
               >
                 {company.ctaPrimary}
               </TrackedContactLink>
-              <Link href="/contact" className="rounded-full border px-5 py-3 text-sm font-semibold transition hover:bg-white hover:text-[#2f241d]" style={{ borderColor: "rgba(248, 239, 226, 0.54)", color: "#f8efe2" }}>
+              <Link href="/contact" className="rounded-full border px-5 py-3 text-sm font-semibold transition hover:bg-white hover:text-[#44596f]" style={{ borderColor: "rgba(255,255,255,0.8)", color: "#44596f", background: "#e8edf4", boxShadow: "var(--shadow-sm)" }}>
                 {company.ctaSecondary}
               </Link>
             </div>
-            <ul className="mt-6 flex flex-wrap gap-2 text-xs" style={{ color: "rgba(248, 239, 226, 0.84)" }}>
+            <ul className="mt-6 flex flex-wrap gap-2 text-xs" style={{ color: "rgba(68, 89, 111, 0.78)" }}>
               {trustBadges.map((badge) => (
-                <li key={badge} className="rounded-full border px-3 py-1" style={{ borderColor: "rgba(248, 239, 226, 0.3)" }}>
+                <li key={badge} className="rounded-full border px-3 py-1" style={{ borderColor: "rgba(255,255,255,0.8)", background: "#e8edf4", boxShadow: "var(--shadow-sm)" }}>
                   {badge}
                 </li>
               ))}

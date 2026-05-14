@@ -25,29 +25,29 @@ export async function AdminShell({ title, subtitle, children }: AdminShellProps)
                 </p>
               </div>
             )}
-      <div className="mb-6 rounded-2xl border p-5" style={{ borderColor: "rgba(47, 36, 29, 0.18)", background: "linear-gradient(150deg, #fffaf0 0%, #f1e5d3 100%)" }}>
+      <div className="mb-6 rounded-2xl border p-5" style={{ borderColor: "rgba(255,255,255,0.82)", background: "linear-gradient(150deg, #eef3f9 0%, #e1e9f2 100%)", boxShadow: "var(--shadow-md)" }}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs uppercase tracking-[0.18em]" style={{ color: "rgba(47, 36, 29, 0.62)" }}>Owner Operations Console</p>
+          <p className="text-xs uppercase tracking-[0.18em]" style={{ color: "rgba(68,89,111,0.62)" }}>Owner Operations Console</p>
           <div className="flex items-center gap-2">
-            <p className="rounded-full px-3 py-1 text-xs" style={{ background: "#e9dcc8", color: "#46362b" }}>
+            <p className="rounded-full px-3 py-1 text-xs" style={{ background: "#e8edf4", color: "#44596f", boxShadow: "var(--shadow-sm)" }}>
               {session?.name ?? "Signed in"} • {session?.role ?? "owner"}
             </p>
             <form action={logoutOwner}>
               <button
                 type="submit"
                 className="rounded-full px-3 py-1 text-xs font-semibold text-white transition hover:brightness-95"
-                style={{ background: "#2f241d" }}
+                style={{ background: "#7d9dff" }}
               >
                 Log out
               </button>
             </form>
           </div>
         </div>
-        <h1 className="mt-1 text-3xl" style={{ color: "#2b211b" }}>{title}</h1>
-        <p className="mt-2 max-w-3xl text-sm" style={{ color: "rgba(47, 36, 29, 0.72)" }}>{subtitle}</p>
+        <h1 className="mt-1 text-3xl" style={{ color: "#304256" }}>{title}</h1>
+        <p className="mt-2 max-w-3xl text-sm" style={{ color: "rgba(68,89,111,0.72)" }}>{subtitle}</p>
       </div>
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <aside className="rounded-2xl border p-4" style={{ borderColor: "rgba(47, 36, 29, 0.2)", background: "#f7ecdc" }}>
+        <aside className="rounded-2xl border p-4" style={{ borderColor: "rgba(255,255,255,0.82)", background: "#e8edf4", boxShadow: "var(--shadow-sm)" }}>
           <AdminNav />
         </aside>
         <section className="space-y-5">{children}</section>
