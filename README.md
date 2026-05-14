@@ -2,6 +2,10 @@
 
 Public marketing website and owner operations dashboard for ExtraSure Pest Control in Syracuse, NY, built with Next.js App Router and optimized for lead generation, dispatch visibility, and payment operations.
 
+## Theme Redesign Branches
+
+The full 10-branch visual redesign exploration is documented in `docs/THEME-REDESIGN-BRANCHES.md`.
+
 ## Local Development
 
 1. Install dependencies:
