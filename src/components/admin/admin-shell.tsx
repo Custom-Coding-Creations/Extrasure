@@ -36,7 +36,7 @@ export async function AdminShell({ title, subtitle, children }: AdminShellProps)
               <button
                 type="submit"
                 className="rounded-full px-3 py-1 text-xs font-semibold text-white transition hover:brightness-95"
-                style={{ background: "#2f241d" }}
+                style={{ background: "#1f1a18" }}
               >
                 Log out
               </button>

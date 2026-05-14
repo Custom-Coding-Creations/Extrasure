@@ -44,7 +44,7 @@ export function AdminNav() {
                 ? "text-white"
                 : "hover:bg-[#e8d8be]"
             }`}
-            style={active ? { background: "#2f241d" } : { background: "#efe2cc", color: "#2f241d" }}
+            style={active ? { background: "#1f1a18" } : { background: "#efe2cc", color: "#1f1a18" }}
           >
             {link.label}
           </Link>

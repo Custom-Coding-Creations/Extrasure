@@ -90,7 +90,7 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
                   ? "text-white"
                   : "border bg-[#fffdf6] hover:bg-[#f4ebd5]"
               }`}
-              style={active ? { background: "#2f241d" } : { borderColor: "rgba(47, 36, 29, 0.2)", color: "#2f241d" }}
+              style={active ? { background: "#1f1a18" } : { borderColor: "rgba(31, 26, 24, 0.2)", color: "#1f1a18" }}
             >
               {link.label}
             </Link>
@@ -138,7 +138,7 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
                   ? "text-white"
                   : ""
               }`}
-              style={active ? { background: "#2f241d" } : { color: "#2f241d" }}
+              style={active ? { background: "#1f1a18" } : { color: "#1f1a18" }}
             >
               {link.shortLabel}
             </Link>
