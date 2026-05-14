@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
+import { Space_Grotesk, Syne } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SiteChatbot } from "@/components/site-chatbot";
@@ -7,12 +7,12 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
-const bodyFont = Manrope({
+const bodyFont = Space_Grotesk({
   variable: "--font-body",
   subsets: ["latin"],
 });
 
-const displayFont = Cormorant_Garamond({
+const displayFont = Syne({
   variable: "--font-display",
   weight: ["500", "600", "700"],
   subsets: ["latin"],
