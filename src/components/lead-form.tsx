@@ -84,7 +84,7 @@ export function LeadForm({
         defaultValue={defaults?.addressOrZip ?? ""}
       />
       {includeService ? (
-        <select className="field" name="serviceNeeded" aria-label="Service needed" defaultValue="">
+        <select className="field" name="serviceNeeded" aria-label="Service needed" defaultValue="" style={{ color: "var(--foreground)" }}>
           <option value="" disabled>
             Select service needed
           </option>
@@ -104,6 +104,7 @@ export function LeadForm({
         placeholder={compact ? "Describe the pest issue" : "Tell us what you are seeing"}
         aria-label="Pest issue details"
         required
+        style={{ color: "var(--foreground)" }}
       />
       <button
         type="submit"
