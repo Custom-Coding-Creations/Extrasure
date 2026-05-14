@@ -10,8 +10,8 @@ export default async function Home() {
 
   return (
     <div>
-      <section className="relative overflow-hidden border-b" style={{ borderColor: "rgba(47, 36, 29, 0.14)", background: "linear-gradient(145deg, #2f241d 0%, #3d3027 55%, #2b211b 100%)", color: "#f8efe2" }}>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(232,220,201,0.22),_transparent_52%)]" />
+      <section className="relative overflow-hidden border-b" style={{ borderColor: "#171717", background: "#171717", color: "#fff9e8" }}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,60,56,0.22),_transparent_52%)]" />
         <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-20">
           <div>
             <p className="text-sm uppercase tracking-[0.22em]" style={{ color: "var(--brand-sand)" }}>Syracuse Local Experts</p>
@@ -31,7 +31,7 @@ export default async function Home() {
               >
                 {company.ctaPrimary}
               </TrackedContactLink>
-              <Link href="/contact" className="rounded-full border px-5 py-3 text-sm font-semibold transition hover:bg-white hover:text-[#2f241d]" style={{ borderColor: "rgba(248, 239, 226, 0.54)", color: "#f8efe2" }}>
+              <Link href="/contact" className="rounded-full border px-5 py-3 text-sm font-semibold transition hover:bg-white hover:text-[#171717]" style={{ borderColor: "rgba(255, 249, 232, 0.7)", color: "#fff9e8" }}>
                 {company.ctaSecondary}
               </Link>
             </div>
@@ -68,7 +68,7 @@ export default async function Home() {
             <p className="text-xs uppercase tracking-[0.22em]" style={{ color: "rgba(47, 36, 29, 0.64)" }}>Core Services</p>
             <h2 className="mt-2 text-3xl" style={{ color: "#2b211b" }}>Built for Real-World Pest Pressure</h2>
           </div>
-          <Link href="/services" className="text-sm font-semibold underline underline-offset-4" style={{ color: "#2f241d", textDecorationColor: "#ae8051" }}>
+          <Link href="/services" className="text-sm font-semibold underline underline-offset-4" style={{ color: "#171717", textDecorationColor: "#ff3c38" }}>
             View all services
           </Link>
         </div>
@@ -78,7 +78,7 @@ export default async function Home() {
               <h3 className="text-xl" style={{ color: "#2b211b" }}>{service.name}</h3>
               <p className="mt-2 text-sm" style={{ color: "rgba(47, 36, 29, 0.74)" }}>{service.summary}</p>
               <p className="mt-3 text-sm font-semibold" style={{ color: "#2f241d" }}>Starting at {service.startingAt}</p>
-              <Link href={`/services/${service.slug}`} className="mt-4 inline-block text-sm font-semibold underline underline-offset-4" style={{ color: "#2f241d", textDecorationColor: "#ae8051" }}>
+              <Link href={`/services/${service.slug}`} className="mt-4 inline-block text-sm font-semibold underline underline-offset-4" style={{ color: "#171717", textDecorationColor: "#ff3c38" }}>
                 Learn more
               </Link>
             </article>

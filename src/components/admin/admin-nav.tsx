@@ -42,9 +42,9 @@ export function AdminNav() {
             className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
               active
                 ? "text-white"
-                : "hover:bg-[#e8d8be]"
+                : "hover:bg-[#ffe66b]"
             }`}
-            style={active ? { background: "#2f241d" } : { background: "#efe2cc", color: "#2f241d" }}
+            style={active ? { background: "#171717" } : { background: "#fff3c6", color: "#171717" }}
           >
             {link.label}
           </Link>
