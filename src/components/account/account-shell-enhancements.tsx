@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { trackEvent } from "@/lib/analytics";
 import type { AccountShellLink, AccountShellNotification } from "@/components/account/account-shell-types";
 
@@ -331,6 +332,54 @@ export function AccountShellEnhancements({ title, activePath, links, quickAction
   }, [query, quickActions]);
   const baseNotifications = notificationOverrides?.length ? notificationOverrides : buildNotifications(activePath);
   const notificationStateKey = `${activePath}:${baseNotifications.map((item) => `${item.id}:${item.readAt ?? "unread"}`).join("|")}`;
+  const paletteDialog = (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[rgba(15,26,21,0.45)] px-4 py-8 backdrop-blur-sm" onClick={() => setIsPaletteOpen(false)}>
+      <div
+        className="mx-auto w-full max-w-2xl rounded-3xl border border-[#d8ccaf] bg-[#fffdf6] p-5 shadow-[0_28px_64px_rgba(20,40,30,0.24)] dark:border-[#4c6651] dark:bg-[#1d3026]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <p className="text-xs uppercase tracking-[0.14em] text-[#60766b] dark:text-[#cabca1]">Command Palette</p>
+        <h2 className="mt-2 text-xl text-[#173126] dark:text-[#f1e7d2]">Find actions across your protection dashboard</h2>
+        <p className="mt-1 text-sm text-[#42594b] dark:text-[#d3c6aa]">Search sections, jump to workflows, and reopen key account surfaces from anywhere.</p>
+
+        <input
+          autoFocus
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={`Search within ${title.toLowerCase()} and account tools`}
+          className="field mt-4"
+          aria-label="Search dashboard actions"
+        />
+
+        <div className="mt-4 max-h-[min(60dvh,34rem)] space-y-2 overflow-y-auto pr-1">
+          {filteredActions.length ? (
+            filteredActions.map((item) => (
+              <Link
+                key={`${item.href}-${item.label}`}
+                href={item.href}
+                className={`block rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                  item.href === activePath
+                    ? "border-[#163526] bg-[#163526] text-white"
+                    : "border-[#ddd2b8] bg-[#fff8ea] text-[#173126] hover:bg-[#f6ebd8] dark:border-[#516b55] dark:bg-[#23392d] dark:text-[#efe5cf] dark:hover:bg-[#294136]"
+                }`}
+                onClick={() => {
+                  setIsPaletteOpen(false);
+                  trackEvent("account_command_palette_select", { href: item.href, path: activePath });
+                }}
+              >
+                <span>{item.label}</span>
+                <span className="ml-2 text-xs font-medium opacity-70">{item.href}</span>
+              </Link>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-[#ddd2b8] bg-[#fff8ea] px-4 py-3 text-sm text-[#40584a] dark:border-[#516b55] dark:bg-[#23392d] dark:text-[#d5c8ad]">
+              No matching actions yet. Try searching for visits, plan, timeline, or support.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -351,54 +400,7 @@ export function AccountShellEnhancements({ title, activePath, links, quickAction
         <NotificationCenter key={notificationStateKey} activePath={activePath} notifications={baseNotifications} />
       </div>
 
-      {isPaletteOpen ? (
-        <div className="fixed inset-0 z-40 bg-[rgba(15,26,21,0.45)] px-4 py-8 backdrop-blur-sm" onClick={() => setIsPaletteOpen(false)}>
-          <div
-            className="mx-auto w-full max-w-2xl rounded-3xl border border-[#d8ccaf] bg-[#fffdf6] p-5 shadow-[0_28px_64px_rgba(20,40,30,0.24)] dark:border-[#4c6651] dark:bg-[#1d3026]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <p className="text-xs uppercase tracking-[0.14em] text-[#60766b] dark:text-[#cabca1]">Command Palette</p>
-            <h2 className="mt-2 text-xl text-[#173126] dark:text-[#f1e7d2]">Find actions across your protection dashboard</h2>
-            <p className="mt-1 text-sm text-[#42594b] dark:text-[#d3c6aa]">Search sections, jump to workflows, and reopen key account surfaces from anywhere.</p>
-
-            <input
-              autoFocus
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={`Search within ${title.toLowerCase()} and account tools`}
-              className="field mt-4"
-              aria-label="Search dashboard actions"
-            />
-
-            <div className="mt-4 space-y-2">
-              {filteredActions.length ? (
-                filteredActions.map((item) => (
-                  <Link
-                    key={`${item.href}-${item.label}`}
-                    href={item.href}
-                    className={`block rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-                      item.href === activePath
-                        ? "border-[#163526] bg-[#163526] text-white"
-                        : "border-[#ddd2b8] bg-[#fff8ea] text-[#173126] hover:bg-[#f6ebd8] dark:border-[#516b55] dark:bg-[#23392d] dark:text-[#efe5cf] dark:hover:bg-[#294136]"
-                    }`}
-                    onClick={() => {
-                      setIsPaletteOpen(false);
-                      trackEvent("account_command_palette_select", { href: item.href, path: activePath });
-                    }}
-                  >
-                    <span>{item.label}</span>
-                    <span className="ml-2 text-xs font-medium opacity-70">{item.href}</span>
-                  </Link>
-                ))
-              ) : (
-                <div className="rounded-2xl border border-[#ddd2b8] bg-[#fff8ea] px-4 py-3 text-sm text-[#40584a] dark:border-[#516b55] dark:bg-[#23392d] dark:text-[#d5c8ad]">
-                  No matching actions yet. Try searching for visits, plan, timeline, or support.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {isPaletteOpen && typeof document !== "undefined" ? createPortal(paletteDialog, document.body) : null}
     </>
   );
 }
