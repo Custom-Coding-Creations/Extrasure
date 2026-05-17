@@ -41,9 +41,10 @@ export function AdminNav() {
             href={link.href}
             className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
               active
-                ? "bg-[#163526] text-white"
-                : "bg-[#ece2ca] text-[#23352b] hover:bg-[#ddcfac]"
+                ? "text-white"
+                : "hover:bg-[#dceeff]"
             }`}
+            style={active ? { background: "#124482" } : { background: "#eaf3ff", color: "#124482" }}
           >
             {link.label}
           </Link>
