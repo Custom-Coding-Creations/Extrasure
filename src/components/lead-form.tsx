@@ -84,7 +84,7 @@ export function LeadForm({
         defaultValue={defaults?.addressOrZip ?? ""}
       />
       {includeService ? (
-        <select className="field" name="serviceNeeded" aria-label="Service needed" defaultValue="">
+        <select className="field" name="serviceNeeded" aria-label="Service needed" defaultValue="" style={{ color: "var(--foreground)" }}>
           <option value="" disabled>
             Select service needed
           </option>
@@ -104,16 +104,18 @@ export function LeadForm({
         placeholder={compact ? "Describe the pest issue" : "Tell us what you are seeing"}
         aria-label="Pest issue details"
         required
+        style={{ color: "var(--foreground)" }}
       />
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="w-full rounded-xl bg-[#163526] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#0f251b] disabled:cursor-not-allowed disabled:opacity-70"
+        className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-70"
+        style={{ background: "var(--brand-forest)" }}
       >
         {status === "submitting" ? "Submitting..." : "Submit Request"}
       </button>
       {message ? (
-        <p className={`text-sm ${status === "success" ? "text-emerald-800" : "text-red-700"}`}>{message}</p>
+        <p className="text-sm" style={{ color: status === "success" ? "var(--status-success)" : "var(--status-danger)" }}>{message}</p>
       ) : null}
     </form>
   );
