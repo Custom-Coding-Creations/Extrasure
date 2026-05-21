@@ -322,6 +322,8 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
         return;
       }
 
+      const auditEntriesFromApi = payload.entries;
+
       setCanViewTeamOperationHistory(Boolean(payload.capabilities?.canViewAllScope));
       setOperationHistoryViewerRole(
         typeof payload.capabilities?.viewerRole === "string" ? payload.capabilities.viewerRole : null,
@@ -329,7 +331,7 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
 
       setOperationHistory((previous) => {
         const liveEntries = previous.filter((entry) => entry.source !== "audit");
-        const auditEntries = payload.entries.map((entry) => ({
+        const auditEntries = auditEntriesFromApi.map((entry) => ({
           ...entry,
           source: "audit" as const,
         }));
@@ -490,28 +492,30 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
       setSessionId(data.sessionId);
       setHandoffLinks(data.handoff);
 
-      if (data.operation) {
-        setLastOperation(data.operation);
+      const operationResult = data.operation;
+
+      if (operationResult) {
+        setLastOperation(operationResult);
         setOperationHistory((previous) => {
           const nextEntry: OperationHistoryEntry = {
             id: makeId(),
             createdAt: new Date().toISOString(),
-            action: data.operation.action,
-            status: data.operation.status,
-            message: data.operation.message,
+            action: operationResult.action,
+            status: operationResult.status,
+            message: operationResult.message,
             payload: operation.payload,
-            result: data.operation.result ?? null,
+            result: operationResult.result ?? null,
             source: "live",
           };
 
           return [nextEntry, ...previous].slice(0, 12);
         });
 
-        if (data.operation.status === "requires_confirmation" && data.operation.confirmationToken) {
+        if (operationResult.status === "requires_confirmation" && operationResult.confirmationToken) {
           setPendingOperation({
             action: operation.action,
             payload: operation.payload,
-            confirmationToken: data.operation.confirmationToken,
+            confirmationToken: operationResult.confirmationToken,
           });
         } else {
           setPendingOperation(null);
