@@ -325,7 +325,7 @@ export const retrievalCorpus: AdminManualRetrievalChunk[] = [
     "id": "src/app/admin/manual/page.tsx#1",
     "path": "src/app/admin/manual/page.tsx",
     "title": "page.tsx",
-    "text": "import { AdminShell } from \"@/components/admin/admin-shell\"; import { AdminManualAssistant } from \"@/components/admin/admin-manual-assistant\"; import { AdminManualDiagrams } from \"@/components/admin/admin-manual-diagrams\"; import { ManualSecretRevealButton } from \"@/components/admin/manual-secret-reveal-button\"; import { createManualSecretAction, deleteManualSecretAction, updateManualSecretAction, } from \"@/app/admin/manual/actions\"; import { getAdminSession } from \"@/lib/admin-auth\"; import { getManualCategories, listManualSecretsByCategory } from \"@/lib/admin-manual-store\";"
+    "text": "import { AdminShell } from \"@/components/admin/admin-shell\"; import { AdminManualDiagrams } from \"@/components/admin/admin-manual-diagrams\"; import { ManualSecretRevealButton } from \"@/components/admin/manual-secret-reveal-button\"; import { createManualSecretAction, deleteManualSecretAction, updateManualSecretAction, } from \"@/app/admin/manual/actions\"; import { getAdminSession } from \"@/lib/admin-auth\"; import { getManualCategories, listManualSecretsByCategory } from \"@/lib/admin-manual-store\";"
   },
   {
     "id": "src/app/admin/manual/page.tsx#2",
@@ -475,7 +475,7 @@ export const retrievalCorpus: AdminManualRetrievalChunk[] = [
     "id": "src/components/chatbot/chatbot-provider.tsx#1",
     "path": "src/components/chatbot/chatbot-provider.tsx",
     "title": "chatbot-provider.tsx",
-    "text": "import { createContext, useContext, useState, useCallback, useMemo, useEffect, type ReactNode } from \"react\"; import { trackEvent, trackTriageEvent } from \"@/lib/analytics\"; import { isTriageUiEnabled } from \"@/lib/triage-runtime\"; import type { BookingAiHandoff } from \"@/lib/booking-assistant-handoff\";"
+    "text": "import { createContext, useContext, useState, useCallback, useMemo, useEffect, type ReactNode } from \"react\"; import { usePathname } from \"next/navigation\"; import { trackEvent, trackTriageEvent } from \"@/lib/analytics\"; import { isTriageUiEnabled } from \"@/lib/triage-runtime\"; import type { BookingAiHandoff } from \"@/lib/booking-assistant-handoff\";"
   },
   {
     "id": "src/components/chatbot/chatbot-provider.tsx#2",
@@ -487,7 +487,7 @@ export const retrievalCorpus: AdminManualRetrievalChunk[] = [
     "id": "src/components/chatbot/chatbot-provider.tsx#3",
     "path": "src/components/chatbot/chatbot-provider.tsx",
     "title": "chatbot-provider.tsx",
-    "text": "export type ApiChatResponse = { ok: true; sessionId: string; answer: string; language: \"en\" | \"es\"; confidence: \"low\" | \"medium\" | \"high\"; escalateToHuman: boolean; suggestLeadCapture: boolean; handoff: { callHref: string; smsHref: string; contactPath: string; }; operation?: ChatbotOperationResult; };"
+    "text": "export type ApiChatResponse = { ok: true; sessionId: string; answer: string; language: \"en\" | \"es\"; confidence: \"low\" | \"medium\" | \"high\"; escalateToHuman: boolean; suggestLeadCapture: boolean; handoff: { callHref: string; smsHref: string; contactPath: string; }; citations?: string[]; operation?: ChatbotOperationResult; };"
   },
   {
     "id": "src/components/chatbot/chatbot-provider.tsx#4",

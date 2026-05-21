@@ -132,6 +132,7 @@ export function ChatbotLayout({ onClose, suggestedPromptsButton }: ChatbotLayout
     showTriage,
     setShowTriage,
     showLeadForm,
+    isAdminMode,
     accountContext,
     suggestedPrompts,
     sendMessage,
@@ -139,6 +140,8 @@ export function ChatbotLayout({ onClose, suggestedPromptsButton }: ChatbotLayout
     input,
     setInput,
     handoffLinks,
+    lastCitations,
+    lastConfidence,
     operationLoading,
     lastOperation,
     pendingOperation,
@@ -620,7 +623,7 @@ export function ChatbotLayout({ onClose, suggestedPromptsButton }: ChatbotLayout
             className="field flex-1"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask about pests, pricing range, or scheduling"
+            placeholder={isAdminMode ? "Ask anything about admin operations, data, or troubleshooting" : "Ask about pests, pricing range, or scheduling"}
             aria-label="Chat message"
           />
           <button
@@ -632,26 +635,28 @@ export function ChatbotLayout({ onClose, suggestedPromptsButton }: ChatbotLayout
           </button>
         </form>
 
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <a
-            href={handoffLinks.callHref}
-            className="rounded-full border border-[#b8a57f] bg-[#f3e4c7] px-3 py-1 text-[#294236]"
-          >
-            Call Team
-          </a>
-          <a
-            href={handoffLinks.smsHref}
-            className="rounded-full border border-[#b8a57f] bg-[#f3e4c7] px-3 py-1 text-[#294236]"
-          >
-            Text Team
-          </a>
-          <a
-            href={handoffLinks.contactPath}
-            className="rounded-full border border-[#b8a57f] bg-[#f3e4c7] px-3 py-1 text-[#294236]"
-          >
-            Contact Form
-          </a>
-        </div>
+        {!isAdminMode ? (
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <a
+              href={handoffLinks.callHref}
+              className="rounded-full border border-[#b8a57f] bg-[#f3e4c7] px-3 py-1 text-[#294236]"
+            >
+              Call Team
+            </a>
+            <a
+              href={handoffLinks.smsHref}
+              className="rounded-full border border-[#b8a57f] bg-[#f3e4c7] px-3 py-1 text-[#294236]"
+            >
+              Text Team
+            </a>
+            <a
+              href={handoffLinks.contactPath}
+              className="rounded-full border border-[#b8a57f] bg-[#f3e4c7] px-3 py-1 text-[#294236]"
+            >
+              Contact Form
+            </a>
+          </div>
+        ) : null}
 
         {/* Suggested prompts */}
         {suggestedPrompts.length > 0 && (
@@ -673,7 +678,7 @@ export function ChatbotLayout({ onClose, suggestedPromptsButton }: ChatbotLayout
           </div>
         )}
 
-        {operationsEnabled ? (
+        {operationsEnabled && !isAdminMode ? (
         <div className="mt-3 rounded-xl border border-[#dcc8a5] bg-[#fff2d8] p-3">
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5a4b29]">Operations Beta</p>
           <p className="mt-1 text-xs text-[#5f553f]">
@@ -1130,7 +1135,7 @@ export function ChatbotLayout({ onClose, suggestedPromptsButton }: ChatbotLayout
         ) : null}
 
         {/* Triage toggle button */}
-        {triageEnabled && (
+        {triageEnabled && !isAdminMode && (
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
@@ -1143,13 +1148,35 @@ export function ChatbotLayout({ onClose, suggestedPromptsButton }: ChatbotLayout
         )}
 
         {/* Triage form */}
-        {triageEnabled && showTriage && <TriageForm />}
+        {triageEnabled && !isAdminMode && showTriage && <TriageForm />}
 
         {/* Custom suggestion button slot */}
         {suggestedPromptsButton}
 
+        {isAdminMode && lastCitations.length > 0 ? (
+          <div className="mt-3 rounded-lg border border-[#dcc8a5] bg-[#fff2d8] p-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5a4b29]">Sources Used</p>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {lastCitations.map((citation) => (
+                <span
+                  key={citation}
+                  className="rounded-full border border-[#ccb68b] bg-[#f8e7c4] px-2 py-0.5 text-[10px] font-semibold text-[#5d4a24]"
+                >
+                  {citation}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {isAdminMode ? (
+          <p className="mt-2 text-[11px] text-[#6a5b3b]" aria-live="polite">
+            Trust signal: {lastConfidence ?? "n/a"} confidence, {lastCitations.length} source{lastCitations.length === 1 ? "" : "s"}.
+          </p>
+        ) : null}
+
         {/* Lead capture form */}
-        {showLeadForm && <LeadCaptureForm />}
+        {showLeadForm && !isAdminMode && <LeadCaptureForm />}
       </div>
 
       {selectedOperationHistoryEntry ? (

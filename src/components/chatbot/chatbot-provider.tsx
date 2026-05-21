@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { trackEvent, trackTriageEvent } from "@/lib/analytics";
 import { isTriageUiEnabled } from "@/lib/triage-runtime";
 import type { BookingAiHandoff } from "@/lib/booking-assistant-handoff";
@@ -37,6 +38,7 @@ export type ApiChatResponse = {
     smsHref: string;
     contactPath: string;
   };
+  citations?: string[];
   operation?: ChatbotOperationResult;
 };
 
@@ -134,6 +136,7 @@ type ChatbotContextValue = {
   // Account context
   accountContext: AccountContext | null;
   setAccountContext: (context: AccountContext | null) => void;
+  isAdminMode: boolean;
   
   // Triage state
   triageEnabled: boolean;
@@ -171,6 +174,8 @@ type ChatbotContextValue = {
   
   // Suggested prompts (context-aware)
   suggestedPrompts: string[];
+  lastCitations: string[];
+  lastConfidence: "low" | "medium" | "high" | null;
 
   // Operations state
   operationLoading: boolean;
@@ -208,14 +213,27 @@ const WRITE_OPERATION_ACTIONS = new Set<ChatbotOperationAction>([
   "assign_technician",
 ]);
 
-function getInitialGreeting(accountContext: AccountContext | null): string {
+function getInitialGreeting(accountContext: AccountContext | null, isAdminMode: boolean): string {
+  if (isAdminMode) {
+    return "I am your admin operations copilot. Ask anything about hosting, deployments, dashboard workflows, payments, credentials, DNS, or troubleshooting.";
+  }
+
   if (accountContext?.currentPage) {
     return `I can interpret your ${accountContext.currentPage.toLowerCase()} data, explain current risks, and recommend the next best action for your property.`;
   }
   return "Hi, I can answer ExtraSure service questions, suggest appointment windows, and help you request a follow-up in English or Spanish.";
 }
 
-function getSuggestedPrompts(accountContext: AccountContext | null): string[] {
+function getSuggestedPrompts(accountContext: AccountContext | null, isAdminMode: boolean): string[] {
+  if (isAdminMode) {
+    return [
+      "Where is this website hosted?",
+      "How many customers do I have?",
+      "How much revenue did we collect in the last 30 days?",
+      "How do I create an invoice for a customer?",
+    ];
+  }
+
   if (accountContext?.currentPage) {
     // Account-specific prompts
     return [
@@ -238,10 +256,18 @@ type ChatbotProviderProps = {
   children: ReactNode;
   initialHandoff?: BookingAiHandoff | null;
   accountContext?: AccountContext | null;
+  isAdminMode?: boolean;
 };
 
-export function ChatbotProvider({ children, initialHandoff, accountContext: initialAccountContext }: ChatbotProviderProps) {
+export function ChatbotProvider({
+  children,
+  initialHandoff,
+  accountContext: initialAccountContext,
+  isAdminMode: forceAdminMode,
+}: ChatbotProviderProps) {
+  const pathname = usePathname();
   const triageEnabled = isTriageUiEnabled();
+  const isAdminMode = forceAdminMode ?? (pathname?.startsWith("/admin") ?? false);
   
   // Account context
   const [accountContext, setAccountContext] = useState<AccountContext | null>(initialAccountContext || null);
@@ -260,7 +286,7 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
     {
       id: makeId(),
       role: "assistant",
-      content: getInitialGreeting(accountContext),
+      content: getInitialGreeting(accountContext, isAdminMode),
     },
   ]);
   
@@ -290,6 +316,8 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
   });
   const [operationLoading, setOperationLoading] = useState(false);
   const [lastOperation, setLastOperation] = useState<ChatbotOperationResult | null>(null);
+  const [lastCitations, setLastCitations] = useState<string[]>([]);
+  const [lastConfidence, setLastConfidence] = useState<"low" | "medium" | "high" | null>(null);
   const [pendingOperation, setPendingOperation] = useState<ChatbotOperationRequest | null>(null);
   const [operationHistory, setOperationHistory] = useState<OperationHistoryEntry[]>([]);
   const [operationHistoryScope, setOperationHistoryScope] = useState<OperationHistoryScope>("self");
@@ -383,11 +411,11 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
       {
         id: makeId(),
         role: "assistant",
-        content: getInitialGreeting(accountContext),
+        content: getInitialGreeting(accountContext, isAdminMode),
       },
       ...prev.slice(1),
     ]);
-  }, [accountContext]);
+  }, [accountContext, isAdminMode]);
   
   const toggleFullscreen = useCallback(() => {
     setViewMode((prev) => {
@@ -602,6 +630,8 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
       
       setSessionId(data.sessionId);
       setHandoffLinks(data.handoff);
+      setLastCitations(Array.isArray(data.citations) ? data.citations.slice(0, 4) : []);
+      setLastConfidence(data.confidence ?? null);
       
       addMessage({
         id: makeId(),
@@ -613,10 +643,12 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
         trackEvent("ai_chat_escalation", { source, confidence: data.confidence });
       }
       
-      if (data.suggestLeadCapture && !accountContext) {
+      if (data.suggestLeadCapture && !accountContext && !isAdminMode) {
         setShowLeadForm(true);
       }
     } catch {
+      setLastCitations([]);
+      setLastConfidence(null);
       addMessage({
         id: makeId(),
         role: "assistant",
@@ -625,7 +657,7 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
     } finally {
       setSending(false);
     }
-  }, [sending, sessionId, messages, accountContext, addMessage]);
+  }, [sending, sessionId, messages, accountContext, addMessage, isAdminMode]);
   
   const submitTriage = useCallback(async (symptom: string, photos: string[]) => {
     if (!symptom.trim()) {
@@ -747,7 +779,7 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
     }
   }, [sessionId, accountContext]);
   
-  const suggestedPrompts = useMemo(() => getSuggestedPrompts(accountContext), [accountContext]);
+  const suggestedPrompts = useMemo(() => getSuggestedPrompts(accountContext, isAdminMode), [accountContext, isAdminMode]);
   
   const value: ChatbotContextValue = {
     viewMode,
@@ -763,6 +795,7 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
     sendMessage,
     accountContext,
     setAccountContext,
+    isAdminMode,
     triageEnabled,
     showTriage,
     setShowTriage,
@@ -783,6 +816,8 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
     submitLead,
     handoffLinks,
     suggestedPrompts,
+    lastCitations,
+    lastConfidence,
     operationLoading,
     lastOperation,
     pendingOperation,

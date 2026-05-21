@@ -72,7 +72,7 @@ const adminManualKnowledgeBase: AdminManualKnowledgeEntry[] = [
     title: "Vercel platform responsibilities",
     body:
       "Vercel hosts the production runtime and executes API routes. It stores environment variables per environment and exposes deployment and function logs. Use Vercel logs first when production behavior differs from local.",
-    tags: ["vercel", "hosting", "runtime", "logs", "env"],
+    tags: ["vercel", "hosting", "hosted", "website", "runtime", "logs", "env"],
     sourceHint: "docs/ACCOUNT-OS-ROLLOUT-PR.md, vercel.json",
   },
   {
@@ -103,8 +103,8 @@ const adminManualKnowledgeBase: AdminManualKnowledgeEntry[] = [
     id: "oauth_platform",
     title: "OAuth provider responsibilities",
     body:
-      "Google and Microsoft OAuth are used for admin sign-in where enabled. Callback URLs must exactly match deployed domains. Provider client IDs and secrets are environment-driven and should only be changed through controlled credential workflows.",
-    tags: ["oauth", "google", "microsoft", "signin", "callback"],
+      "Google and Microsoft OAuth are used for admin sign-in where enabled. Callback URLs must exactly match deployed domains. Provider client IDs and secrets are environment-driven and should only be changed through controlled credential workflows. For Google login credentials and app settings, use Google Cloud Console and the Admin Manual credential vault entries.",
+    tags: ["oauth", "google", "google cloud", "microsoft", "signin", "callback", "credentials"],
     sourceHint: "src/lib/admin-auth.ts, src/app/owner-login",
   },
   {
@@ -128,7 +128,7 @@ const adminManualKnowledgeBase: AdminManualKnowledgeEntry[] = [
     title: "DNS and domain basics",
     body:
       "DNS maps your domain name to the hosting provider. If domain records are incorrect, users cannot reach the expected deployment. For production outages, confirm domain records point to the correct Vercel project and that SSL certificates are valid.",
-    tags: ["dns", "domain", "ssl", "routing", "vercel"],
+    tags: ["dns", "domain", "nameserver", "ssl", "routing", "fix", "vercel"],
     sourceHint: "Vercel project domain settings",
   },
   {

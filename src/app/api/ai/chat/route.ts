@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildKnowledgeContext } from "@/lib/ai-knowledge";
 import { detectLanguage, evaluateGuardrails, policySnippetFor, type AiLanguage } from "@/lib/ai-policy";
-import { requireAdminApiSession } from "@/lib/admin-auth";
+import { getAdminSession, requireAdminApiSession } from "@/lib/admin-auth";
+import { buildAdminChatContext } from "@/lib/admin-chat-context";
+import { resolveAdminDirectAnswer } from "@/lib/admin-chat-intents";
 import { executeChatbotOperation, type ChatbotOperationRequest, type ChatbotOperationResult } from "@/lib/chatbot-operations";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { company } from "@/lib/site";
@@ -44,6 +46,7 @@ type ChatResponsePayload = {
     smsHref: string;
     contactPath: string;
   };
+  citations?: string[];
   operation?: ChatbotOperationResult;
 };
 
@@ -141,6 +144,8 @@ async function callOpenAiAnswer(args: {
   history: ChatMessage[];
   contextText: string;
   accountContextText: string;
+  adminSystemPromptAddition?: string;
+  isAdminMode?: boolean;
 }) {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -159,6 +164,7 @@ async function callOpenAiAnswer(args: {
           "No des afirmaciones definitivas de seguridad de pesticidas.",
           "No garantices precio final sin inspeccion; solo rangos no vinculantes.",
           "Siempre ofrece opcion de contacto humano al final.",
+          args.adminSystemPromptAddition ?? "",
         ].join(" ")
       : [
           "You are the website assistant for ExtraSure Pest Control.",
@@ -167,8 +173,8 @@ async function callOpenAiAnswer(args: {
           "Do not provide definitive pesticide safety claims.",
           "Do not guarantee final pricing without inspection; only non-binding ranges.",
           "Use provided account dashboard context when available to make the answer feel personalized.",
-          "Use provided account dashboard context when available to make the answer feel personalized.",
           "Always offer a human handoff option at the end.",
+          args.adminSystemPromptAddition ?? "",
         ].join(" ");
 
   const userPrompt =
@@ -192,7 +198,7 @@ async function callOpenAiAnswer(args: {
         ...conversation,
         { role: "user", content: userPrompt },
       ],
-      max_tokens: 280,
+      max_tokens: args.isAdminMode ? 600 : 280,
     }),
     signal: AbortSignal.timeout(9000),
   });
@@ -365,6 +371,8 @@ export async function POST(request: NextRequest) {
   const history = normalizeHistory(payload.history);
   const guardrail = evaluateGuardrails(message);
   const accountContextText = buildContextSummary(payload.context);
+  const adminSession = await getAdminSession();
+  const isAdminMode = Boolean(adminSession);
 
   if (guardrail.blocked && guardrail.reasonCode) {
     const policyReference = policySnippetFor(guardrail.reasonCode, language);
@@ -378,7 +386,7 @@ export async function POST(request: NextRequest) {
       confidence: "high",
       escalateToHuman: true,
       policyReferences: [policyReference],
-      suggestLeadCapture: true,
+      suggestLeadCapture: !isAdminMode,
       handoff: {
         callHref: company.phoneHref,
         smsHref: company.smsHref,
@@ -400,26 +408,73 @@ export async function POST(request: NextRequest) {
   }
 
   const knowledge = buildKnowledgeContext(message);
-  const aiAnswer = await callOpenAiAnswer({
-    language,
-    message,
-    history,
-    contextText: knowledge.contextText,
-    accountContextText,
-  });
+  let mergedConfidence: "low" | "medium" | "high" = knowledge.confidence;
+  let contextText = knowledge.contextText;
+  let adminSystemPromptAddition: string | undefined;
+  let adminCitations: string[] = [];
+  let adminDirectAnswer: string | null = null;
 
-  const answer = aiAnswer ?? fallbackAnswer(language, knowledge.contextText, knowledge.confidence, message);
-  const escalateToHuman = knowledge.confidence === "low";
+  if (isAdminMode) {
+    const adminContext = await buildAdminChatContext(message);
+    contextText = [
+      knowledge.contextText,
+      "",
+      "Admin operations context:",
+      adminContext.knowledgeContext,
+    ].join("\n");
+    adminSystemPromptAddition = adminContext.systemPromptAddition;
+    adminCitations = adminContext.sourcePaths;
+    adminDirectAnswer = resolveAdminDirectAnswer({
+      message,
+      language,
+      metrics: adminContext.metrics,
+    });
+
+    if (adminDirectAnswer && adminCitations.length === 0) {
+      adminCitations = [
+        "src/lib/admin-chat-intents.ts",
+        "src/lib/admin-manual-knowledge.ts",
+      ];
+    }
+
+    if (knowledge.confidence === "high" || adminContext.confidence === "high") {
+      mergedConfidence = "high";
+    } else if (knowledge.confidence === "medium" || adminContext.confidence === "medium") {
+      mergedConfidence = "medium";
+    } else {
+      mergedConfidence = "low";
+    }
+
+    if (adminDirectAnswer) {
+      mergedConfidence = "high";
+    }
+  }
+
+  const aiAnswer = adminDirectAnswer
+    ? null
+    : await callOpenAiAnswer({
+        language,
+        message,
+        history,
+        contextText,
+        accountContextText,
+        adminSystemPromptAddition,
+        isAdminMode,
+      });
+
+  const answer = adminDirectAnswer ?? aiAnswer ?? fallbackAnswer(language, contextText, mergedConfidence, message);
+  const escalateToHuman = isAdminMode ? false : mergedConfidence === "low";
 
   const responsePayload: ChatResponsePayload = {
     ok: true,
     sessionId,
     answer,
     language,
-    confidence: knowledge.confidence as "low" | "high" | "medium",
+    confidence: mergedConfidence,
     escalateToHuman,
     policyReferences: [],
-    suggestLeadCapture: shouldSuggestLeadCapture(message),
+    suggestLeadCapture: isAdminMode ? false : shouldSuggestLeadCapture(message),
+    citations: isAdminMode ? adminCitations : undefined,
     handoff: {
       callHref: company.phoneHref,
       smsHref: company.smsHref,

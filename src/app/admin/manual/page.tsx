@@ -1,5 +1,4 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { AdminManualAssistant } from "@/components/admin/admin-manual-assistant";
 import { AdminManualDiagrams } from "@/components/admin/admin-manual-diagrams";
 import { ManualSecretRevealButton } from "@/components/admin/manual-secret-reveal-button";
 import {
@@ -713,11 +712,9 @@ export default async function AdminManualPage() {
       <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
         <h2 className="text-2xl text-[#1b2f25]">Ask Questions in Plain English</h2>
         <p className="mt-2 text-sm text-[#445349]">
-          Use this assistant for step-by-step explanations about admin workflows, deployment, credentials, incidents, and codebase behavior.
+          Use the Admin AI Assistant in the bottom-right chat bubble for step-by-step explanations about deployment, credentials, incidents,
+          dashboard workflows, and codebase behavior.
         </p>
-        <div className="mt-4">
-          <AdminManualAssistant />
-        </div>
       </section>
 
       <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
