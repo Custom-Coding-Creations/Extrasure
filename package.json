@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "prisma generate --schema prisma/schema.prisma && next dev",
-    "build": "node scripts/prisma-prepare.mjs && next build",
-    "build:vercel": "node scripts/prisma-prepare.mjs && next build",
+    "manual:refresh-corpus": "node scripts/generate-admin-manual-retrieval-corpus.mjs",
+    "build": "npm run manual:refresh-corpus && node scripts/prisma-prepare.mjs && next build",
+    "build:vercel": "npm run manual:refresh-corpus && node scripts/prisma-prepare.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "jest --runInBand",

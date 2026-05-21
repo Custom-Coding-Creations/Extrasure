@@ -1,4 +1,6 @@
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminManualAssistant } from "@/components/admin/admin-manual-assistant";
+import { AdminManualDiagrams } from "@/components/admin/admin-manual-diagrams";
 import { ManualSecretRevealButton } from "@/components/admin/manual-secret-reveal-button";
 import {
   createManualSecretAction,
@@ -695,6 +697,26 @@ export default async function AdminManualPage() {
             <li>Use Daily SOP checklists to establish your operating routine.</li>
             <li>Read Incident Playbooks so emergency actions are familiar before an outage occurs.</li>
           </ol>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
+        <h2 className="text-2xl text-[#1b2f25]">See the Big Picture First</h2>
+        <p className="mt-2 text-sm text-[#445349]">
+          These visual flows explain architecture, deployment, and payment sync in plain language so you can quickly orient before running checklists.
+        </p>
+        <div className="mt-4">
+          <AdminManualDiagrams />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
+        <h2 className="text-2xl text-[#1b2f25]">Ask Questions in Plain English</h2>
+        <p className="mt-2 text-sm text-[#445349]">
+          Use this assistant for step-by-step explanations about admin workflows, deployment, credentials, incidents, and codebase behavior.
+        </p>
+        <div className="mt-4">
+          <AdminManualAssistant />
         </div>
       </section>
 
