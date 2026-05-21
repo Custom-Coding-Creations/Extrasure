@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildKnowledgeContext } from "@/lib/ai-knowledge";
 import { detectLanguage, evaluateGuardrails, policySnippetFor, type AiLanguage } from "@/lib/ai-policy";
+import { requireAdminApiSession } from "@/lib/admin-auth";
+import { executeChatbotOperation, type ChatbotOperationRequest, type ChatbotOperationResult } from "@/lib/chatbot-operations";
+import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { company } from "@/lib/site";
 
 type ChatRole = "user" | "assistant";
@@ -14,6 +17,7 @@ type ChatRequest = {
   sessionId?: string;
   message?: string;
   history?: ChatMessage[];
+  operation?: ChatbotOperationRequest;
   context?: {
     currentPage?: string;
     pageSummary?: string;
@@ -40,7 +44,33 @@ type ChatResponsePayload = {
     smsHref: string;
     contactPath: string;
   };
+  operation?: ChatbotOperationResult;
 };
+
+const WRITE_OPERATION_ACTIONS = new Set([
+  "schedule_appointment",
+  "reschedule_appointment",
+  "cancel_appointment",
+  "assign_technician",
+]);
+
+function getOperationRateLimitConfig(isWrite: boolean) {
+  const defaultMax = isWrite ? 20 : 60;
+  const defaultWindowMs = 60_000;
+  const maxFromEnv = Number.parseInt(
+    isWrite ? process.env.AI_CHAT_OPERATION_WRITE_RATE_LIMIT_MAX ?? "" : process.env.AI_CHAT_OPERATION_READ_RATE_LIMIT_MAX ?? "",
+    10,
+  );
+  const windowFromEnv = Number.parseInt(
+    process.env.AI_CHAT_OPERATION_RATE_LIMIT_WINDOW_MS ?? "",
+    10,
+  );
+
+  const max = Number.isFinite(maxFromEnv) && maxFromEnv > 0 ? maxFromEnv : defaultMax;
+  const windowMs = Number.isFinite(windowFromEnv) && windowFromEnv > 0 ? windowFromEnv : defaultWindowMs;
+
+  return { max, windowMs };
+}
 
 function ensureSessionId(sessionId: string | undefined) {
   if (sessionId && sessionId.trim().length > 0) {
@@ -260,13 +290,78 @@ export async function POST(request: NextRequest) {
   }
 
   const message = payload.message?.trim() ?? "";
+  const operation = payload.operation;
 
-  if (message.length === 0) {
-    return NextResponse.json({ error: "Message is required" }, { status: 400 });
+  if (!operation && message.length === 0) {
+    return NextResponse.json({ error: "Message is required when operation is not provided" }, { status: 400 });
   }
 
   const sessionId = ensureSessionId(payload.sessionId);
-  const language = detectLanguage(message);
+  const resolvedMessage = message || `operation:${operation?.action ?? "unknown"}`;
+  const language = detectLanguage(resolvedMessage);
+
+  if (operation) {
+    const requestIp = getRequestIp(request);
+    const isWriteOperation = WRITE_OPERATION_ACTIONS.has(operation.action);
+    const rateLimitConfig = getOperationRateLimitConfig(isWriteOperation);
+    const rateLimitResult = checkRateLimit(
+      `ai-chat-ops:${isWriteOperation ? "write" : "read"}:${requestIp}`,
+      rateLimitConfig.max,
+      rateLimitConfig.windowMs,
+    );
+
+    if (!rateLimitResult.ok) {
+      return NextResponse.json(
+        {
+          error: "Too many operation requests. Please try again shortly.",
+          retryAt: new Date(rateLimitResult.resetAt).toISOString(),
+        },
+        { status: 429 },
+      );
+    }
+
+    const adminSession = await requireAdminApiSession();
+    const operationOutcome = await executeChatbotOperation({
+      operation,
+      adminSession,
+      chatSessionId: sessionId,
+    });
+
+    const operationAnswer =
+      language === "es"
+        ? `Resultado de la operacion ${operation.action}: ${operationOutcome.message}`
+        : `Operation ${operation.action} result: ${operationOutcome.message}`;
+
+    const operationResponse: ChatResponsePayload = {
+      ok: true,
+      sessionId,
+      answer: operationAnswer,
+      language,
+      confidence: operationOutcome.status === "success" ? "high" : "medium",
+      escalateToHuman: operationOutcome.status !== "success",
+      policyReferences: [],
+      suggestLeadCapture: false,
+      handoff: {
+        callHref: company.phoneHref,
+        smsHref: company.smsHref,
+        contactPath: "/contact",
+      },
+      operation: operationOutcome,
+    };
+
+    await routeTranscript({
+      sessionId,
+      message: resolvedMessage,
+      answer: operationResponse.answer,
+      confidence: operationResponse.confidence,
+      escalateToHuman: operationResponse.escalateToHuman,
+      language,
+      policyReferences: operationResponse.policyReferences,
+    });
+
+    return NextResponse.json(operationResponse, { status: 200 });
+  }
+
   const history = normalizeHistory(payload.history);
   const guardrail = evaluateGuardrails(message);
   const accountContextText = buildContextSummary(payload.context);

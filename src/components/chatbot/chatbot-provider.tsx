@@ -37,7 +37,59 @@ export type ApiChatResponse = {
     smsHref: string;
     contactPath: string;
   };
+  operation?: ChatbotOperationResult;
 };
+
+export type ChatbotOperationAction =
+  | "list_appointments"
+  | "list_technicians"
+  | "get_availability"
+  | "schedule_appointment"
+  | "reschedule_appointment"
+  | "cancel_appointment"
+  | "assign_technician";
+
+export type ChatbotOperationRequest = {
+  action: ChatbotOperationAction;
+  payload?: Record<string, unknown>;
+  confirmationToken?: string;
+};
+
+export type ChatbotOperationResult = {
+  action: ChatbotOperationAction;
+  status: "success" | "error" | "requires_confirmation";
+  requiresConfirmation: boolean;
+  message: string;
+  result?: Record<string, unknown>;
+  confirmationToken?: string;
+};
+
+export type OperationHistoryEntry = {
+  id: string;
+  createdAt: string;
+  action: ChatbotOperationAction;
+  status: ChatbotOperationResult["status"];
+  message: string;
+  payload?: Record<string, unknown>;
+  result?: Record<string, unknown> | null;
+  source?: "live" | "audit";
+  auditAction?: string;
+  actor?: string;
+  entityId?: string;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+};
+
+type OperationHistoryApiResponse = {
+  ok: boolean;
+  entries?: OperationHistoryEntry[];
+  capabilities?: {
+    canViewAllScope: boolean;
+    viewerRole?: string;
+  };
+};
+
+type OperationHistoryScope = "self" | "all";
 
 export type TriageResult = {
   likelyPest: string;
@@ -119,6 +171,20 @@ type ChatbotContextValue = {
   
   // Suggested prompts (context-aware)
   suggestedPrompts: string[];
+
+  // Operations state
+  operationLoading: boolean;
+  lastOperation: ChatbotOperationResult | null;
+  pendingOperation: ChatbotOperationRequest | null;
+  operationHistory: OperationHistoryEntry[];
+  operationHistoryScope: OperationHistoryScope;
+  canViewTeamOperationHistory: boolean;
+  operationHistoryViewerRole: string | null;
+  runOperation: (action: ChatbotOperationAction, payload?: Record<string, unknown>) => Promise<void>;
+  confirmPendingOperation: () => Promise<void>;
+  clearPendingOperation: () => void;
+  setOperationHistoryScope: (scope: OperationHistoryScope) => void;
+  refreshOperationHistory: () => Promise<void>;
 };
 
 const ChatbotContext = createContext<ChatbotContextValue | null>(null);
@@ -134,6 +200,13 @@ export function useChatbot() {
 function makeId() {
   return crypto.randomUUID();
 }
+
+const WRITE_OPERATION_ACTIONS = new Set<ChatbotOperationAction>([
+  "schedule_appointment",
+  "reschedule_appointment",
+  "cancel_appointment",
+  "assign_technician",
+]);
 
 function getInitialGreeting(accountContext: AccountContext | null): string {
   if (accountContext?.currentPage) {
@@ -215,10 +288,84 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
     smsHref: "sms:+15169432318",
     contactPath: "/contact",
   });
+  const [operationLoading, setOperationLoading] = useState(false);
+  const [lastOperation, setLastOperation] = useState<ChatbotOperationResult | null>(null);
+  const [pendingOperation, setPendingOperation] = useState<ChatbotOperationRequest | null>(null);
+  const [operationHistory, setOperationHistory] = useState<OperationHistoryEntry[]>([]);
+  const [operationHistoryScope, setOperationHistoryScope] = useState<OperationHistoryScope>("self");
+  const [canViewTeamOperationHistory, setCanViewTeamOperationHistory] = useState(false);
+  const [operationHistoryViewerRole, setOperationHistoryViewerRole] = useState<string | null>(null);
+
+  const refreshOperationHistory = useCallback(async () => {
+    try {
+      const scope = operationHistoryScope;
+      const response = await fetch(`/api/ai/chat/operations-history?limit=20&scope=${scope}`, {
+        method: "GET",
+      });
+
+      if (response.status === 403) {
+        setCanViewTeamOperationHistory(false);
+        setOperationHistoryViewerRole(null);
+        if (operationHistoryScope === "all") {
+          setOperationHistoryScope("self");
+        }
+        return;
+      }
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as OperationHistoryApiResponse;
+
+      if (!payload.ok || !Array.isArray(payload.entries)) {
+        return;
+      }
+
+      setCanViewTeamOperationHistory(Boolean(payload.capabilities?.canViewAllScope));
+      setOperationHistoryViewerRole(
+        typeof payload.capabilities?.viewerRole === "string" ? payload.capabilities.viewerRole : null,
+      );
+
+      setOperationHistory((previous) => {
+        const liveEntries = previous.filter((entry) => entry.source !== "audit");
+        const auditEntries = payload.entries.map((entry) => ({
+          ...entry,
+          source: "audit" as const,
+        }));
+
+        const merged = [...liveEntries, ...auditEntries].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+
+        const deduped: OperationHistoryEntry[] = [];
+        const seen = new Set<string>();
+
+        for (const entry of merged) {
+          if (seen.has(entry.id)) {
+            continue;
+          }
+
+          seen.add(entry.id);
+          deduped.push(entry);
+        }
+
+        return deduped.slice(0, 12);
+      });
+    } catch {
+      // no-op: provider should still work when durable history endpoint is unavailable
+    }
+  }, [operationHistoryScope]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshOperationHistory();
+  }, [refreshOperationHistory]);
   
   // Handle initial handoff from booking wizard
   useEffect(() => {
     if (initialHandoff?.prompt) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInput(initialHandoff.prompt);
       // If there's context, merge it
       if (initialHandoff.context) {
@@ -229,6 +376,7 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
   
   // Update greeting when account context changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages((prev) => [
       {
         id: makeId(),
@@ -251,6 +399,159 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
   
   const addMessage = useCallback((message: UiMessage) => {
     setMessages((prev) => [...prev, message]);
+  }, []);
+
+  const invokeOperation = useCallback(async (operation: ChatbotOperationRequest) => {
+    if (operationLoading || sending) {
+      return;
+    }
+
+    setOperationLoading(true);
+
+    try {
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId: sessionId || undefined,
+          operation,
+          context: accountContext || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          let retryAt = "";
+          let errorMessage = "Too many operation requests. Please try again shortly.";
+
+          try {
+            const payload = (await response.json()) as {
+              error?: string;
+              retryAt?: string;
+            };
+            retryAt = payload.retryAt ?? "";
+            errorMessage = payload.error ?? errorMessage;
+          } catch {
+            // no-op: use fallback message
+          }
+
+          let retryInSeconds: number | null = null;
+          if (retryAt) {
+            const retryDate = new Date(retryAt);
+            if (!Number.isNaN(retryDate.getTime())) {
+              retryInSeconds = Math.max(Math.ceil((retryDate.getTime() - Date.now()) / 1000), 1);
+              errorMessage = `${errorMessage} Retry in about ${retryInSeconds}s.`;
+            }
+          }
+
+          const rateLimitedOperation: ChatbotOperationResult = {
+            action: operation.action,
+            status: "error",
+            requiresConfirmation: WRITE_OPERATION_ACTIONS.has(operation.action),
+            message: errorMessage,
+            result: {
+              code: "rate_limited",
+              retryAt: retryAt || null,
+              retryInSeconds,
+            },
+          };
+
+          setLastOperation(rateLimitedOperation);
+          setOperationHistory((previous) => {
+            const nextEntry: OperationHistoryEntry = {
+              id: makeId(),
+              createdAt: new Date().toISOString(),
+              action: rateLimitedOperation.action,
+              status: rateLimitedOperation.status,
+              message: rateLimitedOperation.message,
+              payload: operation.payload,
+              result: rateLimitedOperation.result ?? null,
+              source: "live",
+            };
+
+            return [nextEntry, ...previous].slice(0, 12);
+          });
+
+          addMessage({
+            id: makeId(),
+            role: "assistant",
+            content: errorMessage,
+          });
+
+          return;
+        }
+
+        throw new Error("Operation request failed");
+      }
+
+      const data = (await response.json()) as ApiChatResponse;
+      setSessionId(data.sessionId);
+      setHandoffLinks(data.handoff);
+
+      if (data.operation) {
+        setLastOperation(data.operation);
+        setOperationHistory((previous) => {
+          const nextEntry: OperationHistoryEntry = {
+            id: makeId(),
+            createdAt: new Date().toISOString(),
+            action: data.operation.action,
+            status: data.operation.status,
+            message: data.operation.message,
+            payload: operation.payload,
+            result: data.operation.result ?? null,
+            source: "live",
+          };
+
+          return [nextEntry, ...previous].slice(0, 12);
+        });
+
+        if (data.operation.status === "requires_confirmation" && data.operation.confirmationToken) {
+          setPendingOperation({
+            action: operation.action,
+            payload: operation.payload,
+            confirmationToken: data.operation.confirmationToken,
+          });
+        } else {
+          setPendingOperation(null);
+        }
+      }
+
+      addMessage({
+        id: makeId(),
+        role: "assistant",
+        content: data.answer,
+      });
+    } catch {
+      addMessage({
+        id: makeId(),
+        role: "assistant",
+        content: "I couldn't complete that operation right now. Please try again or ask staff to handle it directly.",
+      });
+    } finally {
+      setOperationLoading(false);
+    }
+  }, [accountContext, addMessage, operationLoading, sending, sessionId]);
+
+  const runOperation = useCallback(async (action: ChatbotOperationAction, payload?: Record<string, unknown>) => {
+    await invokeOperation({ action, payload });
+  }, [invokeOperation]);
+
+  const confirmPendingOperation = useCallback(async () => {
+    if (!pendingOperation?.confirmationToken) {
+      return;
+    }
+
+    await invokeOperation({
+      action: pendingOperation.action,
+      payload: pendingOperation.payload,
+      confirmationToken: pendingOperation.confirmationToken,
+    });
+  }, [invokeOperation, pendingOperation]);
+
+  const clearPendingOperation = useCallback(() => {
+    setPendingOperation(null);
   }, []);
   
   const sendMessage = useCallback(async (messageText: string) => {
@@ -311,7 +612,7 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
       if (data.suggestLeadCapture && !accountContext) {
         setShowLeadForm(true);
       }
-    } catch (error) {
+    } catch {
       addMessage({
         id: makeId(),
         role: "assistant",
@@ -435,7 +736,7 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
         setShowLeadForm(false);
         setLeadStatus("idle");
       }, 3000);
-    } catch (error) {
+    } catch {
       setLeadStatus("error");
       setLeadMessage("Something went wrong. Please call us directly at (516) 943-2318.");
       trackEvent("ai_chat_lead_submit_error", { source: accountContext?.currentPage || "site_chatbot" });
@@ -478,6 +779,18 @@ export function ChatbotProvider({ children, initialHandoff, accountContext: init
     submitLead,
     handoffLinks,
     suggestedPrompts,
+    operationLoading,
+    lastOperation,
+    pendingOperation,
+    operationHistory,
+    operationHistoryScope,
+    canViewTeamOperationHistory,
+    operationHistoryViewerRole,
+    runOperation,
+    confirmPendingOperation,
+    clearPendingOperation,
+    setOperationHistoryScope,
+    refreshOperationHistory,
   };
   
   return <ChatbotContext.Provider value={value}>{children}</ChatbotContext.Provider>;

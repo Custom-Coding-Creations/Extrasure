@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 
 export type AuditAction =
+  | "chatbot_operation_requested"
+  | "chatbot_operation_denied"
+  | "chatbot_operation_confirmed"
+  | "chatbot_operation_executed"
   | "customer_created"
   | "customer_updated"
   | "customer_deleted"
@@ -54,7 +58,11 @@ export type AuditAction =
   | "scheduling_config_updated"
   | "technician_schedule_updated"
   | "schedule_exception_added"
-  | "schedule_exception_removed";
+  | "schedule_exception_removed"
+  | "manual_secret_created"
+  | "manual_secret_updated"
+  | "manual_secret_deleted"
+  | "manual_secret_viewed";
 
 export async function recordAuditEvent({
   actor,

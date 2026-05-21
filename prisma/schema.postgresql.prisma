@@ -508,6 +508,26 @@ model AuditEvent {
   timestamp DateTime @default(now())
 }
 
+model AdminManualSecret {
+  id             String   @id @default(cuid())
+  title          String
+  platform       String
+  category       String
+  portalUrl      String?
+  username       String?
+  notes          String?
+  encryptedValue String
+  iv             String
+  authTag        String
+  isActive       Boolean  @default(true)
+  lastRotatedAt  DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([category, isActive])
+  @@index([platform])
+}
+
 model WebhookEndpoint {
   id           String                  @id @default(cuid())
   url          String

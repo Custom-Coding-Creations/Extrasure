@@ -16,6 +16,7 @@ const links = [
   { href: "/admin/reporting", label: "Reporting" },
   { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/automations", label: "Automations" },
+  { href: "/admin/manual", label: "Admin Manual" },
   { href: "/admin/settings", label: "Security" },
 ];
 
