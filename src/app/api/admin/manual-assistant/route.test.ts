@@ -479,4 +479,49 @@ describe("POST /api/admin/manual-assistant", () => {
     expect(payload.answer).toContain("Thanks, that detail is enough to proceed");
     expect(payload.answer).not.toContain("Are you updating Vercel project domain routing");
   });
+
+  it("returns structured section recommendations and related terms", async () => {
+    buildAdminManualKnowledgeContext.mockReturnValue({
+      confidence: "medium",
+      contextText: "1. DNS and domain basics\nSummary: Use Vercel project domain settings.",
+      sourceTitles: ["DNS and domain basics"],
+    });
+
+    retrieveAdminManualContext.mockResolvedValue({
+      matches: [
+        {
+          id: "docs/1",
+          path: "README.md",
+          title: "README.md",
+          text: "Confirm SITE_URL and NEXT_PUBLIC_SITE_URL.",
+          score: 7,
+        },
+      ],
+      contextText: "1. [README.md] Confirm SITE_URL and NEXT_PUBLIC_SITE_URL.",
+      sourcePaths: ["README.md"],
+    });
+
+    const req = new NextRequest("https://example.com/api/admin/manual-assistant", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: "How do I handle DNS domain changes after a deployment?",
+        history: [],
+      }),
+    });
+
+    const response = await POST(req);
+    const payload = (await response.json()) as {
+      recommendedSections: Array<{ anchor: string; label: string }>;
+      relatedTerms: string[];
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.recommendedSections.length).toBeGreaterThan(0);
+    expect(payload.recommendedSections.some((section) => section.anchor === "platform-ops")).toBe(true);
+    expect(payload.relatedTerms).toContain("DNS");
+    expect(payload.relatedTerms).toContain("Deployment");
+  });
 });

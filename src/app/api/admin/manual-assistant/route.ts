@@ -23,6 +23,11 @@ type ScopeDecision = {
   reason: string;
 };
 
+type ManualSectionRecommendation = {
+  anchor: string;
+  label: string;
+};
+
 type AssistantResponseMode =
   | "out-of-scope"
   | "dns-clarifier"
@@ -39,6 +44,25 @@ type AssistantResponseMode =
 
 const STRONG_RETRIEVAL_SCORE = 6;
 const DIRECT_RETRIEVAL_SCOPE_SCORE = 10;
+
+const manualSectionCatalog: ManualSectionRecommendation[] = [
+  { anchor: "quick-start", label: "Executive Start Here" },
+  { anchor: "operating-guides", label: "Role Guides and Core Operating Patterns" },
+  { anchor: "admin-modules", label: "Admin Dashboard Module Manual" },
+  { anchor: "platform-ops", label: "Platform Operations" },
+  { anchor: "incidents", label: "Incidents and Recovery" },
+  { anchor: "reference-security", label: "Glossary and Credential Security" },
+  { anchor: "owner-credentials", label: "Owner Credentials" },
+];
+
+const relatedTermCatalog = {
+  dns: ["DNS", "Domain routing", "SITE_URL", "Rollback"],
+  deploy: ["Deployment", "Rollback", "Smoke test", "Blast radius"],
+  payment: ["Webhook replay", "Idempotency", "Invoice reconciliation", "Least privilege"],
+  auth: ["OAuth", "Session", "Credential rotation", "Audit trail"],
+  database: ["Schema", "Prisma", "RPO", "RTO"],
+  general: ["Runbook", "Incident commander", "Escalation packet", "Configuration drift"],
+};
 
 const operationsProfile = {
   hostingPlatform: "Vercel",
@@ -104,6 +128,83 @@ function classifyScope(message: string): ScopeDecision {
     inScope: false,
     reason: "not-website-ops-related",
   };
+}
+
+function getRecommendedSections(params: {
+  message: string;
+  mode: AssistantResponseMode;
+  inScope: boolean;
+  confidence: "low" | "medium" | "high";
+}) {
+  const query = params.message.toLowerCase();
+  const picks: string[] = [];
+
+  if (!params.inScope) {
+    picks.push("quick-start", "operating-guides", "reference-security");
+  }
+
+  if (params.confidence === "low") {
+    picks.push("incidents", "platform-ops");
+  }
+
+  if (query.includes("dns") || query.includes("domain") || params.mode.includes("dns")) {
+    picks.push("platform-ops", "incidents", "reference-security");
+  }
+
+  if (query.includes("deploy") || query.includes("rollback") || query.includes("build") || params.mode.includes("deploy")) {
+    picks.push("platform-ops", "incidents", "quick-start");
+  }
+
+  if (query.includes("payment") || query.includes("stripe") || query.includes("invoice") || query.includes("webhook") || params.mode.includes("billing")) {
+    picks.push("platform-ops", "admin-modules", "incidents");
+  }
+
+  if (query.includes("auth") || query.includes("oauth") || query.includes("login") || params.mode.includes("auth")) {
+    picks.push("platform-ops", "reference-security", "incidents");
+  }
+
+  if (query.includes("credential") || query.includes("secret") || query.includes("vault")) {
+    picks.push("reference-security", "owner-credentials");
+  }
+
+  if (picks.length === 0) {
+    picks.push("platform-ops", "admin-modules", "reference-security");
+  }
+
+  return picks
+    .filter((value, index, all) => all.indexOf(value) === index)
+    .map((anchor) => manualSectionCatalog.find((section) => section.anchor === anchor))
+    .filter((section): section is ManualSectionRecommendation => Boolean(section))
+    .slice(0, 4);
+}
+
+function getRelatedTerms(message: string) {
+  const query = message.toLowerCase();
+  const terms: string[] = [];
+
+  if (query.includes("dns") || query.includes("domain")) {
+    terms.push(...relatedTermCatalog.dns);
+  }
+
+  if (query.includes("deploy") || query.includes("rollback") || query.includes("build")) {
+    terms.push(...relatedTermCatalog.deploy);
+  }
+
+  if (query.includes("payment") || query.includes("stripe") || query.includes("invoice") || query.includes("webhook")) {
+    terms.push(...relatedTermCatalog.payment);
+  }
+
+  if (query.includes("auth") || query.includes("oauth") || query.includes("login") || query.includes("session")) {
+    terms.push(...relatedTermCatalog.auth);
+  }
+
+  if (query.includes("database") || query.includes("postgres") || query.includes("prisma") || query.includes("schema")) {
+    terms.push(...relatedTermCatalog.database);
+  }
+
+  terms.push(...relatedTermCatalog.general);
+
+  return terms.filter((value, index, all) => all.indexOf(value) === index).slice(0, 10);
 }
 
 function normalizeHistory(history: ManualAssistantMessage[] | undefined) {
@@ -461,6 +562,13 @@ export async function POST(request: NextRequest) {
   });
   const answer = aiAnswer ?? fallback.answer;
   const mode: AssistantResponseMode = aiAnswer ? "grounded-ai" : fallback.mode;
+  const recommendedSections = getRecommendedSections({
+    message,
+    mode,
+    inScope: effectiveScope,
+    confidence: knowledge.confidence,
+  });
+  const relatedTerms = getRelatedTerms(message);
   let modeMetrics = {
     modeCount: 0,
     totalResponses: 0,
@@ -486,6 +594,8 @@ export async function POST(request: NextRequest) {
     modeCount: modeMetrics.modeCount,
     totalResponses: modeMetrics.totalResponses,
     modeCounts: modeMetrics.modeCounts,
+    recommendedSections,
+    relatedTerms,
     scope: {
       inScope: effectiveScope,
       reason: scope.reason,

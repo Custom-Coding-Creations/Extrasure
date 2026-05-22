@@ -9,6 +9,13 @@ export type PlatformSection = {
   setupChecklist: string[];
   dailyChecks: string[];
   troubleshooting: string[];
+  weeklyChecks?: string[];
+  failureSignals?: string[];
+  recoveryRunbook?: string[];
+  verificationChecklist?: string[];
+  escalationThresholds?: string[];
+  relatedSections?: Array<{ label: string; anchorId: string }>;
+  lastReviewed?: string;
 };
 
 export type ManualSecretClientItem = {

@@ -163,6 +163,86 @@ const adminManualKnowledgeBase: AdminManualKnowledgeEntry[] = [
     tags: ["reporting", "metrics", "analytics", "operations"],
     sourceHint: "src/app/admin/reporting, src/lib/admin-page-data.ts",
   },
+  {
+    id: "incident_command_protocol",
+    title: "Incident command protocol",
+    body:
+      "Use a four-phase incident loop: declare severity and commander, contain blast radius, recover critical paths, then capture follow-up actions. During P1 incidents, assign a single decision owner and maintain an escalation packet with timeline, symptoms, error signatures, and attempted mitigations.",
+    tags: ["incident", "commander", "severity", "escalation", "outage"],
+    sourceHint: "src/app/admin/manual/page.tsx",
+  },
+  {
+    id: "incident_escalation_packet",
+    title: "Escalation packet requirements",
+    body:
+      "Before handoff, include severity, blast radius, first detection timestamp, affected customer surfaces, major error signatures, and actions completed. A complete escalation packet reduces diagnosis time and prevents repeated troubleshooting loops.",
+    tags: ["escalation", "incident", "handoff", "forensics"],
+    sourceHint: "src/app/admin/manual/page.tsx",
+  },
+  {
+    id: "platform_runbook_coverage",
+    title: "Platform runbook coverage",
+    body:
+      "Each platform guide should include setup checklist, daily checks, weekly checks, failure signals, troubleshooting, recovery runbook, verification criteria, and escalation thresholds. Use these sections in order to avoid skipping stabilizing checks.",
+    tags: ["platform", "runbook", "operations", "checklist", "recovery"],
+    sourceHint: "src/app/admin/manual/page.tsx, src/components/admin/manual/manual-platform-operations.tsx",
+  },
+  {
+    id: "module_dependency_control",
+    title: "Cross-module dependency control",
+    body:
+      "Admin modules are coupled operationally: CRM affects schedule and billing context, schedule affects dispatch and reminders, payments affect invoice lifecycle and service readiness. Validate downstream impact after high-risk module edits.",
+    tags: ["modules", "dependency", "crm", "payments", "schedule"],
+    sourceHint: "src/app/admin/manual/page.tsx",
+  },
+  {
+    id: "role_handoff_standards",
+    title: "Role handoff standards",
+    body:
+      "Owner, dispatch, and accounting handoffs should include unresolved high-priority items, actions already attempted, and explicit next owner. Strong handoffs reduce duplicated work and lower overnight incident risk.",
+    tags: ["roles", "handoff", "owner", "dispatch", "accounting"],
+    sourceHint: "src/app/admin/manual/page.tsx, src/components/admin/manual/manual-role-walkthroughs.tsx",
+  },
+  {
+    id: "credential_lifecycle",
+    title: "Credential lifecycle and emergency access",
+    body:
+      "Credential management should follow create, verify, review, rotate, and retire stages. Emergency credential usage should be incident-bound, owner-approved for P1 events, and rotated immediately after closure.",
+    tags: ["credentials", "rotation", "security", "vault", "emergency"],
+    sourceHint: "src/app/admin/manual/page.tsx, src/lib/admin-manual-store.ts",
+  },
+  {
+    id: "payment_reconciliation_priority",
+    title: "Payment reconciliation priority rules",
+    body:
+      "When charge and invoice state diverge, treat Stripe charge events and webhook delivery logs as primary evidence. Replay failed events in controlled batches and validate invoice parity before re-enabling aggressive retries.",
+    tags: ["stripe", "reconciliation", "webhook", "invoice", "retry"],
+    sourceHint: "src/app/admin/manual/page.tsx, src/app/api/admin/stripe/webhook/route.ts",
+  },
+  {
+    id: "auth_recovery_sequence",
+    title: "Authentication recovery sequence",
+    body:
+      "For admin login failures, first validate ADMIN_AUTH_SECRET and provider callback URLs, then verify client credentials and provider status. Use controlled fallback login for incident response and audit any emergency access changes.",
+    tags: ["auth", "oauth", "admin", "login", "security"],
+    sourceHint: "src/app/admin/manual/page.tsx, src/lib/admin-auth.ts",
+  },
+  {
+    id: "reliability_targets",
+    title: "Reliability targets with RTO and RPO",
+    body:
+      "Use recovery time objective (RTO) to choose rollback vs in-place debugging under pressure. Use recovery point objective (RPO) to prioritize ingestion and write path restoration when data freshness degrades.",
+    tags: ["rto", "rpo", "reliability", "recovery", "data"],
+    sourceHint: "src/app/admin/manual/page.tsx",
+  },
+  {
+    id: "smoke_test_expectations",
+    title: "Smoke test expectations after fixes",
+    body:
+      "After deployment rollback or incident fix, validate at minimum: homepage availability, booking path, payment entry path, and admin authentication. Recovery is not complete until smoke tests pass and short-term monitoring remains stable.",
+    tags: ["smoke-test", "deployment", "recovery", "verification"],
+    sourceHint: "src/app/admin/manual/page.tsx",
+  },
 ];
 
 function tokenize(input: string) {

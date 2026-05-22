@@ -1,5 +1,6 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminManualAssistant } from "@/components/admin/admin-manual-assistant";
+import { AdminManualAssistantMetrics } from "@/components/admin/admin-manual-assistant-metrics";
 import { AdminManualDiagrams } from "@/components/admin/admin-manual-diagrams";
 import { ManualGlossaryIndex } from "@/components/admin/manual/manual-glossary-index";
 import { ManualSectionFrame } from "@/components/admin/manual/manual-section-frame";
@@ -28,8 +29,15 @@ type DashboardModuleGuide = {
 
 type IncidentGuide = {
   title: string;
+  severity: "P1" | "P2" | "P3";
   symptom: string;
+  detectionSignals: string[];
   firstResponse: string[];
+  containmentChecklist: string[];
+  diagnostics: string[];
+  serviceRecovery: string[];
+  escalationPacket: string[];
+  linkedSections: string[];
   escalation: string;
 };
 
@@ -37,7 +45,11 @@ type RoleWalkthrough = {
   role: string;
   mission: string;
   firstFiveClicks: string[];
+  startOfDayChecks: string[];
   dailyWorkflow: string[];
+  endOfDayChecks: string[];
+  handoffProtocol: string[];
+  highRiskMistakes: string[];
   emergencyPriority: string[];
 };
 
@@ -46,6 +58,7 @@ type DecisionTree = {
   question: string;
   yesPath: string[];
   noPath: string[];
+  ifUnknownPath: string[];
 };
 
 function formatDate(value: Date | string) {
@@ -88,11 +101,41 @@ const platformSections: PlatformSection[] = [
       "Check Functions logs for repeated errors.",
       "Confirm no unauthorized environment variable edits were made.",
     ],
+    weeklyChecks: [
+      "Verify rollback candidate deployments are still healthy and accessible.",
+      "Audit project members and deployment permissions for least privilege.",
+      "Review build duration trend for sudden regressions.",
+    ],
+    failureSignals: [
+      "Consecutive deployment failures with same compile/runtime signature.",
+      "Spike in function timeouts or memory errors.",
+      "Domain SSL warnings or intermittent routing failures.",
+    ],
     troubleshooting: [
       "If build fails, open deployment logs and identify the first TypeScript or runtime error.",
       "If site is down, check domain routing then rollback to last successful deployment.",
       "If API routes fail only in production, compare production environment variables with local.",
     ],
+    recoveryRunbook: [
+      "Stabilize by rolling back to last known good deployment.",
+      "Run smoke test for homepage, booking, admin login, and payment entry.",
+      "Reintroduce latest changes only after root cause is isolated and fixed.",
+    ],
+    verificationChecklist: [
+      "No active Vercel incidents and deployment status is ready.",
+      "Zero critical function errors for 10 minutes.",
+      "Core user paths return expected status codes.",
+    ],
+    escalationThresholds: [
+      "Customer-facing outage exceeds 15 minutes.",
+      "Rollback fails or introduces secondary failures.",
+      "Two consecutive deploys fail with unknown cause.",
+    ],
+    relatedSections: [
+      { label: "Incidents and Recovery", anchorId: "incidents" },
+      { label: "Executive Start Here", anchorId: "quick-start" },
+    ],
+    lastReviewed: "May 2026",
   },
   {
     id: "github",
@@ -119,11 +162,41 @@ const platformSections: PlatformSection[] = [
       "Check commit history for unexpected direct pushes.",
       "Review issue queue for production-impacting bugs.",
     ],
+    weeklyChecks: [
+      "Review branch protection settings and required status checks.",
+      "Confirm inactive collaborators are removed.",
+      "Audit dependency/security alerts and assign owners.",
+    ],
+    failureSignals: [
+      "Unreviewed direct commits to protected branch.",
+      "Repeated CI failures on release-critical paths.",
+      "Large unscoped PRs merged without rollout notes.",
+    ],
     troubleshooting: [
       "If production broke after merge, identify the exact merge commit and rollback.",
       "If collaboration fails, verify repository access and branch rules.",
       "If actions/checks fail repeatedly, inspect workflow logs and dependency versions.",
     ],
+    recoveryRunbook: [
+      "Revert or hotfix the offending merge commit.",
+      "Re-run validation and required checks before re-promoting.",
+      "Update incident notes with commit IDs and impacted files.",
+    ],
+    verificationChecklist: [
+      "Main branch reflects intended recovery commit.",
+      "Required checks are green on recovery PR.",
+      "Release notes include operational impact summary.",
+    ],
+    escalationThresholds: [
+      "Main branch integrity uncertain after multiple rapid fixes.",
+      "Security alert impacts production dependency chain.",
+      "Ownership/permission drift cannot be resolved immediately.",
+    ],
+    relatedSections: [
+      { label: "Admin Dashboard Module Manual", anchorId: "admin-modules" },
+      { label: "Incidents and Recovery", anchorId: "incidents" },
+    ],
+    lastReviewed: "May 2026",
   },
   {
     id: "stripe",
@@ -151,11 +224,41 @@ const platformSections: PlatformSection[] = [
       "Confirm webhook deliveries are successful.",
       "Check for unusual refund or dispute activity.",
     ],
+    weeklyChecks: [
+      "Reconcile invoice and charge parity for random sampled accounts.",
+      "Review fraud/dispute indicators and adjust risk playbook.",
+      "Validate backup payment methods and customer portal settings.",
+    ],
+    failureSignals: [
+      "Payment successes in Stripe without invoice updates.",
+      "Webhook delivery failure ratio spikes above baseline.",
+      "Retry queue growth over multiple cycles.",
+    ],
     troubleshooting: [
       "If payment status does not update, check webhook delivery logs first.",
       "If checkout fails, verify publishable key and secret key pair belong to same mode.",
       "If refunds fail, verify role permissions and Stripe account capabilities.",
     ],
+    recoveryRunbook: [
+      "Replay failed webhook events in chronological order.",
+      "Manually reconcile oldest impacted invoices first.",
+      "Resume automated retries only after reconciliation lag stabilizes.",
+    ],
+    verificationChecklist: [
+      "Webhook delivery errors return to normal levels.",
+      "Sampled paid invoices show correct settled states.",
+      "No duplicate retry or refund side effects observed.",
+    ],
+    escalationThresholds: [
+      "Payment sync lag exceeds 10 minutes across active customers.",
+      "Refund operations fail for multiple independent cases.",
+      "Potential duplicate charge risk is detected.",
+    ],
+    relatedSections: [
+      { label: "Incidents and Recovery", anchorId: "incidents" },
+      { label: "Glossary and Credential Security", anchorId: "reference-security" },
+    ],
+    lastReviewed: "May 2026",
   },
   {
     id: "openai",
@@ -183,11 +286,41 @@ const platformSections: PlatformSection[] = [
       "Verify chatbot responses in website and admin workflows.",
       "Review recent AI operation logs for error patterns.",
     ],
+    weeklyChecks: [
+      "Review model/version configuration for drift across environments.",
+      "Assess fallback usage ratio and tune escalation criteria.",
+      "Audit prompt/policy changes with owner signoff.",
+    ],
+    failureSignals: [
+      "Fallback responses increase suddenly without deploy changes.",
+      "Latency spikes cause user-visible timeout complaints.",
+      "Safety/policy exceptions rise in chat moderation logs.",
+    ],
     troubleshooting: [
       "If AI returns fallback answers, verify key validity and model settings.",
       "If latency spikes, check status page and recent request volume.",
       "If responses seem unsafe, disable AI temporarily and route to human workflow.",
     ],
+    recoveryRunbook: [
+      "Switch to deterministic fallback mode for critical user paths.",
+      "Validate API key and model availability with direct health request.",
+      "Re-enable AI progressively and monitor error/latency trends.",
+    ],
+    verificationChecklist: [
+      "Chat and triage APIs return expected non-fallback responses.",
+      "Latency is within acceptable operating target.",
+      "No policy-critical output issues observed in spot checks.",
+    ],
+    escalationThresholds: [
+      "Fallback mode persists beyond 30 minutes.",
+      "Unsafe output is observed in production workflows.",
+      "OpenAI outage has sustained customer impact.",
+    ],
+    relatedSections: [
+      { label: "Role Guides and Core Operating Patterns", anchorId: "operating-guides" },
+      { label: "Incidents and Recovery", anchorId: "incidents" },
+    ],
+    lastReviewed: "May 2026",
   },
   {
     id: "database",
@@ -214,11 +347,41 @@ const platformSections: PlatformSection[] = [
       "Review failed DB connection logs.",
       "Check that scheduled cleanup and maintenance scripts are completing.",
     ],
+    weeklyChecks: [
+      "Run schema drift check between deployed schema and expected migration state.",
+      "Validate backup restore point freshness and recovery test evidence.",
+      "Review slow queries and add remediation tasks for regressions.",
+    ],
+    failureSignals: [
+      "Sudden increase in query timeout errors.",
+      "Data freshness mismatch across related modules.",
+      "Unexpected null/empty record spikes in critical entities.",
+    ],
     troubleshooting: [
       "If dashboard data is missing, verify DATABASE_URL and DB reachability.",
       "If schema mismatch appears, run prisma generate and validate db push state.",
       "If data looks stale, verify write paths and webhook ingestion status.",
     ],
+    recoveryRunbook: [
+      "Restore connectivity and schema alignment before retrying write-heavy workflows.",
+      "Backfill missed ingestion events if applicable.",
+      "Confirm core module record counts match expected trend baselines.",
+    ],
+    verificationChecklist: [
+      "No active connection saturation or timeout errors.",
+      "Schema/client generation status is healthy.",
+      "High-priority modules show fresh and consistent data.",
+    ],
+    escalationThresholds: [
+      "Core admin modules cannot load data for over 10 minutes.",
+      "Potential data integrity risk is identified.",
+      "Backup/restore readiness cannot be verified.",
+    ],
+    relatedSections: [
+      { label: "Admin Dashboard Module Manual", anchorId: "admin-modules" },
+      { label: "Incidents and Recovery", anchorId: "incidents" },
+    ],
+    lastReviewed: "May 2026",
   },
   {
     id: "oauth",
@@ -245,11 +408,41 @@ const platformSections: PlatformSection[] = [
       "Verify new staff accounts have proper role mapping.",
       "Ensure former staff accounts are removed from provider and dashboard.",
     ],
+    weeklyChecks: [
+      "Audit provider app redirect URIs for drift across environments.",
+      "Review admin role assignments against least-privilege standards.",
+      "Test emergency owner-login fallback path.",
+    ],
+    failureSignals: [
+      "Redirect-loop login reports from multiple admins.",
+      "OAuth callback mismatch errors in auth logs.",
+      "Repeated denied access for valid users after role changes.",
+    ],
     troubleshooting: [
       "If OAuth fails, check callback URL mismatch first.",
       "If token exchange fails, rotate client secret and update env values.",
       "If login redirects loop, check session secret and provider app status.",
     ],
+    recoveryRunbook: [
+      "Restore callback URLs and client secret configuration.",
+      "Validate owner and dispatch login with both provider and manual fallback.",
+      "Review audit logs for unexpected auth changes during incident window.",
+    ],
+    verificationChecklist: [
+      "Successful login for at least one account per supported auth method.",
+      "Stable session behavior without loops.",
+      "Role resolution matches expected dashboard permissions.",
+    ],
+    escalationThresholds: [
+      "No admins can log in through any method.",
+      "Auth failures affect owner emergency access paths.",
+      "Potential unauthorized access pattern is detected.",
+    ],
+    relatedSections: [
+      { label: "Glossary and Credential Security", anchorId: "reference-security" },
+      { label: "Incidents and Recovery", anchorId: "incidents" },
+    ],
+    lastReviewed: "May 2026",
   },
 ];
 
@@ -484,42 +677,154 @@ const dashboardModules: DashboardModuleGuide[] = [
 const incidentGuides: IncidentGuide[] = [
   {
     title: "Website is down",
+    severity: "P1",
     symptom: "Visitors cannot load the site or receive server errors.",
+    detectionSignals: [
+      "Home page fails from external network with 5xx or timeout.",
+      "Synthetic monitoring or admin reports sudden traffic drop.",
+      "Multiple operator reports confirm outage across devices.",
+    ],
     firstResponse: [
       "Open Vercel dashboard and check latest production deployment status.",
       "If latest deployment failed health checks, rollback to previous successful deployment.",
       "Check runtime logs for first fatal error and document timestamp.",
     ],
+    containmentChecklist: [
+      "Pause non-essential releases until root cause is identified.",
+      "Switch customer-facing comms banner or support script to incident mode.",
+      "Route urgent bookings through dispatch fallback workflow while web flow is unstable.",
+    ],
+    diagnostics: [
+      "Confirm whether outage affects only public pages or admin routes too.",
+      "Compare failing endpoints to recent deployment diff and changed env values.",
+      "Capture request IDs and first failing timestamp for incident timeline.",
+    ],
+    serviceRecovery: [
+      "Validate homepage, booking flow, and payment entry path after rollback/fix.",
+      "Run a smoke test across at least one customer flow and one admin flow.",
+      "Announce service restored only after 10 minutes of stable monitoring.",
+    ],
+    escalationPacket: [
+      "Incident start time and first detection source.",
+      "Latest successful deployment ID and active rollback target.",
+      "Top error signatures and affected routes.",
+      "Operator actions already attempted and outcomes.",
+    ],
+    linkedSections: ["quick-start", "platform-ops", "incidents"],
     escalation: "Escalate to developer after rollback and log capture if outage exceeds 15 minutes.",
   },
   {
     title: "Payments are not updating",
+    severity: "P1",
     symptom: "Invoices remain open after customer pays.",
+    detectionSignals: [
+      "Stripe dashboard shows successful charge but invoice status remains open.",
+      "Support reports duplicate payment follow-up requests.",
+      "Webhook delivery failures spike for payment-intent events.",
+    ],
     firstResponse: [
       "Check Stripe webhook deliveries for failures.",
       "Verify STRIPE_WEBHOOK_SECRET and endpoint URL in production settings.",
       "Confirm payment exists in Stripe dashboard and compare event timestamps.",
     ],
+    containmentChecklist: [
+      "Pause automated dunning actions that may confuse already-paid customers.",
+      "Flag impacted invoices for manual review queue.",
+      "Coordinate with dispatch to avoid service holds due to stale billing state.",
+    ],
+    diagnostics: [
+      "Reconcile one known-good charge end-to-end from Stripe event to invoice update.",
+      "Identify whether failures are event-type specific or endpoint-wide.",
+      "Check recent deploy/config changes around payment reconciliation logic.",
+    ],
+    serviceRecovery: [
+      "Replay failed webhook events in controlled batches.",
+      "Verify invoice state corrections in admin payments and invoices modules.",
+      "Resume normal automation only after reconciliation lag is back to baseline.",
+    ],
+    escalationPacket: [
+      "Affected invoice count and oldest unresolved payment timestamp.",
+      "Webhook error samples with event IDs.",
+      "Current Stripe endpoint and secret version in use.",
+      "Manual reconciliation actions completed.",
+    ],
+    linkedSections: ["platform-ops", "admin-modules", "reference-security"],
     escalation: "Escalate if webhook replay does not reconcile within 10 minutes.",
   },
   {
     title: "Admin cannot sign in",
+    severity: "P1",
     symptom: "Owner login or OAuth flow fails or loops.",
+    detectionSignals: [
+      "Multiple admins report redirect loops or repeated unauthorized responses.",
+      "Owner login action returns secret or callback configuration errors.",
+      "OAuth provider reports invalid redirect URI or client secret mismatch.",
+    ],
     firstResponse: [
       "Validate admin auth secrets and OAuth callback URLs.",
       "Confirm provider app status in Google and Microsoft consoles.",
       "Try owner credential login flow to isolate OAuth-specific failure.",
     ],
+    containmentChecklist: [
+      "Use least-privilege emergency admin account for active incident response.",
+      "Temporarily disable problematic OAuth provider if it causes repeated lockouts.",
+      "Restrict high-risk configuration edits until identity path is stable.",
+    ],
+    diagnostics: [
+      "Test login on preview and production to isolate environment drift.",
+      "Validate ADMIN_AUTH_SECRET and provider client credentials are in correct environment.",
+      "Inspect auth route logs for repeated token/session failures.",
+    ],
+    serviceRecovery: [
+      "Verify owner login and OAuth login both complete with stable session state.",
+      "Check role resolution for owner, dispatch, and accounting accounts.",
+      "Audit recent auth setting changes and document restoration steps.",
+    ],
+    escalationPacket: [
+      "Impacted roles and count of failed login attempts.",
+      "Provider-specific error messages and callback URL used.",
+      "Recent auth-related deploys or setting changes.",
+      "Emergency access method status.",
+    ],
+    linkedSections: ["platform-ops", "reference-security", "operating-guides"],
     escalation: "Escalate if all auth methods fail or multiple users are locked out.",
   },
   {
     title: "Dashboard data missing",
+    severity: "P2",
     symptom: "Pages render but records are empty or stale.",
+    detectionSignals: [
+      "Counts unexpectedly drop to zero while service activity continues.",
+      "Specific modules load shell UI but no records.",
+      "Admin reports stale data that does not reflect latest operations.",
+    ],
     firstResponse: [
       "Validate database connectivity and schema sync state.",
       "Check recent deploy logs for Prisma generation or query errors.",
       "Confirm webhook ingestion endpoints are healthy for external data updates.",
     ],
+    containmentChecklist: [
+      "Pause high-impact data edits until source-of-truth consistency is confirmed.",
+      "Switch critical workflows to validated modules only.",
+      "Capture scope of missing entities (customers, invoices, bookings, etc.).",
+    ],
+    diagnostics: [
+      "Run targeted queries to verify records exist at the database level.",
+      "Compare API response payloads against module expectations.",
+      "Identify whether issue is read path, write path, or ingestion lag.",
+    ],
+    serviceRecovery: [
+      "Restore affected ingestion/read paths and verify with known test entities.",
+      "Reconcile stale records and rerun any deferred sync jobs.",
+      "Confirm module metrics return to expected trend range.",
+    ],
+    escalationPacket: [
+      "Affected modules and data domains.",
+      "First observed stale timestamp and newest confirmed good timestamp.",
+      "Database and API log excerpts for failing requests.",
+      "Temporary mitigations in place.",
+    ],
+    linkedSections: ["admin-modules", "platform-ops", "reference-security"],
     escalation: "Escalate if data remains stale after DB and webhook checks.",
   },
 ];
@@ -535,11 +840,31 @@ const roleWalkthroughs: RoleWalkthrough[] = [
       "Open Security settings and confirm admin user access is current.",
       "Open Audit Logs and review sensitive actions from the last 24 hours.",
     ],
+    startOfDayChecks: [
+      "Confirm overnight incident queue is empty or actively assigned.",
+      "Verify payment pipeline health before approving promotional campaigns.",
+      "Scan deployment timeline for unplanned production changes.",
+    ],
     dailyWorkflow: [
       "Review Reporting for business trend shifts.",
       "Approve or escalate unusual operational events.",
       "Validate platform status pages if any module is unstable.",
       "Confirm one backup and recovery control each day.",
+    ],
+    endOfDayChecks: [
+      "Confirm no unresolved P1 or P2 incidents remain unassigned.",
+      "Review high-risk audit events from last shift.",
+      "Hand off pending financial or access-risk items with explicit owners.",
+    ],
+    handoffProtocol: [
+      "Write a short status update with what changed, why, and next checks.",
+      "Link all active incidents and current severity state.",
+      "Identify blocked decisions requiring owner approval.",
+    ],
+    highRiskMistakes: [
+      "Approving emergency config edits without rollback plan.",
+      "Rotating secrets without post-rotation verification test.",
+      "Ignoring repeated denied admin actions in audit history.",
     ],
     emergencyPriority: [
       "Stabilize service (rollback, disable risky workflows).",
@@ -557,11 +882,31 @@ const roleWalkthroughs: RoleWalkthrough[] = [
       "Open CRM for customer detail corrections.",
       "Open Automations to check failed reminders or notifications.",
     ],
+    startOfDayChecks: [
+      "Review today and tomorrow slot pressure by technician.",
+      "Check for overnight cancellations, no-shows, or urgent pest reports.",
+      "Confirm reminder automations fired for first appointment windows.",
+    ],
     dailyWorkflow: [
       "Resolve schedule conflicts and customer reschedules quickly.",
       "Update technician statuses to avoid assignment drift.",
       "Coordinate with accounting if payment status blocks service.",
       "Escalate critical customer-impact incidents within 15 minutes.",
+    ],
+    endOfDayChecks: [
+      "Validate next-day schedule has no unassigned high-priority stops.",
+      "Capture unresolved customer promises for next shift.",
+      "Flag technician capacity risks for owner review.",
+    ],
+    handoffProtocol: [
+      "Share open schedule conflicts with affected customer IDs.",
+      "Document temporary overrides applied during the day.",
+      "Mark which escalations are waiting on payments or security teams.",
+    ],
+    highRiskMistakes: [
+      "Double-booking technicians during high-volume windows.",
+      "Rescheduling without confirming customer contact window.",
+      "Leaving exception-based routing changes undocumented.",
     ],
     emergencyPriority: [
       "Keep schedule continuity using manual fallback communication.",
@@ -579,11 +924,31 @@ const roleWalkthroughs: RoleWalkthrough[] = [
       "Open Stripe section in Admin Manual for webhook/API checks.",
       "Open Audit Logs for refund/retry/admin financial actions.",
     ],
+    startOfDayChecks: [
+      "Review overnight failed charges and identify repeat failures.",
+      "Check unresolved invoice aging buckets for immediate outreach.",
+      "Confirm Stripe webhook success rate baseline before batch actions.",
+    ],
     dailyWorkflow: [
       "Reconcile payment status against invoice status.",
       "Retry failed charges and log outcomes.",
       "Escalate unresolved payment sync issues rapidly.",
       "Verify credential access for financial tools is still least-privilege.",
+    ],
+    endOfDayChecks: [
+      "Confirm refund queue is resolved or assigned.",
+      "Validate reconciliation notes for every manual financial override.",
+      "Send summary of unresolved high-value balances.",
+    ],
+    handoffProtocol: [
+      "List high-risk invoices and customer impact notes.",
+      "Attach payment event IDs for all unresolved sync issues.",
+      "Record who owns next retry/reconciliation window.",
+    ],
+    highRiskMistakes: [
+      "Retrying charges without validating previous partial settlements.",
+      "Processing refunds without matching incident or audit context.",
+      "Treating webhook latency as charge failure without confirming Stripe state.",
     ],
     emergencyPriority: [
       "Restore payment processing path first.",
@@ -607,6 +972,10 @@ const emergencyDecisionTrees: DecisionTree[] = [
       "If newest deployment is failing, rollback to last successful deployment.",
       "If rollback fails, escalate to developer and declare incident in operations channel.",
     ],
+    ifUnknownPath: [
+      "Run parallel checks from two networks to exclude local ISP/cache issues.",
+      "Treat uncertain state as P1 degraded service until confidence improves.",
+    ],
   },
   {
     title: "Payment Failure Decision Tree",
@@ -621,6 +990,10 @@ const emergencyDecisionTrees: DecisionTree[] = [
       "Validate publishable/secret key pair and mode alignment (test vs live).",
       "If customer impact is broad, temporarily switch to manual payment support process.",
     ],
+    ifUnknownPath: [
+      "Sample three recent transactions before broad remediation.",
+      "Hold automated retries briefly to avoid duplicate customer actions.",
+    ],
   },
   {
     title: "Admin Login Failure Decision Tree",
@@ -634,6 +1007,10 @@ const emergencyDecisionTrees: DecisionTree[] = [
       "Verify auth secrets and environment variable presence.",
       "Check OAuth provider service health pages.",
       "Escalate as P1 security/access incident and apply emergency access protocol.",
+    ],
+    ifUnknownPath: [
+      "Use controlled emergency access path with owner approval.",
+      "Freeze non-essential auth changes until cause is isolated.",
     ],
   },
 ];
@@ -687,6 +1064,108 @@ const glossaryItems = [
     detail: "Use rollback when a new deployment is actively causing customer-facing failures.",
     category: "Recovery",
   },
+  {
+    term: "Incident commander",
+    definition: "The single person coordinating decisions during an active incident.",
+    detail: "The incident commander owns severity, assignment, timeline, and closure criteria during outages.",
+    category: "Operations",
+  },
+  {
+    term: "Blast radius",
+    definition: "How much of the system and user base is impacted by a failure.",
+    detail: "Estimate blast radius early to prioritize mitigation and communication strategy.",
+    category: "Recovery",
+  },
+  {
+    term: "SLA",
+    definition: "Service level agreement target for uptime or response behavior.",
+    detail: "Use SLA framing when deciding whether an incident is P1, P2, or P3 and when to escalate.",
+    category: "Operations",
+  },
+  {
+    term: "Synthetic check",
+    definition: "Automated request that continuously validates key user paths.",
+    detail: "Synthetic checks catch regressions quickly by testing booking, auth, and payment entry points.",
+    category: "Monitoring",
+  },
+  {
+    term: "Webhook replay",
+    definition: "Re-sending previously failed webhook events to recover missed processing.",
+    detail: "Replay in controlled batches and verify invoice reconciliation before resuming automation.",
+    category: "Integrations",
+  },
+  {
+    term: "Least privilege",
+    definition: "Granting only the minimum access needed to perform a task.",
+    detail: "Apply least privilege to admin roles, API keys, and credential sharing to reduce breach impact.",
+    category: "Security",
+  },
+  {
+    term: "Credential rotation",
+    definition: "Replacing a secret value with a new one and validating access.",
+    detail: "Rotate after staff changes, suspected leakage, or scheduled security cadence.",
+    category: "Credentials",
+  },
+  {
+    term: "RPO",
+    definition: "Recovery point objective, the maximum acceptable data loss window.",
+    detail: "Use RPO to judge urgency when data ingestion or writes are delayed.",
+    category: "Recovery",
+  },
+  {
+    term: "RTO",
+    definition: "Recovery time objective, the maximum acceptable downtime duration.",
+    detail: "Use RTO when choosing rollback versus in-place debugging under customer impact.",
+    category: "Recovery",
+  },
+  {
+    term: "Smoke test",
+    definition: "A small set of high-value checks after a deploy or fix.",
+    detail: "Run smoke tests on homepage, booking, admin login, and payment flow before declaring recovery.",
+    category: "Operations",
+  },
+  {
+    term: "Runbook",
+    definition: "A documented step-by-step operational procedure.",
+    detail: "Runbooks reduce improvisation and improve consistency under pressure.",
+    category: "Operations",
+  },
+  {
+    term: "Configuration drift",
+    definition: "Unexpected difference between intended and actual environment settings.",
+    detail: "Common drift points include Vercel environment variables, OAuth callbacks, and Stripe webhook secrets.",
+    category: "Configuration",
+  },
+  {
+    term: "Idempotency",
+    definition: "Designing operations so repeated requests do not create duplicate side effects.",
+    detail: "Critical for payment retries and webhook handling to avoid duplicate charges or state changes.",
+    category: "Integrations",
+  },
+  {
+    term: "Audit trail",
+    definition: "A chronological log of who changed what and when.",
+    detail: "Use audit trails for incident forensics, compliance checks, and accountability.",
+    category: "Security",
+  },
+  {
+    term: "Canary change",
+    definition: "A low-risk rollout to a subset before full deployment.",
+    detail: "Canary style validation can reduce blast radius of operational changes.",
+    category: "Operations",
+  },
+  {
+    term: "Error budget",
+    definition: "Allowed amount of instability within a time window before shipping slows.",
+    detail: "Use error budget signals to decide when to prioritize reliability over feature delivery.",
+    category: "Monitoring",
+  },
+  {
+    term: "Escalation packet",
+    definition: "Structured incident handoff information for faster resolution.",
+    detail: "Includes severity, timeline, error signatures, actions taken, and next decision points.",
+    category: "Recovery",
+  },
 ];
 
 const manualNavSections = [
@@ -721,6 +1200,17 @@ export default async function AdminManualPage() {
     session?.role === "owner"
       ? [...manualNavSections, { id: "owner-credentials", label: "Owner Credentials", tags: ["vault", "secrets", "owner"] }]
       : manualNavSections;
+  const sectionLabelById = new Map(navSections.map((section) => [section.id, section.label]));
+
+  const manualCoverageStats = [
+    { label: "Manual sections", value: navSections.length },
+    { label: "Platform runbooks", value: platformSections.length },
+    { label: "Incident playbooks", value: incidentGuides.length },
+    { label: "Decision trees", value: emergencyDecisionTrees.length },
+    { label: "Role guides", value: roleWalkthroughs.length },
+    { label: "Glossary terms", value: glossaryItems.length },
+    { label: "Dashboard modules", value: dashboardModules.length },
+  ];
 
   return (
     <AdminShell
@@ -731,6 +1221,29 @@ export default async function AdminManualPage() {
 
       <section aria-label="Operations assistant" className="mt-5 mb-6">
         <AdminManualAssistant />
+        <div className="mt-4">
+          <AdminManualAssistantMetrics />
+        </div>
+      </section>
+
+      <section aria-label="Manual coverage overview" className="mb-6 rounded-2xl border border-[#d3c6a8] bg-[#fff6e7] p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#5d6b61]">Coverage Overview</p>
+            <p className="mt-1 text-sm text-[#445349]">This snapshot tracks the depth and breadth of the current operator manual.</p>
+          </div>
+          <span className="rounded-full border border-[#35506b] bg-[#f7efe2] px-2.5 py-1 text-[0.68rem] font-semibold text-[#233d5a]">
+            Last refresh: May 2026
+          </span>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {manualCoverageStats.map((stat) => (
+            <div key={stat.label} className="rounded-xl border border-[#deceb0] bg-[#fffdf4] p-3">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#566b60]">{stat.label}</p>
+              <p className="mt-1 text-xl font-semibold text-[#20372c]">{stat.value}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <ManualSectionFrame
@@ -739,10 +1252,10 @@ export default async function AdminManualPage() {
         title="Executive Start Here"
         defaultOpen={false}
         summary="Start with the emergency checklist, then use the visual flows and assistant for fast orientation."
-        stats={["Crisis first", "3 references", "2 visual guides"]}
+        stats={["Crisis first", "Runbook depth", "2 visual guides"]}
         description="Start with crisis response, then use visual flows and assistant support to orient quickly."
       >
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-4">
           <details className="rounded-xl border border-[#b65d36] bg-[#fff1e8]">
             <summary className="list-none cursor-pointer px-4 py-3">
               <p className="text-base font-semibold text-[#7a2f10]">First 30 Minutes</p>
@@ -756,6 +1269,10 @@ export default async function AdminManualPage() {
                 <li>Assign incident lead and communications owner.</li>
                 <li>Use decision trees instead of ad-hoc troubleshooting.</li>
                 <li>Document the sequence with operator and time.</li>
+                <li>Capture first failing timestamp and affected customer surfaces.</li>
+                <li>Pause risky automations until failure mode is understood.</li>
+                <li>Create escalation packet before handoff.</li>
+                <li>Do not declare recovery until smoke tests pass for booking and payments.</li>
               </ol>
             </div>
           </details>
@@ -779,6 +1296,23 @@ export default async function AdminManualPage() {
                 <li>Open Platform Operations.</li>
                 <li>Use Daily SOP checklists.</li>
                 <li>Read Incident Playbooks.</li>
+                <li>Use Glossary terms to normalize language in incident notes.</li>
+              </ol>
+            </div>
+          </details>
+          <details className="rounded-xl border border-[#deceb0] bg-[#fff4df]">
+            <summary className="list-none cursor-pointer px-4 py-3">
+              <p className="text-base font-semibold text-[#20372c]">Escalation Packet Template</p>
+              <p className="mt-1 text-sm text-[#445349]">Copy this structure before escalating to engineering.</p>
+            </summary>
+            <div className="border-t border-[#e4d4b5] px-4 py-3">
+              <ol className="list-inside list-decimal space-y-1 text-sm text-[#445349]">
+                <li>Severity (P1/P2/P3) and blast radius.</li>
+                <li>First detection source and timestamp.</li>
+                <li>Customer-facing symptoms and affected modules.</li>
+                <li>Top error signatures with links/screenshots.</li>
+                <li>Actions completed with outcomes.</li>
+                <li>Current mitigation and remaining risk.</li>
               </ol>
             </div>
           </details>
@@ -799,12 +1333,34 @@ export default async function AdminManualPage() {
         eyebrow="Operations"
         title="Role Guides and Core Operating Patterns"
         summary="Daily, weekly, and monthly routines for owners, dispatch, and accounting."
-        stats={["3 roles", "3 routines", "1 architecture map"]}
+        stats={["3 roles", "4 routines", "Incident command"]}
         description="Follow these role-specific flows, architecture cues, and recurring routines to run operations consistently."
         defaultOpen={false}
       >
         <div className="space-y-4">
           <ManualRoleWalkthroughs walkthroughs={roleWalkthroughs} />
+
+          <div className="rounded-xl border border-[#d3c29f] bg-[#fff9eb] p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Incident Command Protocol</h3>
+            <div className="mt-3 grid gap-3 lg:grid-cols-4">
+              <div className="rounded-lg border border-[#d8c8aa] bg-[#fffdf4] p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">1. Declare</p>
+                <p className="mt-2 text-sm text-[#445349]">Assign severity and incident commander within five minutes.</p>
+              </div>
+              <div className="rounded-lg border border-[#d8c8aa] bg-[#fffdf4] p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">2. Contain</p>
+                <p className="mt-2 text-sm text-[#445349]">Reduce blast radius with rollback, feature limits, or manual fallback.</p>
+              </div>
+              <div className="rounded-lg border border-[#d8c8aa] bg-[#fffdf4] p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">3. Recover</p>
+                <p className="mt-2 text-sm text-[#445349]">Restore critical flows and verify with smoke-test checklist.</p>
+              </div>
+              <div className="rounded-lg border border-[#d8c8aa] bg-[#fffdf4] p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">4. Learn</p>
+                <p className="mt-2 text-sm text-[#445349]">Document root cause, preventative controls, and ownership.</p>
+              </div>
+            </div>
+          </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
@@ -856,6 +1412,7 @@ export default async function AdminManualPage() {
                 <li>Reconfirm OAuth app settings and redirect URLs.</li>
                 <li>Review Stripe risk events, disputes, and refund policy adherence.</li>
                 <li>Run emergency response drill using incident playbooks.</li>
+                <li>Review error-budget trend and reliability debt backlog.</li>
               </ul>
             </div>
           </div>
@@ -867,7 +1424,7 @@ export default async function AdminManualPage() {
         eyebrow="Execution"
         title="Admin Dashboard Module Manual"
         summary="Compact module summaries for CRM, billing, scheduling, inventory, automation, and reporting."
-        stats={["13 modules", "2 actions each", "Reference + workflow"]}
+        stats={["15 modules", "Cross-module SOP", "Reference + workflow"]}
         description="Each module summary explains who uses it, what it controls, and safe execution patterns."
         defaultOpen={false}
       >
@@ -903,6 +1460,36 @@ export default async function AdminManualPage() {
             </article>
           ))}
         </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Change Safety Loop</h3>
+            <ol className="mt-3 list-inside list-decimal space-y-1 text-sm text-[#445349]">
+              <li>Define intended module outcome and blast radius.</li>
+              <li>Apply change with smallest possible scope.</li>
+              <li>Validate downstream effects in dependent modules.</li>
+              <li>Record what changed in audit-friendly language.</li>
+            </ol>
+          </div>
+          <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Dependency Awareness</h3>
+            <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
+              <li>CRM updates affect scheduling and invoicing context.</li>
+              <li>Schedule changes can affect dispatch, notifications, and billing timing.</li>
+              <li>Payment status drives invoice lifecycle and service-hold decisions.</li>
+              <li>Automation failures may silently impact multiple modules.</li>
+            </ul>
+          </div>
+          <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Escalation Triggers</h3>
+            <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
+              <li>Repeated failed payments with stale invoice state.</li>
+              <li>Multiple modules reporting missing or stale records.</li>
+              <li>Unexpected spikes in admin permission changes.</li>
+              <li>Critical workflow blocked for more than 15 minutes.</li>
+            </ul>
+          </div>
+        </div>
       </ManualSectionFrame>
 
       <ManualSectionFrame
@@ -922,21 +1509,88 @@ export default async function AdminManualPage() {
         eyebrow="Recovery"
         title="Incident Playbooks and Escalation"
         summary="Fast response guides for outages, payment sync issues, login failures, and missing data."
-        stats={["4 playbooks", "3 decision trees", "P1 ready"]}
+        stats={["4 playbooks", "Runbook depth", "3 decision trees"]}
         description="Use these guided response paths to stabilize service quickly and reduce improvisation during outages."
         defaultOpen={false}
       >
         <div className="space-y-4">
           {incidentGuides.map((guide) => (
             <article key={guide.title} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-              <h3 className="text-lg font-semibold text-[#20372c]">{guide.title}</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-lg font-semibold text-[#20372c]">{guide.title}</h3>
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-[0.68rem] font-semibold ${
+                    guide.severity === "P1"
+                      ? "border-[#a13b1f] bg-[#fff1ea] text-[#8a321a]"
+                      : guide.severity === "P2"
+                        ? "border-[#8c6c2c] bg-[#fff8df] text-[#6f531f]"
+                        : "border-[#46658c] bg-[#edf5ff] text-[#2c4f78]"
+                  }`}
+                >
+                  {guide.severity}
+                </span>
+              </div>
               <p className="mt-2 text-sm text-[#445349]"><span className="font-semibold text-[#2d4538]">Symptom:</span> {guide.symptom}</p>
+
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Detection signals</p>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                {guide.detectionSignals.map((signal) => (
+                  <li key={signal}>{signal}</li>
+                ))}
+              </ul>
+
               <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">First response steps</p>
               <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-[#445349]">
                 {guide.firstResponse.map((step) => (
                   <li key={step}>{step}</li>
                 ))}
               </ol>
+
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                <div className="rounded-lg border border-[#d8c8aa] bg-[#fff9ed] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Containment checklist</p>
+                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                    {guide.containmentChecklist.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-lg border border-[#d8c8aa] bg-[#fff9ed] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Diagnostics</p>
+                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                    {guide.diagnostics.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Service recovery</p>
+              <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-[#445349]">
+                {guide.serviceRecovery.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Escalation packet</p>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                {guide.escalationPacket.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+
+              <p className="mt-3 text-sm text-[#445349]"><span className="font-semibold text-[#2d4538]">Linked sections:</span></p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {guide.linkedSections.map((sectionId) => (
+                  <a
+                    key={sectionId}
+                    href={`#${sectionId}`}
+                    className="rounded-full border border-[#35506b] bg-[#f7efe2] px-3 py-1 text-xs font-semibold text-[#233d5a] transition hover:bg-[#233d5a] hover:text-white"
+                  >
+                    {sectionLabelById.get(sectionId) ?? sectionId}
+                  </a>
+                ))}
+              </div>
               <p className="mt-3 text-sm text-[#445349]"><span className="font-semibold text-[#2d4538]">Escalation:</span> {guide.escalation}</p>
             </article>
           ))}
@@ -968,6 +1622,14 @@ export default async function AdminManualPage() {
                     </ol>
                   </div>
                 </div>
+                <div className="mt-3 rounded-lg border border-[#d8c8aa] bg-[#fff8eb] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">If unknown or mixed signals</p>
+                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                    {tree.ifUnknownPath.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
               </article>
             ))}
           </div>
@@ -979,7 +1641,7 @@ export default async function AdminManualPage() {
         eyebrow="Reference"
         title="Glossary and Credential Security"
         summary="Searchable definitions plus rules for handling sensitive access safely."
-        stats={["Reference index", "Security rules", "Vault standards"]}
+        stats={["Expanded glossary", "Security rules", "Vault standards"]}
         description="Use these standards to keep account access consistent, auditable, and operationally safe."
         defaultOpen={false}
       >
@@ -1004,6 +1666,39 @@ export default async function AdminManualPage() {
                 <li>Rotate credentials after staff changes or suspected compromise.</li>
                 <li>Verify successful login after every rotation event.</li>
                 <li>Review audit logs for manual_secret_viewed events each week.</li>
+                <li>Document reason and owner for every privileged credential use.</li>
+                <li>Escalate unusual access patterns as a security incident.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Credential Lifecycle</h3>
+              <ol className="mt-3 list-inside list-decimal space-y-1 text-sm text-[#445349]">
+                <li>Create with title, owner intent, and platform scope.</li>
+                <li>Verify access immediately after entry.</li>
+                <li>Review usage and staleness weekly.</li>
+                <li>Rotate on schedule or incident trigger.</li>
+                <li>Retire and deactivate old values safely.</li>
+              </ol>
+            </div>
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Emergency Access Rules</h3>
+              <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                <li>Use emergency credentials only during active incidents.</li>
+                <li>Require owner acknowledgement for P1 usage.</li>
+                <li>Log access purpose, start time, and end time.</li>
+                <li>Rotate emergency credentials after incident closure.</li>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Verification Drill</h3>
+              <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                <li>Choose one platform each week and run access verification.</li>
+                <li>Validate portal URL, username, MFA method, and role scope.</li>
+                <li>Document gaps and set owner/date for remediation.</li>
+                <li>Confirm audit log entries were captured correctly.</li>
               </ul>
             </div>
           </div>

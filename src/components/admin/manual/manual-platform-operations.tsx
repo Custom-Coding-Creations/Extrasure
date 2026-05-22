@@ -102,6 +102,11 @@ export function ManualPlatformOperations({ sections, secretsByCategory }: Manual
         ...section.setupChecklist,
         ...section.dailyChecks,
         ...section.troubleshooting,
+        ...(section.weeklyChecks ?? []),
+        ...(section.failureSignals ?? []),
+        ...(section.recoveryRunbook ?? []),
+        ...(section.verificationChecklist ?? []),
+        ...(section.escalationThresholds ?? []),
       ]
         .join(" ")
         .toLowerCase();
@@ -124,6 +129,7 @@ export function ManualPlatformOperations({ sections, secretsByCategory }: Manual
         formatRelativeCount(activeSection.setupChecklist.length, "setup step"),
         formatRelativeCount(activeSection.dailyChecks.length, "daily check"),
         formatRelativeCount(activeSection.troubleshooting.length, "issue path"),
+        formatRelativeCount(activeSection.weeklyChecks?.length ?? 0, "weekly check"),
         formatRelativeCount(sectionSecrets.length, "credential"),
       ]
     : [];
@@ -250,6 +256,9 @@ export function ManualPlatformOperations({ sections, secretsByCategory }: Manual
                 <p className="mt-2 text-sm font-medium text-[#2f4338]">{activeSection.purpose}</p>
                 <p className="mt-2 max-w-3xl text-sm text-[#445349]">{activeSection.plainEnglish}</p>
                 <p className="mt-2 max-w-3xl text-sm text-[#445349]"><span className="font-semibold text-[#2d4538]">Why this exists:</span> {activeSection.whyItExists}</p>
+                {activeSection.lastReviewed ? (
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#5d6b61]">Last reviewed: {activeSection.lastReviewed}</p>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-2">
                 {sectionSummary.map((stat) => (
@@ -285,12 +294,74 @@ export function ManualPlatformOperations({ sections, secretsByCategory }: Manual
             />
           </div>
 
+          {activeSection.weeklyChecks && activeSection.weeklyChecks.length > 0 ? (
+            <CompactDisclosure
+              title="Weekly Checks"
+              summary="The deeper cadence checks that prevent slow reliability drift."
+              items={activeSection.weeklyChecks}
+              defaultOpen={false}
+            />
+          ) : null}
+
+          {activeSection.failureSignals && activeSection.failureSignals.length > 0 ? (
+            <CompactDisclosure
+              title="Failure Signals"
+              summary="Treat these patterns as early warnings of likely incidents."
+              items={activeSection.failureSignals}
+              defaultOpen={false}
+            />
+          ) : null}
+
           <CompactDisclosure
             title="Troubleshooting"
             summary="Open when a deployment, auth, or API path is misbehaving."
             items={activeSection.troubleshooting}
             defaultOpen={false}
           />
+
+          {activeSection.recoveryRunbook && activeSection.recoveryRunbook.length > 0 ? (
+            <CompactDisclosure
+              title="Recovery Runbook"
+              summary="Follow this sequence to recover and confirm stable operations."
+              items={activeSection.recoveryRunbook}
+              defaultOpen={false}
+            />
+          ) : null}
+
+          {activeSection.verificationChecklist && activeSection.verificationChecklist.length > 0 ? (
+            <CompactDisclosure
+              title="Verification Checklist"
+              summary="Use this before declaring platform stability restored."
+              items={activeSection.verificationChecklist}
+              defaultOpen={false}
+            />
+          ) : null}
+
+          {activeSection.escalationThresholds && activeSection.escalationThresholds.length > 0 ? (
+            <CompactDisclosure
+              title="Escalation Thresholds"
+              summary="Escalate immediately when any of these thresholds are crossed."
+              items={activeSection.escalationThresholds}
+              defaultOpen={false}
+            />
+          ) : null}
+
+          {activeSection.relatedSections && activeSection.relatedSections.length > 0 ? (
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Related Manual Sections</h4>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {activeSection.relatedSections.map((item) => (
+                  <a
+                    key={item.anchorId}
+                    href={`#${item.anchorId}`}
+                    className="rounded-full border border-[#35506b] bg-[#f8f0e3] px-3 py-1 text-xs font-semibold text-[#233d5a] transition hover:bg-[#233d5a] hover:text-white"
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
             <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Stored Credentials</h4>

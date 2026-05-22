@@ -6,7 +6,11 @@ type RoleWalkthrough = {
   role: string;
   mission: string;
   firstFiveClicks: string[];
+  startOfDayChecks?: string[];
   dailyWorkflow: string[];
+  endOfDayChecks?: string[];
+  handoffProtocol?: string[];
+  highRiskMistakes?: string[];
   emergencyPriority: string[];
 };
 
@@ -87,7 +91,7 @@ export function ManualRoleWalkthroughs({ walkthroughs }: ManualRoleWalkthroughsP
                 <p className="mt-1 max-w-3xl text-sm text-[#445349]"><span className="font-semibold text-[#2d4538]">Mission:</span> {walkthrough.mission}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {["Onboarding", "Daily", "Escalation"].map((label) => (
+                {["Onboarding", "Daily", "Escalation", "Handoff"].map((label) => (
                   <span key={label} className="rounded-full border border-[#d0c4a7] bg-[#faf3e2] px-2.5 py-1 text-[0.68rem] font-semibold text-[#5d6b61]">
                     {label}
                   </span>
@@ -130,6 +134,61 @@ export function ManualRoleWalkthroughs({ walkthroughs }: ManualRoleWalkthroughsP
                 <div className="border-t border-[#e6d9bc] px-3 py-2">
                   <ul className="list-inside list-disc space-y-1 text-sm text-[#445349]">
                     {walkthrough.emergencyPriority.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              </details>
+            </div>
+
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <details className="rounded-lg border border-[#d8c8aa] bg-[#fff9ed]" open={Boolean(walkthrough.startOfDayChecks?.length)}>
+                <summary className="list-none cursor-pointer px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Start of day checks</p>
+                  <p className="mt-1 text-sm text-[#445349]">The checks that set this role up for stable execution.</p>
+                </summary>
+                <div className="border-t border-[#e6d9bc] px-3 py-2">
+                  <ul className="list-inside list-disc space-y-1 text-sm text-[#445349]">
+                    {(walkthrough.startOfDayChecks ?? []).map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              </details>
+              <details className="rounded-lg border border-[#d8c8aa] bg-[#fff9ed]" open={Boolean(walkthrough.endOfDayChecks?.length)}>
+                <summary className="list-none cursor-pointer px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">End of day checks</p>
+                  <p className="mt-1 text-sm text-[#445349]">What must be confirmed before handoff or closeout.</p>
+                </summary>
+                <div className="border-t border-[#e6d9bc] px-3 py-2">
+                  <ul className="list-inside list-disc space-y-1 text-sm text-[#445349]">
+                    {(walkthrough.endOfDayChecks ?? []).map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              </details>
+              <details className="rounded-lg border border-[#d8c8aa] bg-[#fff9ed]" open={Boolean(walkthrough.handoffProtocol?.length)}>
+                <summary className="list-none cursor-pointer px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Handoff protocol</p>
+                  <p className="mt-1 text-sm text-[#445349]">Use this structure for clean shift transitions.</p>
+                </summary>
+                <div className="border-t border-[#e6d9bc] px-3 py-2">
+                  <ul className="list-inside list-disc space-y-1 text-sm text-[#445349]">
+                    {(walkthrough.handoffProtocol ?? []).map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              </details>
+              <details className="rounded-lg border border-[#d8c8aa] bg-[#fff9ed]" open={Boolean(walkthrough.highRiskMistakes?.length)}>
+                <summary className="list-none cursor-pointer px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">High-risk mistakes</p>
+                  <p className="mt-1 text-sm text-[#445349]">Avoid these to reduce preventable incidents.</p>
+                </summary>
+                <div className="border-t border-[#e6d9bc] px-3 py-2">
+                  <ul className="list-inside list-disc space-y-1 text-sm text-[#445349]">
+                    {(walkthrough.highRiskMistakes ?? []).map((step) => (
                       <li key={step}>{step}</li>
                     ))}
                   </ul>

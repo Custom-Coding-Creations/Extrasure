@@ -45,6 +45,19 @@ export function ManualTopControls({ sections }: ManualTopControlsProps) {
     [sections],
   );
 
+  const matchedSections = useMemo(() => {
+    const targetQuery = query.trim().toLowerCase();
+
+    if (!targetQuery) {
+      return [] as SectionLink[];
+    }
+
+    return normalizedSections
+      .filter((section) => section.searchText.includes(targetQuery))
+      .map(({ id, label, tags }) => ({ id, label, tags }))
+      .slice(0, 6);
+  }, [normalizedSections, query]);
+
   const sectionById = useMemo(() => new Map(sections.map((section) => [section.id, section])), [sections]);
 
   useEffect(() => {
@@ -362,6 +375,30 @@ export function ManualTopControls({ sections }: ManualTopControlsProps) {
             Jump
           </button>
         </form>
+        {query.trim().length > 0 ? (
+          <div className="rounded-2xl border border-[#d6c7a7] bg-[#fff9ee] p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#566b60]">Search Matches</p>
+              <span className="rounded-full bg-[#ece2ca] px-2 py-0.5 text-[0.68rem] font-semibold text-[#516157]">{matchedSections.length}</span>
+            </div>
+            {matchedSections.length === 0 ? (
+              <p className="mt-2 text-sm text-[#66786f]">No direct section matches. Try broader terms like operations, incidents, stripe, auth, or glossary.</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {matchedSections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => navigateToSection(section.id)}
+                    className="rounded-full border border-[#35506b] bg-[#f7efe2] px-3 py-1.5 text-xs font-semibold text-[#233d5a] transition hover:bg-[#233d5a] hover:text-white"
+                  >
+                    {section.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           <button
             type="button"

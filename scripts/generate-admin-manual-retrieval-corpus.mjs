@@ -6,33 +6,51 @@ const SOURCE_PATHS = [
   "vercel.json",
   "package.json",
   "next.config.ts",
+  "docs/THEME-REDESIGN-BRANCHES.md",
   "docs/THEME-REDESIGN-PR-OUTLINES.md",
   "docs/ACCOUNT-OS-ROLLOUT-PR.md",
   "docs/ENABLE-REAL-AI.md",
   "docs/PAYMENT-PREFERENCES.md",
   "prisma/schema.postgresql.prisma",
+  "prisma/schema.prisma",
   "scripts/prisma-prepare.mjs",
+  "scripts/reconcile-duplicate-customers.mjs",
+  "scripts/dedupe-technicians.mjs",
   "src/lib/admin-auth.ts",
   "src/lib/admin-page-data.ts",
   "src/lib/admin-operational-settings.ts",
+  "src/lib/admin-data.ts",
+  "src/lib/admin-store.ts",
   "src/lib/admin-manual-store.ts",
+  "src/lib/admin-manual-knowledge.ts",
+  "src/lib/admin-manual-retrieval.ts",
+  "src/lib/ai-policy.ts",
+  "src/lib/ai-triage.ts",
   "src/lib/audit-log.ts",
   "src/lib/payment-preferences.ts",
   "src/lib/stripe-billing.ts",
   "src/app/admin/manual/page.tsx",
   "src/app/admin/payments/page.tsx",
   "src/app/admin/settings/page.tsx",
+  "src/app/admin/chat-operations/page.tsx",
+  "src/app/admin/chat-operations/history/page.tsx",
   "src/app/api/admin/manual-assistant/route.ts",
   "src/app/api/admin/payments/route.ts",
   "src/app/api/admin/stripe/webhook/route.ts",
   "src/app/api/auth/start/route.ts",
+  "src/app/api/ai/chat/route.ts",
+  "src/app/api/ai/chat/operations-history/route.ts",
+  "src/components/admin/admin-manual-assistant.tsx",
+  "src/components/admin/manual/manual-platform-operations.tsx",
+  "src/components/admin/manual/manual-role-walkthroughs.tsx",
+  "src/components/admin/manual/manual-glossary-index.tsx",
   "src/components/chatbot/chatbot-provider.tsx",
 ];
 
 const OUTPUT_PATH = "src/lib/admin-manual-retrieval-corpus.ts";
-const MAX_CHUNKS_PER_FILE = 6;
-const MIN_CHUNK_LENGTH = 120;
-const MAX_CHUNK_LENGTH = 1000;
+const MAX_CHUNKS_PER_FILE = 12;
+const MIN_CHUNK_LENGTH = 90;
+const MAX_CHUNK_LENGTH = 1400;
 
 function compact(text) {
   return text.replace(/\r/g, "").replace(/\t/g, "  ").replace(/\s+/g, " ").trim();

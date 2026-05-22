@@ -39,6 +39,10 @@ export function ManualGlossaryIndex({ items }: ManualGlossaryIndexProps) {
     });
   }, [activeCategory, items, query]);
 
+  const letterIndex = useMemo(() => {
+    return Array.from(new Set(filteredItems.map((item) => item.term.charAt(0).toUpperCase()))).sort();
+  }, [filteredItems]);
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-[#d4c5a7] bg-[#fff4df] p-4">
@@ -69,6 +73,20 @@ export function ManualGlossaryIndex({ items }: ManualGlossaryIndexProps) {
             </button>
           ))}
         </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-[#d0c4a7] bg-[#faf3e2] px-2 py-0.5 text-[0.68rem] font-semibold text-[#5d6b61]">
+            {filteredItems.length} result{filteredItems.length === 1 ? "" : "s"}
+          </span>
+          {letterIndex.map((letter) => (
+            <a
+              key={letter}
+              href={`#glossary-letter-${letter}`}
+              className="rounded-full border border-[#d0c4a7] bg-[#fff9ed] px-2 py-0.5 text-[0.68rem] font-semibold text-[#5d6b61] transition hover:bg-[#5d6b61] hover:text-white"
+            >
+              {letter}
+            </a>
+          ))}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-[#d8caad] bg-[#fffaf0]">
@@ -80,11 +98,14 @@ export function ManualGlossaryIndex({ items }: ManualGlossaryIndexProps) {
           {filteredItems.length === 0 ? (
             <p className="px-4 py-4 text-sm text-[#566c60]">No glossary entries match this search.</p>
           ) : (
-            filteredItems.map((item) => (
+            filteredItems.map((item, index) => (
               <details key={item.term} className="group px-4 py-3">
                 <summary className="list-none cursor-pointer">
                   <div className="grid gap-3 md:grid-cols-[1fr_1.6fr] md:items-start">
                     <div>
+                      {index === 0 || filteredItems[index - 1].term.charAt(0).toUpperCase() !== item.term.charAt(0).toUpperCase() ? (
+                        <span id={`glossary-letter-${item.term.charAt(0).toUpperCase()}`} aria-hidden="true" />
+                      ) : null}
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-semibold text-[#20372c]">{item.term}</p>
                         {item.category ? (

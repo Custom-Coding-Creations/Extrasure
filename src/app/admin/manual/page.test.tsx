@@ -14,6 +14,10 @@ jest.mock("@/components/admin/admin-manual-assistant", () => ({
   AdminManualAssistant: () => <div data-testid="manual-assistant">assistant</div>,
 }));
 
+jest.mock("@/components/admin/admin-manual-assistant-metrics", () => ({
+  AdminManualAssistantMetrics: () => <div data-testid="manual-assistant-metrics">metrics</div>,
+}));
+
 jest.mock("@/components/admin/admin-manual-diagrams", () => ({
   AdminManualDiagrams: () => <div data-testid="manual-diagrams">diagrams</div>,
 }));
@@ -108,6 +112,7 @@ describe("AdminManualPage", () => {
     expect(screen.getByTestId("top-controls").textContent).toContain("Owner Credentials");
     expect(screen.getByTestId("section-Executive Start Here")).not.toBeNull();
     expect(screen.getByTestId("section-Credential Vault Management")).not.toBeNull();
+    expect(screen.getByTestId("manual-assistant-metrics")).not.toBeNull();
     expect(screen.getByTestId("glossary-index").textContent).toContain("Deployment");
     expect(screen.getByTestId("platform-operations").textContent).toContain("Vercel Hosting and Deployments");
     expect(screen.getByText("Operations Console")).not.toBeNull();

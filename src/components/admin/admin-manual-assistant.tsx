@@ -21,6 +21,13 @@ type ManualAssistantApiResponse = {
     inScope: boolean;
     reason: string;
   };
+  recommendedSections?: SuggestedSectionLink[];
+  relatedTerms?: string[];
+};
+
+type SuggestedSectionLink = {
+  label: string;
+  anchor: string;
 };
 
 const THINKING_STATUS_TEXT = ["Thinking", "Checking sources", "Drafting answer"];
@@ -249,6 +256,37 @@ function renderAssistantMarkdown(content: string): ReactNode {
   return <div className="space-y-3">{rendered}</div>;
 }
 
+function buildSuggestedLinks(mode: string, confidence: "low" | "medium" | "high", scopeStatus: string): SuggestedSectionLink[] {
+  const links: SuggestedSectionLink[] = [];
+
+  if (scopeStatus === "out-of-scope") {
+    links.push({ label: "Executive Start Here", anchor: "quick-start" });
+    links.push({ label: "Role Guides and Core Operating Patterns", anchor: "operating-guides" });
+  }
+
+  if (confidence === "low") {
+    links.push({ label: "Incidents and Recovery", anchor: "incidents" });
+    links.push({ label: "Platform Operations", anchor: "platform-ops" });
+  }
+
+  if (mode.includes("payment")) {
+    links.push({ label: "Platform Operations", anchor: "platform-ops" });
+    links.push({ label: "Admin Dashboard Module Manual", anchor: "admin-modules" });
+  }
+
+  if (mode.includes("auth") || mode.includes("dns") || mode.includes("deploy")) {
+    links.push({ label: "Incidents and Recovery", anchor: "incidents" });
+    links.push({ label: "Glossary and Credential Security", anchor: "reference-security" });
+  }
+
+  if (links.length === 0) {
+    links.push({ label: "Platform Operations", anchor: "platform-ops" });
+    links.push({ label: "Glossary and Credential Security", anchor: "reference-security" });
+  }
+
+  return links.filter((item, index, all) => all.findIndex((candidate) => candidate.anchor === item.anchor) === index).slice(0, 4);
+}
+
 export function AdminManualAssistant() {
   const [messages, setMessages] = useState<UiMessage[]>([
     {
@@ -266,9 +304,12 @@ export function AdminManualAssistant() {
   const [lastConfidence, setLastConfidence] = useState<"low" | "medium" | "high">("medium");
   const [lastScopeStatus, setLastScopeStatus] = useState<string>("in-scope");
   const [lastMode, setLastMode] = useState<string>("grounded-fallback");
+  const [apiSuggestedLinks, setApiSuggestedLinks] = useState<SuggestedSectionLink[]>([]);
+  const [relatedTerms, setRelatedTerms] = useState<string[]>([]);
   const [thinkingStatusIndex, setThinkingStatusIndex] = useState(0);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const suggestedLinks = apiSuggestedLinks.length > 0 ? apiSuggestedLinks : buildSuggestedLinks(lastMode, lastConfidence, lastScopeStatus);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -362,6 +403,8 @@ export function AdminManualAssistant() {
       setLastConfidence(payload.confidence);
       setLastMode(payload.mode ?? "grounded-fallback");
       setLastScopeStatus(payload.scope?.inScope ? "in-scope" : "out-of-scope");
+      setApiSuggestedLinks(payload.recommendedSections ?? []);
+      setRelatedTerms(payload.relatedTerms ?? []);
       setMessages((current) => [
         ...current,
         {
@@ -381,6 +424,8 @@ export function AdminManualAssistant() {
             "I hit a temporary issue. If this is urgent, start with the incident section and verify deployment, payments, and admin access in that order.",
         },
       ]);
+      setApiSuggestedLinks([]);
+      setRelatedTerms([]);
     } finally {
       setSending(false);
     }
@@ -478,6 +523,38 @@ export function AdminManualAssistant() {
           ) : null}
         </div>
       ) : null}
+
+      <div className="mt-4 rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5d7267]">Suggested next sections</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {suggestedLinks.map((link) => (
+            <a
+              key={link.anchor}
+              href={`#${link.anchor}`}
+              className="rounded-full border border-[#35506b] bg-[#f8f0e3] px-3 py-1.5 text-xs font-semibold text-[#233d5a] transition hover:bg-[#233d5a] hover:text-white"
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
+
+        {relatedTerms.length > 0 ? (
+          <div className="mt-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5d7267]">Related glossary terms</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {relatedTerms.map((term) => (
+                <a
+                  key={term}
+                  href="#reference-security"
+                  className="rounded-full border border-[#d0c4a7] bg-[#fff9ed] px-2.5 py-1 text-[0.68rem] font-semibold text-[#5d6b61] transition hover:bg-[#5d6b61] hover:text-white"
+                >
+                  {term}
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
