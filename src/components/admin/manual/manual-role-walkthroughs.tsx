@@ -81,33 +81,60 @@ export function ManualRoleWalkthroughs({ walkthroughs }: ManualRoleWalkthroughsP
       <div className="space-y-4">
         {filtered.map((walkthrough) => (
           <article key={walkthrough.role} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-            <h3 className="text-lg font-semibold text-[#20372c]">{walkthrough.role} Walkthrough</h3>
-            <p className="mt-1 text-sm text-[#445349]"><span className="font-semibold text-[#2d4538]">Mission:</span> {walkthrough.mission}</p>
-            <div className="mt-3 grid gap-4 lg:grid-cols-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">First five clicks</p>
-                <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-[#445349]">
-                  {walkthrough.firstFiveClicks.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ol>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg font-semibold text-[#20372c]">{walkthrough.role} Walkthrough</h3>
+                <p className="mt-1 max-w-3xl text-sm text-[#445349]"><span className="font-semibold text-[#2d4538]">Mission:</span> {walkthrough.mission}</p>
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Daily workflow</p>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[#445349]">
-                  {walkthrough.dailyWorkflow.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ul>
+              <div className="flex flex-wrap gap-2">
+                {["Onboarding", "Daily", "Escalation"].map((label) => (
+                  <span key={label} className="rounded-full border border-[#d0c4a7] bg-[#faf3e2] px-2.5 py-1 text-[0.68rem] font-semibold text-[#5d6b61]">
+                    {label}
+                  </span>
+                ))}
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Emergency priority</p>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[#445349]">
-                  {walkthrough.emergencyPriority.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ul>
-              </div>
+            </div>
+
+            <div className="mt-3 grid gap-3 lg:grid-cols-3">
+              <details className="rounded-lg border border-[#d8c8aa] bg-[#fff9ed]" open>
+                <summary className="list-none cursor-pointer px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">First five clicks</p>
+                  <p className="mt-1 text-sm text-[#445349]">The quickest path into this role&apos;s main workflow.</p>
+                </summary>
+                <div className="border-t border-[#e6d9bc] px-3 py-2">
+                  <ol className="list-inside list-decimal space-y-1 text-sm text-[#445349]">
+                    {walkthrough.firstFiveClicks.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+              </details>
+              <details className="rounded-lg border border-[#d8c8aa] bg-[#fff9ed]">
+                <summary className="list-none cursor-pointer px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Daily workflow</p>
+                  <p className="mt-1 text-sm text-[#445349]">The recurring checks to keep this role moving.</p>
+                </summary>
+                <div className="border-t border-[#e6d9bc] px-3 py-2">
+                  <ul className="list-inside list-disc space-y-1 text-sm text-[#445349]">
+                    {walkthrough.dailyWorkflow.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              </details>
+              <details className="rounded-lg border border-[#d8c8aa] bg-[#fff9ed]">
+                <summary className="list-none cursor-pointer px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Emergency priority</p>
+                  <p className="mt-1 text-sm text-[#445349]">What matters first when the workflow is under pressure.</p>
+                </summary>
+                <div className="border-t border-[#e6d9bc] px-3 py-2">
+                  <ul className="list-inside list-disc space-y-1 text-sm text-[#445349]">
+                    {walkthrough.emergencyPriority.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              </details>
             </div>
           </article>
         ))}

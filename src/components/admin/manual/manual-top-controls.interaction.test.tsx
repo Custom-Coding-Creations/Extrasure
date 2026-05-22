@@ -29,6 +29,7 @@ describe("manual-top-controls interactions", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
     window.history.replaceState({}, "", "/admin/manual");
+    window.localStorage.clear();
   });
 
   it("expands and collapses all manual sections", () => {
@@ -147,5 +148,24 @@ describe("manual-top-controls interactions", () => {
     fireEvent(window, new HashChangeEvent("hashchange"));
 
     expect(reference.open).toBe(true);
+  });
+
+  it("pins a section and records recent navigation", () => {
+    render(
+      <ManualTopControls
+        sections={[
+          { id: "quick-start", label: "Quick Start" },
+          { id: "reference-security", label: "Reference and Security" },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /pin quick start/i }));
+
+    expect(screen.getByRole("button", { name: /unpin quick start/i }).textContent).toContain("Pinned");
+
+    fireEvent.click(screen.getByRole("link", { name: /quick start/i }));
+
+    expect(window.localStorage.getItem("extrasure-admin-manual-recent")).toContain("quick-start");
   });
 });

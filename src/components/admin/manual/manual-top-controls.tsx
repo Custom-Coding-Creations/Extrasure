@@ -12,6 +12,10 @@ type ManualTopControlsProps = {
   sections: SectionLink[];
 };
 
+const PINNED_STORAGE_KEY = "extrasure-admin-manual-pinned";
+const RECENT_STORAGE_KEY = "extrasure-admin-manual-recent";
+const RECENT_LIMIT = 5;
+
 export function ManualTopControls({ sections }: ManualTopControlsProps) {
   const [query, setQuery] = useState("");
   const [activeSectionId, setActiveSectionId] = useState(() => {
@@ -28,6 +32,8 @@ export function ManualTopControls({ sections }: ManualTopControlsProps) {
 
     return fallbackId;
   });
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [recentIds, setRecentIds] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const normalizedSections = useMemo(
@@ -38,6 +44,82 @@ export function ManualTopControls({ sections }: ManualTopControlsProps) {
       })),
     [sections],
   );
+
+  const sectionById = useMemo(() => new Map(sections.map((section) => [section.id, section])), [sections]);
+
+  useEffect(() => {
+    try {
+      const storedPinned = window.localStorage.getItem(PINNED_STORAGE_KEY);
+      const storedRecent = window.localStorage.getItem(RECENT_STORAGE_KEY);
+
+      if (storedPinned) {
+        const parsedPinned = JSON.parse(storedPinned) as string[];
+        setPinnedIds(parsedPinned.filter((id) => sectionById.has(id)));
+      }
+
+      if (storedRecent) {
+        const parsedRecent = JSON.parse(storedRecent) as string[];
+        setRecentIds(parsedRecent.filter((id) => sectionById.has(id)));
+      }
+    } catch {
+      setPinnedIds([]);
+      setRecentIds([]);
+    }
+  }, [sectionById]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(pinnedIds));
+    } catch {
+      // ignore storage failures
+    }
+  }, [pinnedIds]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recentIds.slice(0, RECENT_LIMIT)));
+    } catch {
+      // ignore storage failures
+    }
+  }, [recentIds]);
+
+  const recordRecentSection = useCallback(
+    (sectionId: string) => {
+      setRecentIds((current) => {
+        const next = [sectionId, ...current.filter((item) => item !== sectionId)].slice(0, RECENT_LIMIT);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const navigateToSection = useCallback(
+    (sectionId: string) => {
+      if (!sectionById.has(sectionId)) {
+        return;
+      }
+
+      window.location.hash = sectionId;
+      setActiveSectionId(sectionId);
+      recordRecentSection(sectionId);
+
+      const target = document.getElementById(sectionId);
+      if (target instanceof HTMLDetailsElement) {
+        target.open = true;
+      }
+    },
+    [recordRecentSection, sectionById],
+  );
+
+  const togglePinnedSection = useCallback((sectionId: string) => {
+    setPinnedIds((current) => {
+      if (current.includes(sectionId)) {
+        return current.filter((id) => id !== sectionId);
+      }
+
+      return [sectionId, ...current].slice(0, RECENT_LIMIT);
+    });
+  }, []);
 
   function jumpToBestMatch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,12 +134,7 @@ export function ManualTopControls({ sections }: ManualTopControlsProps) {
     const hit = exact ?? partial;
 
     if (hit) {
-      window.location.hash = hit.id;
-      setActiveSectionId(hit.id);
-      const target = document.getElementById(hit.id);
-      if (target instanceof HTMLDetailsElement) {
-        target.open = true;
-      }
+      navigateToSection(hit.id);
     }
   }
 
@@ -92,8 +169,9 @@ export function ManualTopControls({ sections }: ManualTopControlsProps) {
     }
 
     setActiveSectionId(sectionId);
+    recordRecentSection(sectionId);
     openSectionElementByHash(hashValue);
-  }, [openSectionElementByHash]);
+  }, [openSectionElementByHash, recordRecentSection]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -130,7 +208,7 @@ export function ManualTopControls({ sections }: ManualTopControlsProps) {
   }, [sections]);
 
   useEffect(() => {
-    openSectionElementByHash(window.location.hash);
+    openSectionFromHash(window.location.hash);
 
     function handleHashChange() {
       openSectionFromHash(window.location.hash);
@@ -175,27 +253,97 @@ export function ManualTopControls({ sections }: ManualTopControlsProps) {
     <section className="sticky top-4 z-20 rounded-3xl border border-[#ccbda0] bg-[linear-gradient(90deg,#fff7e8_0%,#fff1de_100%)] p-4 shadow-[0_12px_35px_rgba(42,55,38,0.14)]">
       <div className="flex flex-col gap-3">
         <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#536b5f]">Manual Navigation Command Bar</p>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="rounded-2xl border border-[#d6c7a7] bg-[#fff9ee] p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#566b60]">Pinned</p>
+              <span className="rounded-full bg-[#ece2ca] px-2 py-0.5 text-[0.68rem] font-semibold text-[#516157]">{pinnedIds.length}</span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {pinnedIds.length === 0 ? (
+                <p className="text-sm text-[#66786f]">Pin frequently used sections for quick return.</p>
+              ) : (
+                pinnedIds.map((sectionId) => {
+                  const section = sectionById.get(sectionId);
+                  if (!section) {
+                    return null;
+                  }
+
+                  return (
+                    <button
+                      key={sectionId}
+                      type="button"
+                      onClick={() => navigateToSection(sectionId)}
+                      className="rounded-full border border-[#35506b] bg-[#f7efe2] px-3 py-1.5 text-xs font-semibold text-[#233d5a] transition hover:bg-[#233d5a] hover:text-white"
+                    >
+                      {section.label}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-[#d6c7a7] bg-[#fff9ee] p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#566b60]">Recently Used</p>
+              <span className="rounded-full bg-[#ece2ca] px-2 py-0.5 text-[0.68rem] font-semibold text-[#516157]">{recentIds.length}</span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {recentIds.length === 0 ? (
+                <p className="text-sm text-[#66786f]">Open a section to build your recent list.</p>
+              ) : (
+                recentIds.map((sectionId) => {
+                  const section = sectionById.get(sectionId);
+                  if (!section) {
+                    return null;
+                  }
+
+                  return (
+                    <button
+                      key={sectionId}
+                      type="button"
+                      onClick={() => navigateToSection(sectionId)}
+                      className="rounded-full border border-[#d0c4a7] bg-[#faf3e2] px-3 py-1.5 text-xs font-semibold text-[#5d6b61] transition hover:bg-[#5d6b61] hover:text-white"
+                    >
+                      {section.label}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
         <nav aria-label="Manual section shortcuts" className="flex gap-2 overflow-x-auto pb-1">
           {sections.map((section) => (
-            <a
-              key={section.id}
-              href={`#${section.id}`}
-              onClick={() => {
-                setActiveSectionId(section.id);
-                const target = document.getElementById(section.id);
-                if (target instanceof HTMLDetailsElement) {
-                  target.open = true;
-                }
-              }}
-              aria-current={activeSectionId === section.id ? "location" : undefined}
-              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                activeSectionId === section.id
-                  ? "border-[#1b4b79] bg-[#1b4b79] text-white"
-                  : "border-[#35506b] bg-[#f7efe2] text-[#233d5a] hover:bg-[#233d5a] hover:text-white"
-              }`}
-            >
-              {section.label}
-            </a>
+            <div key={section.id} className="flex items-center gap-1">
+              <a
+                href={`#${section.id}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigateToSection(section.id);
+                }}
+                aria-current={activeSectionId === section.id ? "location" : undefined}
+                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  activeSectionId === section.id
+                    ? "border-[#1b4b79] bg-[#1b4b79] text-white"
+                    : "border-[#35506b] bg-[#f7efe2] text-[#233d5a] hover:bg-[#233d5a] hover:text-white"
+                }`}
+              >
+                {section.label}
+              </a>
+              <button
+                type="button"
+                aria-label={`${pinnedIds.includes(section.id) ? "Unpin" : "Pin"} ${section.label}`}
+                onClick={() => togglePinnedSection(section.id)}
+                className={`rounded-full border px-2 py-1 text-[0.68rem] font-semibold transition ${
+                  pinnedIds.includes(section.id)
+                    ? "border-[#7b5936] bg-[#7b5936] text-white"
+                    : "border-[#d0c4a7] bg-[#fff9ee] text-[#6b4a2d] hover:bg-[#6b4a2d] hover:text-white"
+                }`}
+              >
+                {pinnedIds.includes(section.id) ? "Pinned" : "+"}
+              </button>
+            </div>
           ))}
         </nav>
         <form onSubmit={jumpToBestMatch} className="flex flex-col gap-2 sm:flex-row">

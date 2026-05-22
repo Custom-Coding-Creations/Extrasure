@@ -1,6 +1,7 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminManualAssistant } from "@/components/admin/admin-manual-assistant";
 import { AdminManualDiagrams } from "@/components/admin/admin-manual-diagrams";
+import { ManualGlossaryIndex } from "@/components/admin/manual/manual-glossary-index";
 import { ManualSectionFrame } from "@/components/admin/manual/manual-section-frame";
 import { ManualTopControls } from "@/components/admin/manual/manual-top-controls";
 import { ManualPlatformOperations } from "@/components/admin/manual/manual-platform-operations";
@@ -593,6 +594,57 @@ const emergencyDecisionTrees: DecisionTree[] = [
   },
 ];
 
+const glossaryItems = [
+  {
+    term: "Deployment",
+    definition: "A newly published version of the website.",
+    detail: "Use this term when discussing a build that has been promoted to production or preview.",
+    category: "Operations",
+  },
+  {
+    term: "Webhook",
+    definition: "An automatic event message from one system to another.",
+    detail: "Stripe and other services use webhooks so the app can react to payment and status changes.",
+    category: "Integrations",
+  },
+  {
+    term: "API key",
+    definition: "A secret passcode software uses to access an external service.",
+    detail: "Keep keys in the credential vault and never paste them into public logs or chat.",
+    category: "Credentials",
+  },
+  {
+    term: "Environment variable",
+    definition: "A hidden configuration value used at runtime.",
+    detail: "These values differ between local, preview, and production deployments.",
+    category: "Configuration",
+  },
+  {
+    term: "Prisma",
+    definition: "The tool this project uses to define and query database data.",
+    detail: "Schema changes require generation and validation before production deployment.",
+    category: "Database",
+  },
+  {
+    term: "Schema",
+    definition: "The structure of database tables and fields.",
+    detail: "Schema drift can cause runtime errors or missing data in admin pages.",
+    category: "Database",
+  },
+  {
+    term: "OAuth",
+    definition: "Sign-in using trusted accounts like Google or Microsoft.",
+    detail: "If redirect URLs or client secrets are wrong, admin sign-in can loop or fail.",
+    category: "Security",
+  },
+  {
+    term: "Rollback",
+    definition: "Switching back to a previously working deployment.",
+    detail: "Use rollback when a new deployment is actively causing customer-facing failures.",
+    category: "Recovery",
+  },
+];
+
 const manualNavSections = [
   { id: "quick-start", label: "Quick Start", tags: ["crisis", "assistant", "diagrams"] },
   { id: "operating-guides", label: "Operating Guides", tags: ["roles", "architecture", "sop"] },
@@ -641,53 +693,69 @@ export default async function AdminManualPage() {
         id="quick-start"
         eyebrow="Orientation"
         title="Executive Start Here"
-        defaultOpen
+        defaultOpen={false}
+        summary="Start with the emergency checklist, then use the visual flows and assistant for fast orientation."
+        stats={["Crisis first", "3 references", "2 visual guides"]}
         description="Start with crisis response, then use visual flows and assistant support to orient quickly."
       >
-        <div className="space-y-4">
-          <p className="text-sm text-[#445349]">
-            This is the full operational handbook for the website. It is written for non-technical operators and explains what every major system does,
-            where to manage it, which credentials to use, and what to do when things break.
-          </p>
-          <div className="rounded-xl border border-[#b65d36] bg-[#fff1e8] p-4">
-            <h3 className="text-base font-semibold text-[#7a2f10]">First 30 Minutes in a Crisis</h3>
-            <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-[#6b3a22]">
-              <li>Stabilize customer impact first: confirm site up/down and payment availability.</li>
-              <li>Open Vercel, Stripe, and admin logs to identify first failure timestamp.</li>
-              <li>If deploy-related, rollback immediately to last known good deployment.</li>
-              <li>Assign one owner to incident lead and one to customer communication updates.</li>
-              <li>Use decision trees in this manual to avoid ad-hoc troubleshooting drift.</li>
-              <li>Document every action taken with time and operator name for auditability.</li>
-            </ol>
-          </div>
-          <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4 text-sm text-[#445349]">
-              <p className="font-semibold text-[#20372c]">How this website works in one sentence</p>
-              <p className="mt-2">
-                GitHub stores the code, Vercel deploys and hosts it, PostgreSQL stores business data, Stripe handles payments, OpenAI powers AI chat,
-                and OAuth providers control admin sign-in.
-              </p>
-            </div>
-            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4 text-sm text-[#445349]">
-              <p className="font-semibold text-[#20372c]">What to do first as a new operator</p>
-              <ol className="mt-2 list-inside list-decimal space-y-1">
-                <li>Review Dashboard Modules to learn where each business task is performed.</li>
-                <li>Open Platform Operations and verify account access and credential entries exist.</li>
-                <li>Use Daily SOP checklists to establish your operating routine.</li>
-                <li>Read Incident Playbooks so emergency actions are familiar before an outage occurs.</li>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <details className="rounded-xl border border-[#b65d36] bg-[#fff1e8]">
+            <summary className="list-none cursor-pointer px-4 py-3">
+              <p className="text-base font-semibold text-[#7a2f10]">First 30 Minutes</p>
+              <p className="mt-1 text-sm text-[#6b3a22]">The minimum crisis sequence before anything else.</p>
+            </summary>
+            <div className="border-t border-[#e4c4ad] px-4 py-3">
+              <ol className="list-inside list-decimal space-y-1 text-sm text-[#6b3a22]">
+                <li>Confirm site and payment availability.</li>
+                <li>Open Vercel, Stripe, and admin logs.</li>
+                <li>Rollback if deploy-related.</li>
+                <li>Assign incident lead and communications owner.</li>
+                <li>Use decision trees instead of ad-hoc troubleshooting.</li>
+                <li>Document the sequence with operator and time.</li>
               </ol>
             </div>
-          </div>
-          <div className="rounded-2xl border border-[#d6c8a4] bg-[#fff9eb] p-4">
+          </details>
+          <details className="rounded-xl border border-[#deceb0] bg-[#fff4df]">
+            <summary className="list-none cursor-pointer px-4 py-3">
+              <p className="text-base font-semibold text-[#20372c]">System Map</p>
+              <p className="mt-1 text-sm text-[#445349]">The shortest possible summary of the stack.</p>
+            </summary>
+            <div className="border-t border-[#e4d4b5] px-4 py-3 text-sm text-[#445349]">
+              GitHub stores code, Vercel deploys it, PostgreSQL stores data, Stripe handles payments, OpenAI powers AI chat, and OAuth controls admin sign-in.
+            </div>
+          </details>
+          <details className="rounded-xl border border-[#deceb0] bg-[#fff4df]">
+            <summary className="list-none cursor-pointer px-4 py-3">
+              <p className="text-base font-semibold text-[#20372c]">New Operator</p>
+              <p className="mt-1 text-sm text-[#445349]">Open these areas first to avoid getting lost.</p>
+            </summary>
+            <div className="border-t border-[#e4d4b5] px-4 py-3">
+              <ol className="list-inside list-decimal space-y-1 text-sm text-[#445349]">
+                <li>Review Dashboard Modules.</li>
+                <li>Open Platform Operations.</li>
+                <li>Use Daily SOP checklists.</li>
+                <li>Read Incident Playbooks.</li>
+              </ol>
+            </div>
+          </details>
+        </div>
+        <details className="mt-4 rounded-2xl border border-[#d6c8a4] bg-[#fff9eb]" open={false}>
+          <summary className="list-none cursor-pointer px-4 py-3">
+            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#566b60]">Visual Quick Diagrams</p>
+            <p className="mt-1 text-sm text-[#445349]">Open only if you want the fuller process maps.</p>
+          </summary>
+          <div className="border-t border-[#d6c8a4] p-4">
             <AdminManualDiagrams />
           </div>
-        </div>
+        </details>
       </ManualSectionFrame>
 
       <ManualSectionFrame
         id="operating-guides"
         eyebrow="Operations"
         title="Role Guides and Core Operating Patterns"
+        summary="Daily, weekly, and monthly routines for owners, dispatch, and accounting."
+        stats={["3 roles", "3 routines", "1 architecture map"]}
         description="Follow these role-specific flows, architecture cues, and recurring routines to run operations consistently."
         defaultOpen={false}
       >
@@ -754,6 +822,8 @@ export default async function AdminManualPage() {
         id="admin-modules"
         eyebrow="Execution"
         title="Admin Dashboard Module Manual"
+        summary="Compact module summaries for CRM, billing, scheduling, inventory, automation, and reporting."
+        stats={["13 modules", "2 actions each", "Reference + workflow"]}
         description="Each module summary explains who uses it, what it controls, and safe execution patterns."
         defaultOpen={false}
       >
@@ -795,6 +865,8 @@ export default async function AdminManualPage() {
         id="platform-ops"
         eyebrow="Platforms"
         title="Platform Operations"
+        summary="One platform at a time for setup, checks, troubleshooting, and credentials."
+        stats={["6 systems", "Tabbed view", "Credential-aware"]}
         description="Focus on one platform at a time with tabbed views for setup, checks, troubleshooting, and credentials."
         defaultOpen={false}
       >
@@ -805,6 +877,8 @@ export default async function AdminManualPage() {
         id="incidents"
         eyebrow="Recovery"
         title="Incident Playbooks and Escalation"
+        summary="Fast response guides for outages, payment sync issues, login failures, and missing data."
+        stats={["4 playbooks", "3 decision trees", "P1 ready"]}
         description="Use these guided response paths to stabilize service quickly and reduce improvisation during outages."
         defaultOpen={false}
       >
@@ -860,27 +934,13 @@ export default async function AdminManualPage() {
         id="reference-security"
         eyebrow="Reference"
         title="Glossary and Credential Security"
+        summary="Searchable definitions plus rules for handling sensitive access safely."
+        stats={["Reference index", "Security rules", "Vault standards"]}
         description="Use these standards to keep account access consistent, auditable, and operationally safe."
         defaultOpen={false}
       >
         <div className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            {[
-              ["Deployment", "A newly published version of the website."],
-              ["Webhook", "An automatic event message from one system to another."],
-              ["API key", "A secret passcode software uses to access an external service."],
-              ["Environment variable", "A hidden configuration value used at runtime."],
-              ["Prisma", "The tool this project uses to define and query database data."],
-              ["Schema", "The structure of database tables and fields."],
-              ["OAuth", "Sign-in using trusted accounts like Google or Microsoft."],
-              ["Rollback", "Switching back to a previously working deployment."],
-            ].map(([term, definition]) => (
-              <article key={term} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">
-                <p className="font-semibold text-[#20372c]">{term}</p>
-                <p className="mt-1 text-sm text-[#445349]">{definition}</p>
-              </article>
-            ))}
-          </div>
+          <ManualGlossaryIndex items={glossaryItems} />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
@@ -911,14 +971,17 @@ export default async function AdminManualPage() {
           id="owner-credentials"
           eyebrow="Owner Only"
           title="Credential Vault Management"
+          summary="Create, update, and remove encrypted credentials in a controlled owner-only vault."
+          stats={["Owner only", "Encrypted at rest", "Audit logged"]}
           description="Add, update, and remove encrypted credentials used across external platforms."
           defaultOpen={false}
         >
-          <h2 className="text-2xl text-[#1b2f25]">Credential Vault Management (Owner)</h2>
-          <p className="mt-2 text-sm text-[#445349]">
-            Add, update, and remove credentials stored for this manual. Enter each external platform account username and password here.
-            Password values are encrypted at rest and masked by default.
-          </p>
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h2 className="text-2xl text-[#1b2f25]">Credential Vault Management (Owner)</h2>
+              <p className="mt-2 max-w-3xl text-sm text-[#445349]">
+                Add, update, and remove credentials stored for this manual. Password values are encrypted at rest and masked by default.
+              </p>
+            </div>
 
           <form action={createManualSecretAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <input name="title" required placeholder="Credential title" className="rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]" />
@@ -947,7 +1010,7 @@ export default async function AdminManualPage() {
               const entries = secretsByCategory[category];
 
               return (
-                <details key={category} className="rounded-xl border border-[#d8caad] bg-[#fff4df]" open={entries.length > 0}>
+                <details key={category} className="rounded-xl border border-[#d8caad] bg-[#fff4df]">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3">
                     <span className="text-sm font-semibold capitalize text-[#20372c]">{category}</span>
                     <span className="rounded-full border border-[#35506b] bg-[#fff9ed] px-2 py-0.5 text-[0.7rem] font-semibold text-[#233d5a]">
@@ -959,38 +1022,51 @@ export default async function AdminManualPage() {
                       <p className="text-sm text-[#566c60]">No credentials stored in this category.</p>
                     ) : (
                       entries.map((secret) => (
-                        <article key={secret.id} className="rounded-xl border border-[#deceb0] bg-[#fff9ed] p-4">
-                          <form action={updateManualSecretAction} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                            <input type="hidden" name="secretId" value={secret.id} />
-                            <input name="title" defaultValue={secret.title} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                            <input name="platform" defaultValue={secret.platform} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                            <select name="category" defaultValue={secret.category} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]">
-                              {categories.map((categoryOption) => (
-                                <option key={categoryOption} value={categoryOption}>
-                                  {categoryOption}
-                                </option>
-                              ))}
-                            </select>
-                            <input name="username" defaultValue={secret.username ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                            <input name="portalUrl" defaultValue={secret.portalUrl ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                            <input name="secretValue" placeholder="Leave blank to keep current password" className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                            <input name="notes" defaultValue={secret.notes ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                            <label className="flex items-center gap-2 rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]">
-                              <input name="isActive" type="checkbox" className="h-4 w-4" defaultChecked={secret.isActive} /> Active
-                            </label>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <button type="submit" className="rounded-full bg-[#163526] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#10271d]">
-                                Save
-                              </button>
+                        <details key={secret.id} className="rounded-xl border border-[#deceb0] bg-[#fff9ed]" open={false}>
+                          <summary className="list-none cursor-pointer px-4 py-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-[#20372c]">{secret.title}</p>
+                                <p className="mt-1 text-xs text-[#5d7267]">{secret.platform} · {secret.username ?? "No username"} · Updated {formatDate(secret.updatedAt)}</p>
+                              </div>
+                              <span className="rounded-full border border-[#35506b] bg-[#fff9ed] px-2.5 py-1 text-[0.68rem] font-semibold text-[#233d5a]">
+                                {secret.isActive ? "Active" : "Inactive"}
+                              </span>
                             </div>
-                          </form>
-                          <form action={deleteManualSecretAction} className="mt-2">
-                            <input type="hidden" name="secretId" value={secret.id} />
-                            <button type="submit" className="rounded-full border border-[#8a3d22] px-3 py-1 text-xs font-semibold text-[#8a3d22] transition hover:bg-[#8a3d22] hover:text-white">
-                              Delete Credential
-                            </button>
-                          </form>
-                        </article>
+                          </summary>
+                          <div className="border-t border-[#d8caad] p-4">
+                            <form action={updateManualSecretAction} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                              <input type="hidden" name="secretId" value={secret.id} />
+                              <input name="title" defaultValue={secret.title} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                              <input name="platform" defaultValue={secret.platform} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                              <select name="category" defaultValue={secret.category} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]">
+                                {categories.map((categoryOption) => (
+                                  <option key={categoryOption} value={categoryOption}>
+                                    {categoryOption}
+                                  </option>
+                                ))}
+                              </select>
+                              <input name="username" defaultValue={secret.username ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                              <input name="portalUrl" defaultValue={secret.portalUrl ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                              <input name="secretValue" placeholder="Leave blank to keep current password" className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                              <input name="notes" defaultValue={secret.notes ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                              <label className="flex items-center gap-2 rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]">
+                                <input name="isActive" type="checkbox" className="h-4 w-4" defaultChecked={secret.isActive} /> Active
+                              </label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button type="submit" className="rounded-full bg-[#163526] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#10271d]">
+                                  Save
+                                </button>
+                              </div>
+                            </form>
+                            <form action={deleteManualSecretAction} className="mt-2">
+                              <input type="hidden" name="secretId" value={secret.id} />
+                              <button type="submit" className="rounded-full border border-[#8a3d22] px-3 py-1 text-xs font-semibold text-[#8a3d22] transition hover:bg-[#8a3d22] hover:text-white">
+                                Delete Credential
+                              </button>
+                            </form>
+                          </div>
+                        </details>
                       ))
                     )}
                   </div>
