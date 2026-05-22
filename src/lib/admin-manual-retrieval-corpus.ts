@@ -58,6 +58,42 @@ export const retrievalCorpus: AdminManualRetrievalChunk[] = [
     "text": "{ \"name\": \"extrasure\", \"version\": \"0.1.0\", \"private\": true, \"scripts\": { \"dev\": \"prisma generate --schema prisma/schema.prisma && next dev\", \"manual:refresh-corpus\": \"node scripts/generate-admin-manual-retrieval-corpus.mjs\", \"build\": \"npm run manual:refresh-corpus && node scripts/prisma-prepare.mjs && next build\", \"build:vercel\": \"npm run manual:refresh-corpus && node scripts/prisma-prepare.mjs && next build\", \"start\": \"next start\", \"lint\": \"eslint\", \"test\": \"jest --runInBand\", \"db:generate\": \"node scripts/prisma-prepare.mjs\", \"db:generate:postgres\": \"prisma generate --schema prisma/schema.postgresql.prisma\", \"db:push\": \"prisma db push\", \"db:push:postgres\": \"prisma db push --schema prisma/schema.postgresql.prisma\", \"db:seed\": \"prisma db seed\", \"db:dedupe:technicians\": \"node --env-file=.env scripts/dedupe-technicians.mjs\", \"db:purge:triage\": \"node --env-file=.env scripts/purge-triage-retention.mjs\", \"db:seed:prod\": \"prisma generate --schema prisma/schema.postgresql.prisma && tsx prisma/"
   },
   {
+    "id": "docs/THEME-REDESIGN-PR-OUTLINES.md#1",
+    "path": "docs/THEME-REDESIGN-PR-OUTLINES.md",
+    "title": "THEME-REDESIGN-PR-OUTLINES.md",
+    "text": "- Reframes the ExtraSure experience around a warm, premium, minimalist visual language. - Preserves the existing application structure and product behavior while replacing the shared design system."
+  },
+  {
+    "id": "docs/THEME-REDESIGN-PR-OUTLINES.md#2",
+    "path": "docs/THEME-REDESIGN-PR-OUTLINES.md",
+    "title": "THEME-REDESIGN-PR-OUTLINES.md",
+    "text": "- Refined neutral palette with understated contrast. - More elegant typography pairing and calmer spacing rhythm. - Premium treatment across homepage, CTA, account shell, and admin shell."
+  },
+  {
+    "id": "docs/THEME-REDESIGN-PR-OUTLINES.md#3",
+    "path": "docs/THEME-REDESIGN-PR-OUTLINES.md",
+    "title": "THEME-REDESIGN-PR-OUTLINES.md",
+    "text": "- Rebuilds the site around a dark, layered glassmorphism direction. - Keeps behavior unchanged while shifting the brand into a more cinematic and technical visual mode."
+  },
+  {
+    "id": "docs/THEME-REDESIGN-PR-OUTLINES.md#4",
+    "path": "docs/THEME-REDESIGN-PR-OUTLINES.md",
+    "title": "THEME-REDESIGN-PR-OUTLINES.md",
+    "text": "- Frosted panel system with blur and translucency. - High-contrast dark chrome across public and dashboard surfaces. - Shared shell surfaces updated to feel more immersive and premium."
+  },
+  {
+    "id": "docs/THEME-REDESIGN-PR-OUTLINES.md#5",
+    "path": "docs/THEME-REDESIGN-PR-OUTLINES.md",
+    "title": "THEME-REDESIGN-PR-OUTLINES.md",
+    "text": "- Pushes the site into a more futuristic, neon-forward visual identity. - Maintains all product flows while dramatically increasing visual energy."
+  },
+  {
+    "id": "docs/THEME-REDESIGN-PR-OUTLINES.md#6",
+    "path": "docs/THEME-REDESIGN-PR-OUTLINES.md",
+    "title": "THEME-REDESIGN-PR-OUTLINES.md",
+    "text": "- Saturated neon accents and darker gradient fields. - Sharper, more aggressive visual hierarchy. - Matching treatment across homepage, CTA, account, and admin surfaces."
+  },
+  {
     "id": "docs/ACCOUNT-OS-ROLLOUT-PR.md#1",
     "path": "docs/ACCOUNT-OS-ROLLOUT-PR.md",
     "title": "ACCOUNT-OS-ROLLOUT-PR.md",
@@ -262,6 +298,78 @@ export const retrievalCorpus: AdminManualRetrievalChunk[] = [
     "text": "export async function createAdminSession(name: string, roleInput?: string) { const role = parseRole(roleInput); const exp = Date.now() + SESSION_TTL_SECONDS * 1000;"
   },
   {
+    "id": "src/lib/admin-page-data.ts#1",
+    "path": "src/lib/admin-page-data.ts",
+    "title": "admin-page-data.ts",
+    "text": "export async function loadAdminPageData(): Promise<AdminPageDataResult> { try { return { state: await getAdminState(), dataError: null, }; } catch (error) { if (error instanceof AdminDataUnavailableError) { return { state: null, dataError: error.message, }; }"
+  },
+  {
+    "id": "src/lib/admin-page-data.ts#2",
+    "path": "src/lib/admin-page-data.ts",
+    "title": "admin-page-data.ts",
+    "text": "export type AchAdoptionMetrics = { totalCustomers: number; achEnabledCustomers: number; autopayCustomers: number; achDiscountUsageCount: number; achMethodShareByBillingCycle: { monthly: number; quarterly: number; annual: number; }; };"
+  },
+  {
+    "id": "src/lib/admin-page-data.ts#3",
+    "path": "src/lib/admin-page-data.ts",
+    "title": "admin-page-data.ts",
+    "text": "export type PaymentMethodDistribution = { card: { count: number; percentage: number; }; ach: { count: number; percentage: number; }; };"
+  },
+  {
+    "id": "src/lib/admin-page-data.ts#4",
+    "path": "src/lib/admin-page-data.ts",
+    "title": "admin-page-data.ts",
+    "text": "export async function getAchAdoptionMetrics(initialState?: AdminState | null): Promise<AchAdoptionMetrics> { const state = initialState ?? (await loadAdminPageData()).state;"
+  },
+  {
+    "id": "src/lib/admin-page-data.ts#5",
+    "path": "src/lib/admin-page-data.ts",
+    "title": "admin-page-data.ts",
+    "text": "if (!state) { return { totalCustomers: 0, achEnabledCustomers: 0, autopayCustomers: 0, achDiscountUsageCount: 0, achMethodShareByBillingCycle: { monthly: 0, quarterly: 0, annual: 0, }, }; }"
+  },
+  {
+    "id": "src/lib/admin-page-data.ts#6",
+    "path": "src/lib/admin-page-data.ts",
+    "title": "admin-page-data.ts",
+    "text": "const totalCustomers = state.customers.length; const achEnabledCustomers = state.customers.filter((customer) => customer.preferredPaymentMethod === \"ach\").length; const autopayCustomers = state.customers.filter((customer) => customer.autopayEnabled).length;"
+  },
+  {
+    "id": "src/lib/admin-operational-settings.ts#1",
+    "path": "src/lib/admin-operational-settings.ts",
+    "title": "admin-operational-settings.ts",
+    "text": "import { prisma } from \"@/lib/prisma\"; import { getTriageHumanReviewConfidenceThreshold, isTriageEnabled } from \"@/lib/triage-runtime\";"
+  },
+  {
+    "id": "src/lib/admin-operational-settings.ts#2",
+    "path": "src/lib/admin-operational-settings.ts",
+    "title": "admin-operational-settings.ts",
+    "text": "export type OperationalState = { triageKillSwitchDisabled: boolean; triageHumanReviewThreshold: number; updatedAt: Date; updatedBy: string | null; };"
+  },
+  {
+    "id": "src/lib/admin-operational-settings.ts#3",
+    "path": "src/lib/admin-operational-settings.ts",
+    "title": "admin-operational-settings.ts",
+    "text": "export async function getOperationalSettings(): Promise<OperationalState> { // Use cache if still valid if (settingsCache && cacheTtl > Date.now() - CACHE_DURATION_MS) { return settingsCache; }"
+  },
+  {
+    "id": "src/lib/admin-operational-settings.ts#4",
+    "path": "src/lib/admin-operational-settings.ts",
+    "title": "admin-operational-settings.ts",
+    "text": "if (settings) { settingsCache = { triageKillSwitchDisabled: settings.triageKillSwitchDisabled, triageHumanReviewThreshold: settings.triageHumanReviewThreshold, updatedAt: settings.updatedAt, updatedBy: settings.updatedBy, }; cacheTtl = Date.now(); return settingsCache; } } catch (error) { console.error(\"Failed to fetch operational settings:\", error); }"
+  },
+  {
+    "id": "src/lib/admin-operational-settings.ts#5",
+    "path": "src/lib/admin-operational-settings.ts",
+    "title": "admin-operational-settings.ts",
+    "text": "// Fallback to environment variables return { triageKillSwitchDisabled: !isTriageEnabled(), triageHumanReviewThreshold: getTriageHumanReviewConfidenceThreshold(), updatedAt: new Date(), updatedBy: null, }; }"
+  },
+  {
+    "id": "src/lib/admin-operational-settings.ts#6",
+    "path": "src/lib/admin-operational-settings.ts",
+    "title": "admin-operational-settings.ts",
+    "text": "export async function setTriageKillSwitch(disabled: boolean, actor: string): Promise<OperationalState> { try { const settings = await prisma.operationalSettings.upsert({ where: { id: \"singleton\" }, create: { id: \"singleton\", triageKillSwitchDisabled: disabled, triageHumanReviewThreshold: getTriageHumanReviewConfidenceThreshold(), updatedBy: actor, }, update: { triageKillSwitchDisabled: disabled, updatedBy: actor, updatedAt: new Date(), }, });"
+  },
+  {
     "id": "src/lib/admin-manual-store.ts#1",
     "path": "src/lib/admin-manual-store.ts",
     "title": "admin-manual-store.ts",
@@ -322,6 +430,78 @@ export const retrievalCorpus: AdminManualRetrievalChunk[] = [
     "text": "export function parseAuditSnapshot(json: string | null) { try { return json ? JSON.parse(json) : null; } catch { return null; } }"
   },
   {
+    "id": "src/lib/payment-preferences.ts#1",
+    "path": "src/lib/payment-preferences.ts",
+    "title": "payment-preferences.ts",
+    "text": "import { randomUUID } from \"node:crypto\"; import { PaymentPreferenceMethod, PaymentMethod } from \"@prisma/client\"; import { prisma } from \"@/lib/prisma\"; import { getStripe } from \"@/lib/stripe\"; import type { AchDiscountSummary } from \"@/types/payment-preferences\";"
+  },
+  {
+    "id": "src/lib/payment-preferences.ts#2",
+    "path": "src/lib/payment-preferences.ts",
+    "title": "payment-preferences.ts",
+    "text": "function mapPaymentMethodType(method: { type: string }) { return method.type === \"us_bank_account\" ? PaymentMethod.ach : PaymentMethod.card; }"
+  },
+  {
+    "id": "src/lib/payment-preferences.ts#3",
+    "path": "src/lib/payment-preferences.ts",
+    "title": "payment-preferences.ts",
+    "text": "function mapPaymentMethodBrand(method: { type: string; card?: { brand?: string | null } | null; }) { if (method.type === \"us_bank_account\") { return \"bank_account\"; }"
+  },
+  {
+    "id": "src/lib/payment-preferences.ts#4",
+    "path": "src/lib/payment-preferences.ts",
+    "title": "payment-preferences.ts",
+    "text": "function mapPaymentMethodLast4(method: { type: string; card?: { last4?: string | null } | null; us_bank_account?: { last4?: string | null } | null; }) { if (method.type === \"us_bank_account\") { return method.us_bank_account?.last4 ?? \"0000\"; }"
+  },
+  {
+    "id": "src/lib/payment-preferences.ts#5",
+    "path": "src/lib/payment-preferences.ts",
+    "title": "payment-preferences.ts",
+    "text": "export async function syncSavedPaymentMethodsFromStripe(stripeCustomerId: string) { const customer = await prisma.customer.findUnique({ where: { stripeCustomerId }, select: { id: true }, });"
+  },
+  {
+    "id": "src/lib/payment-preferences.ts#6",
+    "path": "src/lib/payment-preferences.ts",
+    "title": "payment-preferences.ts",
+    "text": "const stripe = getStripe(); const [cards, banks, stripeCustomer] = await Promise.all([ stripe.paymentMethods.list({ customer: stripeCustomerId, type: \"card\", limit: 100, }), stripe.paymentMethods.list({ customer: stripeCustomerId, type: \"us_bank_account\", limit: 100, }), stripe.customers.retrieve(stripeCustomerId), ]);"
+  },
+  {
+    "id": "src/lib/stripe-billing.ts#1",
+    "path": "src/lib/stripe-billing.ts",
+    "title": "stripe-billing.ts",
+    "text": "import { randomUUID } from \"node:crypto\"; import { PaymentPreferenceMethod, Prisma } from \"@prisma/client\"; import type { StripePaymentElementOptions } from \"@stripe/stripe-js\"; import type Stripe from \"stripe\"; import { prisma } from \"@/lib/prisma\"; import { createInvoiceAccessToken } from \"@/lib/customer-billing-access\"; import { calculateAchDiscount, isAchDiscountEligible, syncSavedPaymentMethodsFromStripe } from \"@/lib/payment-preferences\"; import { getBaseUrl, stripe } from \"@/lib/stripe\"; import type { AchDiscountSummary, PaymentMethodType } from \"@/types/payment-preferences\";"
+  },
+  {
+    "id": "src/lib/stripe-billing.ts#2",
+    "path": "src/lib/stripe-billing.ts",
+    "title": "stripe-billing.ts",
+    "text": "export async function applyAchDiscountIfEligible( paymentIntentId: string, customerId: string, originalAmount: number, ) { const eligible = await isAchDiscountEligible(customerId);"
+  },
+  {
+    "id": "src/lib/stripe-billing.ts#3",
+    "path": "src/lib/stripe-billing.ts",
+    "title": "stripe-billing.ts",
+    "text": "await stripe.paymentIntents.update(paymentIntentId, { amount: toUnitAmount(discount.discountedAmount), metadata: { achDiscountApplied: \"true\", achSavingsAmount: String(discount.savingsAmount), achOriginalAmount: String(discount.originalAmount), }, });"
+  },
+  {
+    "id": "src/lib/stripe-billing.ts#4",
+    "path": "src/lib/stripe-billing.ts",
+    "title": "stripe-billing.ts",
+    "text": "export async function attachPaymentMethodPreference( paymentIntentId: string, preferredMethod: PaymentMethodType, ) { await stripe.paymentIntents.update(paymentIntentId, { metadata: { preferredPaymentMethod: preferredMethod, }, }); }"
+  },
+  {
+    "id": "src/lib/stripe-billing.ts#5",
+    "path": "src/lib/stripe-billing.ts",
+    "title": "stripe-billing.ts",
+    "text": "export async function getPaymentElementOptionsForAch( customerId: string, isRecurring: boolean, ): Promise<StripePaymentElementOptions> { const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { preferredPaymentMethod: true, achDiscountEligible: true, }, });"
+  },
+  {
+    "id": "src/lib/stripe-billing.ts#6",
+    "path": "src/lib/stripe-billing.ts",
+    "title": "stripe-billing.ts",
+    "text": "const preferredMethod = customer?.preferredPaymentMethod ?? \"none\"; const achPreferred = preferredMethod === \"ach\"; const achEligible = customer?.achDiscountEligible ?? false;"
+  },
+  {
     "id": "src/app/admin/manual/page.tsx#1",
     "path": "src/app/admin/manual/page.tsx",
     "title": "page.tsx",
@@ -358,6 +538,78 @@ export const retrievalCorpus: AdminManualRetrievalChunk[] = [
     "text": "const dashboardModules: DashboardModuleGuide[] = [ { title: \"Overview\", href: \"/admin\", whoUsesIt: \"Owner, dispatch lead\", whatItControls: \"Business KPIs, current workload, and top-level operational health.\", commonTasks: [ \"Start every morning by checking this page for anomalies.\", \"Review failed payments and unresolved priority tasks.\", \"Use as launch point into other modules.\", ], mistakesToAvoid: [ \"Do not assume green KPIs mean payments webhooks are healthy.\", \"Do not skip reviewing failed items even when totals look normal.\", ], }, { title: \"CRM\", href: \"/admin/customers\", whoUsesIt: \"Dispatch, owner, accounting\", whatItControls: \"Customer records, lifecycle status, and contact details.\", commonTasks: [ \"Search and update customer contact information.\", \"Review lifecycle state before scheduling or invoicing.\", \"Validate payment preferences for billing operations.\", ], mistakesToAvoid: [ \"Do not create duplicate customers when updating existing records.\", \"Do not overwrite phone a"
   },
   {
+    "id": "src/app/admin/payments/page.tsx#1",
+    "path": "src/app/admin/payments/page.tsx",
+    "title": "page.tsx",
+    "text": "import { AdminShell } from \"@/components/admin/admin-shell\"; import { AdminDataNotice } from \"@/components/admin/admin-data-notice\"; import { CreateStripeInvoiceDraftButton } from \"@/components/admin/create-stripe-invoice-draft-button\"; import { collectInvoiceAction, openBillingPortalAction, refundPaymentAction, } from \"@/app/admin/payments/actions\"; import { GeneratePaymentLinkButton } from \"@/components/admin/generate-payment-link-button\"; import { FinalizeStripeInvoiceButton } from \"@/components/admin/finalize-stripe-invoice-button\"; import { OpenStripeInvoiceLinkButton } from \"@/components/admin/open-stripe-invoice-link-button\"; import { ReconcileInvoiceButton } from \"@/components/admin/reconcile-invoice-button\"; import { ReplayWebhookButton } from \"@/components/admin/replay-webhook-button\"; import { StripeInvoicePdfButton } from \"@/components/admin/stripe-invoice-pdf-button\"; import { SubscriptionLifecycleButton } from \"@/components/admin/subscription-lifecycle-button\"; import { l"
+  },
+  {
+    "id": "src/app/admin/payments/page.tsx#2",
+    "path": "src/app/admin/payments/page.tsx",
+    "title": "page.tsx",
+    "text": "export default async function AdminPaymentsPage({ searchParams }: PageProps) { const { state, dataError } = await loadAdminPageData(); const params = searchParams ? await searchParams : undefined; const stripeState = params?.stripe;"
+  },
+  {
+    "id": "src/app/admin/payments/page.tsx#3",
+    "path": "src/app/admin/payments/page.tsx",
+    "title": "page.tsx",
+    "text": "if (!state) { return ( <AdminShell title=\"Payments, Dunning, and Refunds\" subtitle=\"Track card and ACH outcomes, monitor Stripe-managed recovery, and maintain refund controls for billing integrity.\" > {stripeState ? ( <section className=\"rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-4 text-sm text-[#33453a]\"> {stripeState === \"success\" ? \"Stripe checkout completed. Billing status will finalize after verified webhook processing.\" : stripeState === \"portal_return\" ? \"Returned from the Stripe billing portal.\" : \"Stripe checkout was canceled before completion.\"} </section> ) : null} <AdminDataNotice message={dataError} /> </AdminShell> ); }"
+  },
+  {
+    "id": "src/app/admin/payments/page.tsx#4",
+    "path": "src/app/admin/payments/page.tsx",
+    "title": "page.tsx",
+    "text": "const collectionTotal = state.payments .filter((payment) => payment.status === \"succeeded\") .reduce((total, payment) => total + payment.amount, 0); const failedTotal = state.payments .filter((payment) => payment.status === \"failed\") .reduce((total, payment) => total + payment.amount, 0);"
+  },
+  {
+    "id": "src/app/admin/payments/page.tsx#5",
+    "path": "src/app/admin/payments/page.tsx",
+    "title": "page.tsx",
+    "text": "return ( <AdminShell title=\"Payments, Dunning, and Refunds\" subtitle=\"Track card and ACH outcomes, monitor Stripe-managed recovery, and maintain refund controls for billing integrity.\" > {stripeState ? ( <section className=\"rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-4 text-sm text-[#33453a]\"> {stripeState === \"success\" ? \"Stripe checkout completed. Billing status will finalize after verified webhook processing.\" : stripeState === \"portal_return\" ? \"Returned from the Stripe billing portal.\" : \"Stripe checkout was canceled before completion.\"} </section> ) : null}"
+  },
+  {
+    "id": "src/app/admin/payments/page.tsx#6",
+    "path": "src/app/admin/payments/page.tsx",
+    "title": "page.tsx",
+    "text": "<div className=\"grid gap-4 sm:grid-cols-2\"> <article className=\"rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5\"> <p className=\"text-xs uppercase tracking-[0.12em] text-[#5d7267]\">Collected</p> <p className=\"mt-2 text-3xl text-[#153126]\">${collectionTotal}</p> <p className=\"mt-2 text-sm text-[#445349]\">Successful card and ACH transactions in this window.</p> </article> <article className=\"rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5\"> <p className=\"text-xs uppercase tracking-[0.12em] text-[#5d7267]\">Failed Payment Exposure</p> <p className=\"mt-2 text-3xl text-[#153126]\">${failedTotal}</p> <p className=\"mt-2 text-sm text-[#445349]\">Stripe Billing dunning now handles retries and reminders automatically.</p> </article> </div>"
+  },
+  {
+    "id": "src/app/admin/settings/page.tsx#1",
+    "path": "src/app/admin/settings/page.tsx",
+    "title": "page.tsx",
+    "text": "import { AdminShell } from \"@/components/admin/admin-shell\"; import { AdminDataNotice } from \"@/components/admin/admin-data-notice\"; import { TriageRetentionOpsCard } from \"@/components/admin/triage-retention-ops-card\"; import { TriageRetentionHistoryCard } from \"@/components/admin/triage-retention-history-card\"; import { TriageOperationalControlsCard } from \"@/components/admin/triage-operational-controls-card\"; import { TriageAnomalyDetectionCard } from \"@/components/admin/triage-anomaly-detection-card\"; import { TriageAssessmentOverrideCard } from \"@/components/admin/triage-assessment-override-card\"; import { TriageWebhookNotificationsCard } from \"@/components/admin/triage-webhook-notifications-card\"; import { TriageAssessmentExportCard } from \"@/components/admin/triage-assessment-export-card\"; import { createAdminUserAction, deleteAdminUserAction, toggleAdminUserTwoFactorAction, updateAdminUserAction, updateSchedulingConfigAction, } from \"@/app/admin/settings/actions\"; import { load"
+  },
+  {
+    "id": "src/app/admin/settings/page.tsx#2",
+    "path": "src/app/admin/settings/page.tsx",
+    "title": "page.tsx",
+    "text": "export default async function AdminSettingsPage() { const { state, dataError } = await loadAdminPageData(); const schedulingConfig = await getSchedulingConfig();"
+  },
+  {
+    "id": "src/app/admin/settings/page.tsx#3",
+    "path": "src/app/admin/settings/page.tsx",
+    "title": "page.tsx",
+    "text": "return ( <AdminShell title=\"Security and Access Controls\" subtitle=\"Manage role-based permissions, 2FA readiness, and audit controls for owner-level operations.\" > {!state ? <AdminDataNotice message={dataError} /> : ( <> <section className=\"rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5\"> <h2 className=\"text-2xl text-[#1b2f25]\">Create Admin User</h2> <form action={createAdminUserAction} className=\"mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5\"> <input name=\"name\" required placeholder=\"Name\" className=\"rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]\" /> <input name=\"email\" type=\"email\" required placeholder=\"Email\" className=\"rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]\" /> <select name=\"role\" defaultValue=\"owner\" className=\"rounded-xl border border-[#cbbd9f] bg-[#fffdf6] px-4 py-3 text-sm text-[#1d2f25]\"> <option value=\"owner\">Owner</option> <option value=\"dispatch\">Dispatch</option> <option value=\"technician\">Te"
+  },
+  {
+    "id": "src/app/admin/settings/page.tsx#4",
+    "path": "src/app/admin/settings/page.tsx",
+    "title": "page.tsx",
+    "text": "<section className=\"rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5\"> <h2 className=\"text-2xl text-[#1b2f25]\">Role and MFA Status</h2> <ul className=\"mt-4 space-y-3 text-sm\"> {state.adminUsers.map((user) => { const formId = `admin-user-form-${user.id}`;"
+  },
+  {
+    "id": "src/app/admin/settings/page.tsx#5",
+    "path": "src/app/admin/settings/page.tsx",
+    "title": "page.tsx",
+    "text": "return ( <li key={user.id} className=\"rounded-xl border border-[#deceb0] bg-[#fff4df] p-3\"> <div className=\"grid gap-2 md:grid-cols-2 xl:grid-cols-5\"> <input form={formId} name=\"name\" defaultValue={user.name} className=\"rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]\" /> <input form={formId} name=\"email\" type=\"email\" defaultValue={user.email ?? \"\"} className=\"rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]\" /> <select form={formId} name=\"role\" defaultValue={user.role} className=\"rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]\"> <option value=\"owner\">Owner</option> <option value=\"dispatch\">Dispatch</option> <option value=\"technician\">Technician</option> <option value=\"accountant\">Accountant</option> </select> <label className=\"flex items-center gap-2 rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]\"> <input form={formId} name=\"twoFactorEnabled\" type=\"checkbo"
+  },
+  {
+    "id": "src/app/admin/settings/page.tsx#6",
+    "path": "src/app/admin/settings/page.tsx",
+    "title": "page.tsx",
+    "text": "<section className=\"rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5\"> <h2 className=\"text-2xl text-[#1b2f25]\">Operational Security Checklist</h2> <ul className=\"mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]\"> <li>Require 2FA for all owner and accounting roles before enabling live refunds.</li> <li>Maintain immutable audit trails for invoice edits, refunds, and role changes.</li> <li>Review failed authentication attempts weekly and rotate privileged credentials quarterly.</li> <li>Confirm webhook signature validation for payment and accounting integrations.</li> </ul> </section>"
+  },
+  {
     "id": "src/app/api/admin/manual-assistant/route.ts#1",
     "path": "src/app/api/admin/manual-assistant/route.ts",
     "title": "route.ts",
@@ -391,7 +643,7 @@ export const retrievalCorpus: AdminManualRetrievalChunk[] = [
     "id": "src/app/api/admin/manual-assistant/route.ts#6",
     "path": "src/app/api/admin/manual-assistant/route.ts",
     "title": "route.ts",
-    "text": "function buildFallbackAnswer(args: { contextText: string; confidence: \"low\" | \"medium\" | \"high\"; inScope: boolean; }) { if (!args.inScope) { return [ \"That looks outside this assistant's scope.\", \"I can only answer questions about this website's admin operations, deployment, codebase structure, and connected platforms.\", \"Please ask a website-specific question, for example: 'How do I rollback in Vercel?' or 'Where is admin authentication handled in the codebase?'\", ].join(\" \"); }"
+    "text": "function buildFallbackAnswer(args: { contextText: string; confidence: \"low\" | \"medium\" | \"high\"; inScope: boolean; grounded: boolean; }) { if (!args.inScope) { return [ \"That looks outside this assistant's scope.\", \"I can only answer questions about this website's admin operations, deployment, codebase structure, and connected platforms.\", \"Please ask a website-specific question, for example: 'How do I rollback in Vercel?' or 'Where is admin authentication handled in the codebase?'\", ].join(\" \"); }"
   },
   {
     "id": "src/app/api/admin/payments/route.ts#1",

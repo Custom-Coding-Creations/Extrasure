@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApiSession } from "@/lib/admin-auth";
 import { buildAdminManualKnowledgeContext } from "@/lib/admin-manual-knowledge";
 import { retrieveAdminManualContext } from "@/lib/admin-manual-retrieval";
+import { recordAdminManualAssistantResponseMode } from "@/lib/admin-manual-assistant-analytics";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,38 @@ type ManualAssistantRequest = {
 type ScopeDecision = {
   inScope: boolean;
   reason: string;
+};
+
+type AssistantResponseMode =
+  | "out-of-scope"
+  | "dns-clarifier"
+  | "dns-guided"
+  | "deploy-clarifier"
+  | "deploy-guided"
+  | "billing-clarifier"
+  | "billing-guided"
+  | "auth-clarifier"
+  | "auth-guided"
+  | "generic-clarifier"
+  | "grounded-fallback"
+  | "grounded-ai";
+
+const STRONG_RETRIEVAL_SCORE = 6;
+const DIRECT_RETRIEVAL_SCOPE_SCORE = 10;
+
+const operationsProfile = {
+  hostingPlatform: "Vercel",
+  sourceControl: "GitHub (main branch deploy workflow)",
+  paymentsPlatform: "Stripe webhook-driven reconciliation",
+  runtimeDatabase: "Prisma with Postgres in production",
+  criticalEnvVars: [
+    "SITE_URL or NEXT_PUBLIC_SITE_URL",
+    "ADMIN_AUTH_SECRET",
+    "CUSTOMER_AUTH_SECRET",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "OPENAI_API_KEY",
+  ],
 };
 
 const inScopeKeywords = [
@@ -88,32 +121,212 @@ function normalizeHistory(history: ManualAssistantMessage[] | undefined) {
     .slice(-8);
 }
 
+function summarizeRecentHistory(history: ManualAssistantMessage[]) {
+  const recentEntries = history.slice(-4);
+
+  if (recentEntries.length === 0) {
+    return "No prior conversation context.";
+  }
+
+  return recentEntries.map((entry, index) => `${index + 1}. ${entry.role}: ${entry.content}`).join("\n");
+}
+
+function buildOperationsProfileSummary() {
+  return [
+    `Hosting: ${operationsProfile.hostingPlatform}`,
+    `Source control and deploy flow: ${operationsProfile.sourceControl}`,
+    `Payments source of truth: ${operationsProfile.paymentsPlatform}`,
+    `Data platform: ${operationsProfile.runtimeDatabase}`,
+    `Critical environment variables: ${operationsProfile.criticalEnvVars.join(" | ")}`,
+  ].join("\n");
+}
+
+function isDnsQuestion(message: string) {
+  const query = message.toLowerCase();
+  return query.includes("dns") || query.includes("domain");
+}
+
+function isDeploymentQuestion(message: string) {
+  const query = message.toLowerCase();
+  return query.includes("deploy") || query.includes("deployment") || query.includes("rollback") || query.includes("build");
+}
+
+function isPaymentWebhookQuestion(message: string) {
+  const query = message.toLowerCase();
+  return query.includes("stripe") || query.includes("payment") || query.includes("invoice") || query.includes("webhook") || query.includes("refund");
+}
+
+function isAuthQuestion(message: string) {
+  const query = message.toLowerCase();
+  return query.includes("auth") || query.includes("login") || query.includes("sign in") || query.includes("oauth") || query.includes("session");
+}
+
+function getRecentUserHistory(history: ManualAssistantMessage[]) {
+  return history
+    .filter((entry) => entry.role === "user")
+    .slice(-4)
+    .map((entry) => entry.content.toLowerCase())
+    .join(" ");
+}
+
+function hasDnsClarifierAnswer(history: ManualAssistantMessage[]) {
+  const recentUserText = getRecentUserHistory(history);
+  return (
+    recentUserText.includes("vercel")
+    || recentUserText.includes("routing")
+    || recentUserText.includes("registrar")
+    || recentUserText.includes("cloudflare")
+    || recentUserText.includes("godaddy")
+    || recentUserText.includes("namecheap")
+  );
+}
+
+function hasDeployClarifierAnswer(history: ManualAssistantMessage[]) {
+  const recentUserText = getRecentUserHistory(history);
+  return recentUserText.includes("build") || recentUserText.includes("runtime") || recentUserText.includes("rollback");
+}
+
+function hasBillingClarifierAnswer(history: ManualAssistantMessage[]) {
+  const recentUserText = getRecentUserHistory(history);
+  return recentUserText.includes("checkout") || recentUserText.includes("invoice") || recentUserText.includes("webhook") || recentUserText.includes("refund");
+}
+
+function hasAuthClarifierAnswer(history: ManualAssistantMessage[]) {
+  const recentUserText = getRecentUserHistory(history);
+  return recentUserText.includes("oauth") || recentUserText.includes("callback") || recentUserText.includes("session") || recentUserText.includes("password");
+}
+
 function buildFallbackAnswer(args: {
+  message: string;
+  history: ManualAssistantMessage[];
   contextText: string;
   confidence: "low" | "medium" | "high";
   inScope: boolean;
+  grounded: boolean;
 }) {
   if (!args.inScope) {
-    return [
-      "That looks outside this assistant's scope.",
-      "I can only answer questions about this website's admin operations, deployment, codebase structure, and connected platforms.",
-      "Please ask a website-specific question, for example: 'How do I rollback in Vercel?' or 'Where is admin authentication handled in the codebase?'",
-    ].join(" ");
+    return {
+      answer: [
+        "That looks outside this assistant's scope.",
+        "I can only answer questions about this website's admin operations, deployment, codebase structure, and connected platforms.",
+        "Please ask a website-specific question, for example: 'How do I rollback in Vercel?' or 'Where is admin authentication handled in the codebase?'",
+      ].join(" "),
+      mode: "out-of-scope" as AssistantResponseMode,
+    };
   }
 
-  if (args.confidence === "low") {
-    return [
-      "I do not have a direct internal match for that yet.",
-      "Please clarify whether this is about admin workflows, deployment, payments, authentication, or infrastructure.",
-      "Safety warning: before any risky change in production, confirm a rollback path and capture logs first.",
-    ].join(" ");
+  if (!args.grounded || args.confidence === "low") {
+    if (isDnsQuestion(args.message)) {
+      if (hasDnsClarifierAnswer(args.history)) {
+        return {
+          answer: [
+            "Thanks, that detail is enough to proceed with an Extrasure-specific DNS path.",
+            "Since you already identified the routing context, validate Vercel domain mapping, then confirm SITE_URL or NEXT_PUBLIC_SITE_URL aligns with production and verify access after propagation.",
+            "Safety warning: change one record at a time and verify production reachability before continuing.",
+          ].join(" "),
+          mode: "dns-guided" as AssistantResponseMode,
+        };
+      }
+
+      return {
+        answer: [
+          "I can help with an Extrasure-specific DNS sequence, but I need one detail first.",
+          "Are you updating Vercel project domain routing, or only DNS records at your registrar/provider?",
+          "Extrasure baseline: verify Vercel domain mapping first, then confirm SITE_URL or NEXT_PUBLIC_SITE_URL still matches production after propagation.",
+          "Safety warning: change one record at a time and verify production reachability before continuing.",
+        ].join(" "),
+        mode: "dns-clarifier" as AssistantResponseMode,
+      };
+    }
+
+    if (isDeploymentQuestion(args.message)) {
+      if (hasDeployClarifierAnswer(args.history)) {
+        return {
+          answer: [
+            "Thanks, that deployment detail is enough to continue.",
+            "Use the matching Extrasure path: inspect latest Vercel deployment logs, correlate with recent main branch merge history in GitHub, then validate environment variables before redeploying or rolling back.",
+            "Safety warning: do not apply multiple production changes before validating impact from the first action.",
+          ].join(" "),
+          mode: "deploy-guided" as AssistantResponseMode,
+        };
+      }
+
+      return {
+        answer: [
+          "I can map this to an Extrasure deployment runbook, but I need one detail first.",
+          "Is this a failed Vercel build, a production runtime issue, or a rollback decision after merge?",
+          "Extrasure baseline: check the latest Vercel deployment logs, confirm main branch merge context in GitHub, then verify environment variables before redeploying.",
+          "Safety warning: do not apply multiple production changes before validating impact from the first action.",
+        ].join(" "),
+        mode: "deploy-clarifier" as AssistantResponseMode,
+      };
+    }
+
+    if (isPaymentWebhookQuestion(args.message)) {
+      if (hasBillingClarifierAnswer(args.history)) {
+        return {
+          answer: [
+            "Thanks, that billing detail is enough to proceed.",
+            "Follow the Extrasure sequence for that case: verify Stripe webhook delivery for the event first, then use admin payments actions for reconcile or replay if state still drifts.",
+            "Safety warning: avoid manual status overrides until webhook history is verified.",
+          ].join(" "),
+          mode: "billing-guided" as AssistantResponseMode,
+        };
+      }
+
+      return {
+        answer: [
+          "I can provide an Extrasure payment troubleshooting sequence, but I need one detail first.",
+          "Are you seeing a failed checkout, invoice state mismatch, or missing Stripe webhook update?",
+          "Extrasure baseline: treat webhook processing as source of truth, inspect Stripe delivery logs first, then use admin payments actions for reconcile or replay.",
+          "Safety warning: avoid manual status overrides until webhook history is verified.",
+        ].join(" "),
+        mode: "billing-clarifier" as AssistantResponseMode,
+      };
+    }
+
+    if (isAuthQuestion(args.message)) {
+      if (hasAuthClarifierAnswer(args.history)) {
+        return {
+          answer: [
+            "Thanks, that auth detail is enough to continue.",
+            "Use the matching Extrasure auth path: validate ADMIN_AUTH_SECRET or CUSTOMER_AUTH_SECRET, confirm OAuth callback URLs, then verify admin-auth session and route protection behavior.",
+            "Safety warning: rotate secrets in controlled steps and keep rollback access before sign-in changes.",
+          ].join(" "),
+          mode: "auth-guided" as AssistantResponseMode,
+        };
+      }
+
+      return {
+        answer: [
+          "I can narrow this to an Extrasure auth flow, but I need one detail first.",
+          "Is this owner password login, Google/Microsoft OAuth callback, or session expiry behavior?",
+          "Extrasure baseline: confirm ADMIN_AUTH_SECRET or CUSTOMER_AUTH_SECRET, verify provider callback URLs, then validate admin-auth route protection behavior.",
+          "Safety warning: rotate secrets in controlled steps and keep rollback access before sign-in changes.",
+        ].join(" "),
+        mode: "auth-clarifier" as AssistantResponseMode,
+      };
+    }
+
+    return {
+      answer: [
+        "I do not have enough internal documentation to give a precise runbook yet.",
+        "Please clarify whether this is about deployment routing, payments/webhooks, authentication, or database/runtime behavior so I can use the right internal playbook.",
+        `Extrasure baseline stack: ${operationsProfile.hostingPlatform}, ${operationsProfile.paymentsPlatform}, ${operationsProfile.runtimeDatabase}.`,
+        "Safety warning: perform one production change at a time and verify impact before continuing.",
+      ].join(" "),
+      mode: "generic-clarifier" as AssistantResponseMode,
+    };
   }
 
-  return [
-    "Here is what the internal operations manual says:",
-    args.contextText,
-    "Safety warning: for any risky action (credential changes, production deploys, webhook edits, or role updates), perform one change at a time and verify impact before continuing.",
-  ].join("\n\n");
+  return {
+    answer: [
+      "Here is what the internal operations manual says:",
+      args.contextText,
+      "Safety warning: for any risky action (credential changes, production deploys, webhook edits, or role updates), perform one change at a time and verify impact before continuing.",
+    ].join("\n\n"),
+    mode: "grounded-fallback" as AssistantResponseMode,
+  };
 }
 
 async function getOpenAiAnswer(args: {
@@ -121,6 +334,8 @@ async function getOpenAiAnswer(args: {
   history: ManualAssistantMessage[];
   contextText: string;
   inScope: boolean;
+  sourceTitles: string[];
+  sourcePaths: string[];
 }) {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -132,11 +347,23 @@ async function getOpenAiAnswer(args: {
   const systemPrompt = [
     "You are the internal owner operations copilot for the ExtraSure website.",
     "Answer only about this website, its codebase, operations, admin workflows, and devops setup.",
+    "Use only the supplied internal context and source list.",
+    "Do not provide generic registrar or SaaS playbooks that are not anchored to the supplied context.",
+    "If context is insufficient, say you need clarification and ask exactly one scoped follow-up question.",
     "If the request is out of scope, explicitly say it is out of scope and ask one clarifying question.",
     "Use beginner-friendly language and provide step-by-step guidance.",
+    "Use recent conversation history to avoid repeating prior generic advice.",
+    "Include a short 'Sources:' line with the internal files or modules you relied on.",
     "Before any risky action, include a short safety warning.",
     "Never claim certainty when context is missing.",
   ].join(" ");
+
+  const sourceSummary = [
+    `Source titles: ${args.sourceTitles.length > 0 ? args.sourceTitles.join(" | ") : "none"}`,
+    `Source paths: ${args.sourcePaths.length > 0 ? args.sourcePaths.join(" | ") : "none"}`,
+  ].join("\n");
+  const recentHistorySummary = summarizeRecentHistory(args.history);
+  const profileSummary = buildOperationsProfileSummary();
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -156,7 +383,7 @@ async function getOpenAiAnswer(args: {
         ...args.history,
         {
           role: "user",
-          content: `Operator message: ${args.message}\n\nScope classification: ${args.inScope ? "in-scope" : "out-of-scope"}\n\nInternal manual and codebase context:\n${args.contextText}`,
+          content: `Operator message: ${args.message}\n\nScope classification: ${args.inScope ? "in-scope" : "out-of-scope"}\n\nExtrasure operations profile:\n${profileSummary}\n\nRecent conversation context:\n${recentHistorySummary}\n\n${sourceSummary}\n\nInternal manual and codebase context:\n${args.contextText}`,
         },
       ],
     }),
@@ -202,29 +429,57 @@ export async function POST(request: NextRequest) {
   const retrieval = await retrieveAdminManualContext(message);
   const combinedContext = [knowledge.contextText, retrieval.contextText].filter((value) => value.length > 0).join("\n\n");
 
-  const effectiveScope = scope.inScope || retrieval.matches.length > 0 || knowledge.sourceTitles.length > 0;
+  const topRetrievalScore = retrieval.matches[0]?.score ?? 0;
+  const hasStrongRetrieval = topRetrievalScore >= STRONG_RETRIEVAL_SCORE;
+  const isGrounded = knowledge.confidence !== "low" || hasStrongRetrieval;
+  const effectiveScope = scope.inScope || topRetrievalScore >= DIRECT_RETRIEVAL_SCOPE_SCORE;
 
-  const aiAnswer = await getOpenAiAnswer({
+  const aiAnswer = effectiveScope && isGrounded
+    ? await getOpenAiAnswer({
+        message,
+        history,
+        contextText: combinedContext,
+        inScope: effectiveScope,
+        sourceTitles: knowledge.sourceTitles,
+        sourcePaths: retrieval.sourcePaths,
+      })
+    : null;
+
+  const fallback = buildFallbackAnswer({
     message,
     history,
-    contextText: combinedContext,
-    inScope: effectiveScope,
-  });
-
-  const answer = aiAnswer ?? buildFallbackAnswer({
     contextText: combinedContext || knowledge.contextText,
     confidence: knowledge.confidence,
     inScope: effectiveScope,
+    grounded: isGrounded,
   });
+  const answer = aiAnswer ?? fallback.answer;
+  const mode: AssistantResponseMode = aiAnswer ? "grounded-ai" : fallback.mode;
+  let modeMetrics = {
+    modeCount: 0,
+    totalResponses: 0,
+    modeCounts: {} as Record<string, number>,
+  };
+
+  try {
+    modeMetrics = await recordAdminManualAssistantResponseMode(mode);
+  } catch (error) {
+    console.error("Failed to record manual assistant mode metrics:", error);
+  }
 
   const sourcePaths = retrieval.sourcePaths;
+  const sourceTitles = Array.from(new Set([...knowledge.sourceTitles, ...sourcePaths.map((path) => `Code citation: ${path}`)]));
 
   return NextResponse.json({
     ok: true,
     answer,
     confidence: knowledge.confidence,
-    sourceTitles: knowledge.sourceTitles,
+    sourceTitles,
     sourcePaths,
+    mode,
+    modeCount: modeMetrics.modeCount,
+    totalResponses: modeMetrics.totalResponses,
+    modeCounts: modeMetrics.modeCounts,
     scope: {
       inScope: effectiveScope,
       reason: scope.reason,

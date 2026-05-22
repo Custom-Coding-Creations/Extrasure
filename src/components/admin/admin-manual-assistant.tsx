@@ -16,11 +16,45 @@ type ManualAssistantApiResponse = {
   confidence: "low" | "medium" | "high";
   sourceTitles: string[];
   sourcePaths?: string[];
+  mode?: string;
+  modeCount?: number;
+  totalResponses?: number;
+  modeCounts?: Record<string, number>;
+  timeline?: Array<{
+    hourStartIso: string;
+    total: number;
+    modeCounts: Record<string, number>;
+  }>;
   scope?: {
     inScope: boolean;
     reason: string;
   };
 };
+
+function sumModeCounts(modeCounts: Record<string, number>, predicate: (key: string) => boolean) {
+  return Object.entries(modeCounts).reduce((total, [key, count]) => (predicate(key) ? total + count : total), 0);
+}
+
+function getGroundingQuality(clarifierRate: number) {
+  if (clarifierRate >= 45) {
+    return {
+      label: "Needs tuning",
+      toneClass: "border-[#d9a39d] bg-[#fff0ea] text-[#8a3d22]",
+    };
+  }
+
+  if (clarifierRate >= 25) {
+    return {
+      label: "Improving",
+      toneClass: "border-[#d8c9ac] bg-[#fff7e8] text-[#6a512f]",
+    };
+  }
+
+  return {
+    label: "Healthy grounding",
+    toneClass: "border-[#b9d3bf] bg-[#eef8f0] text-[#2f5c3c]",
+  };
+}
 
 const THINKING_STATUS_TEXT = ["Thinking", "Checking sources", "Drafting answer"];
 
@@ -264,9 +298,38 @@ export function AdminManualAssistant() {
   const [lastSourcePaths, setLastSourcePaths] = useState<string[]>([]);
   const [lastConfidence, setLastConfidence] = useState<"low" | "medium" | "high">("medium");
   const [lastScopeStatus, setLastScopeStatus] = useState<string>("in-scope");
+  const [lastMode, setLastMode] = useState<string>("grounded-fallback");
+  const [lastModeCount, setLastModeCount] = useState(0);
+  const [totalResponses, setTotalResponses] = useState(0);
+  const [modeCounts, setModeCounts] = useState<Record<string, number>>({});
+  const [modeTimeline, setModeTimeline] = useState<Array<{ hourStartIso: string; total: number; modeCounts: Record<string, number> }>>([]);
   const [thinkingStatusIndex, setThinkingStatusIndex] = useState(0);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  async function refreshModeMetrics() {
+    try {
+      const response = await fetch("/api/admin/manual-assistant/metrics?lookbackHours=24", {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        totalResponses?: number;
+        modeCounts?: Record<string, number>;
+        timeline?: Array<{ hourStartIso: string; total: number; modeCounts: Record<string, number> }>;
+      };
+
+      setTotalResponses(payload.totalResponses ?? 0);
+      setModeCounts(payload.modeCounts ?? {});
+      setModeTimeline(payload.timeline ?? []);
+    } catch {
+      // Best effort metric loading for UI only.
+    }
+  }
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -292,6 +355,10 @@ export function AdminManualAssistant() {
       window.clearInterval(timer);
     };
   }, [sending]);
+
+  useEffect(() => {
+    void refreshModeMetrics();
+  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -329,16 +396,40 @@ export function AdminManualAssistant() {
         }),
       });
 
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "I could not answer right now. Please try again.");
+      const rawBody = await response.text();
+      let parsedBody: unknown = null;
+
+      if (rawBody.trim().length > 0) {
+        try {
+          parsedBody = JSON.parse(rawBody);
+        } catch {
+          parsedBody = null;
+        }
       }
 
-      const payload = (await response.json()) as ManualAssistantApiResponse;
+      if (!response.ok) {
+        const errorMessage =
+          parsedBody && typeof parsedBody === "object" && "error" in parsedBody && typeof parsedBody.error === "string"
+            ? parsedBody.error
+            : `I could not answer right now (HTTP ${response.status}). Please try again.`;
+
+        throw new Error(errorMessage);
+      }
+
+      if (!parsedBody || typeof parsedBody !== "object") {
+        throw new Error("I could not read the assistant response. Please try again.");
+      }
+
+      const payload = parsedBody as ManualAssistantApiResponse;
 
       setLastSources(payload.sourceTitles);
       setLastSourcePaths(payload.sourcePaths ?? []);
       setLastConfidence(payload.confidence);
+      setLastMode(payload.mode ?? "grounded-fallback");
+      setLastModeCount(payload.modeCount ?? 0);
+      setTotalResponses(payload.totalResponses ?? 0);
+      setModeCounts(payload.modeCounts ?? {});
+      setModeTimeline(payload.timeline ?? []);
       setLastScopeStatus(payload.scope?.inScope ? "in-scope" : "out-of-scope");
       setMessages((current) => [
         ...current,
@@ -361,8 +452,19 @@ export function AdminManualAssistant() {
       ]);
     } finally {
       setSending(false);
+      void refreshModeMetrics();
     }
   }
+
+  const clarifierResponses = sumModeCounts(modeCounts, (key) => key.includes("clarifier"));
+  const guidedResponses = sumModeCounts(modeCounts, (key) => key.endsWith("-guided"));
+  const groundedResponses = sumModeCounts(modeCounts, (key) => key === "grounded-ai" || key === "grounded-fallback");
+
+  const clarifierRate = totalResponses > 0 ? Math.round((clarifierResponses / totalResponses) * 100) : 0;
+  const guidedRate = totalResponses > 0 ? Math.round((guidedResponses / totalResponses) * 100) : 0;
+  const groundedRate = totalResponses > 0 ? Math.round((groundedResponses / totalResponses) * 100) : 0;
+  const groundingQuality = getGroundingQuality(clarifierRate);
+  const timelineMax = modeTimeline.reduce((max, point) => Math.max(max, point.total), 0);
 
   return (
     <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
@@ -377,6 +479,7 @@ export function AdminManualAssistant() {
         <div className="space-y-2">
           <div className="rounded-lg border border-[#deceb0] bg-[#fff4df] px-3 py-2 text-xs text-[#445349]">Confidence: {lastConfidence}</div>
           <div className="rounded-lg border border-[#deceb0] bg-[#fff4df] px-3 py-2 text-xs text-[#445349]">Scope: {lastScopeStatus}</div>
+          <div className="rounded-lg border border-[#deceb0] bg-[#fff4df] px-3 py-2 text-xs text-[#445349]">Mode: {lastMode}</div>
         </div>
       </div>
 
@@ -417,6 +520,44 @@ export function AdminManualAssistant() {
       </div>
 
       {error ? <p className="mt-3 rounded-lg border border-[#e9b2a0] bg-[#fff0ea] p-3 text-sm text-[#8a3d22]">{error}</p> : null}
+
+      {totalResponses > 0 ? (
+        <div className="mt-4 rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5d7267]">Response trend</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-[#445349]">Total tracked responses: {totalResponses}</span>
+            <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${groundingQuality.toneClass}`}>Quality: {groundingQuality.label}</span>
+          </div>
+          <p className="mt-1 text-sm text-[#445349]">Current mode repeats: {lastModeCount}</p>
+          <div className="mt-2 grid gap-2 text-sm text-[#445349] sm:grid-cols-3">
+            <div className="rounded-lg border border-[#deceb0] bg-[#fff9ee] px-2 py-1">Clarifier: {clarifierResponses} ({clarifierRate}%)</div>
+            <div className="rounded-lg border border-[#deceb0] bg-[#fff9ee] px-2 py-1">Guided: {guidedResponses} ({guidedRate}%)</div>
+            <div className="rounded-lg border border-[#deceb0] bg-[#fff9ee] px-2 py-1">Grounded: {groundedResponses} ({groundedRate}%)</div>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#eadfc8]">
+            <div className="h-full bg-[#cf9d4c]" style={{ width: `${clarifierRate}%` }} />
+          </div>
+          <p className="mt-1 text-xs text-[#5d7267]">Target: keep clarifier rate under 25% for stable, personalized guidance.</p>
+          {modeTimeline.length > 0 ? (
+            <div className="mt-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5d7267]">Last 24h hourly volume</p>
+              <div className="mt-2 flex items-end gap-1 rounded-lg border border-[#deceb0] bg-[#fff9ee] px-2 py-2">
+                {modeTimeline.slice(-24).map((point) => {
+                  const barHeight = timelineMax > 0 ? Math.max(8, Math.round((point.total / timelineMax) * 40)) : 8;
+                  return (
+                    <div
+                      key={point.hourStartIso}
+                      title={`${new Date(point.hourStartIso).toLocaleTimeString([], { hour: "2-digit" })}: ${point.total}`}
+                      className="w-2 rounded-sm bg-[#cf9d4c]"
+                      style={{ height: `${barHeight}px` }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-3">
         <label htmlFor="admin-manual-assistant-input" className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5d7267]">

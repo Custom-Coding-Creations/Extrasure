@@ -62,7 +62,8 @@ export type AuditAction =
   | "manual_secret_created"
   | "manual_secret_updated"
   | "manual_secret_deleted"
-  | "manual_secret_viewed";
+  | "manual_secret_viewed"
+  | "manual_assistant_mode_recorded";
 
 export async function recordAuditEvent({
   actor,

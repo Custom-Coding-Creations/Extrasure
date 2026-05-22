@@ -11,6 +11,8 @@ type RetrievalMatch = RetrievalChunk & {
   score: number;
 };
 
+const MIN_MATCH_SCORE = 4;
+
 function tokenize(input: string) {
   return input
     .toLowerCase()
@@ -77,7 +79,7 @@ export async function retrieveAdminManualContext(query: string, max = 6) {
       ...chunk,
       score: scoreChunk(chunk, tokens, query),
     }))
-    .filter((chunk) => chunk.score > 0)
+    .filter((chunk) => chunk.score >= MIN_MATCH_SCORE)
     .sort((a, b) => b.score - a.score)
     .slice(0, max);
 

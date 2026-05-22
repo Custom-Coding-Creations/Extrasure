@@ -23,9 +23,9 @@ const adminManualKnowledgeBase: AdminManualKnowledgeEntry[] = [
     id: "deployment_pipeline",
     title: "Deployment pipeline from code to production",
     body:
-      "Code is reviewed in GitHub pull requests, then merged to main. Vercel builds and deploys main to production. Preview deployments are created for branches. If production breaks after a merge, rollback to the last successful deployment in Vercel.",
+      "Extrasure deploys from GitHub to Vercel using npm run build. For production incidents after merge, inspect the failed deployment logs first, then roll back to the last successful production deployment in Vercel. Before re-deploying, verify production environment variables and Prisma schema selection for Postgres vs local file database behavior.",
     tags: ["deployment", "pipeline", "github", "vercel", "rollback"],
-    sourceHint: "README.md, vercel.json, next.config.ts",
+    sourceHint: "README.md, vercel.json, scripts/prisma-prepare.mjs",
   },
   {
     id: "admin_modules_map",
@@ -63,17 +63,17 @@ const adminManualKnowledgeBase: AdminManualKnowledgeEntry[] = [
     id: "payments_and_billing",
     title: "Payments, invoices, and billing workflows",
     body:
-      "Stripe is used for collecting payments, retries, refunds, and webhooks. Admin payment tools coordinate invoice state with Stripe events. If payment status and invoice status drift, review webhook delivery history first.",
+      "Admin payment operations run through /admin/payments and Stripe-backed API routes. For payment drift, treat webhook processing as source of truth and inspect /api/admin/stripe/webhook deliveries before manual reconciliation. Use retry, refund, and portal actions only after confirming invoice state in admin payments data.",
     tags: ["stripe", "payments", "invoices", "billing", "webhook"],
-    sourceHint: "src/components/admin, src/app/admin/payments, src/app/admin/invoices",
+    sourceHint: "README.md, src/app/admin/payments/page.tsx, src/app/api/admin/payments/route.ts, src/app/api/admin/stripe/webhook/route.ts",
   },
   {
     id: "vercel_platform",
     title: "Vercel platform responsibilities",
     body:
-      "Vercel hosts the production runtime and executes API routes. It stores environment variables per environment and exposes deployment and function logs. Use Vercel logs first when production behavior differs from local.",
+      "Vercel hosts runtime, API routes, and cron execution for triage retention. Production diagnostics should start with deployment status and function logs, then verify environment variables used by auth, Stripe, and AI endpoints. For routing incidents, validate domain settings in the Vercel project before changing external DNS records.",
     tags: ["vercel", "hosting", "runtime", "logs", "env"],
-    sourceHint: "docs/ACCOUNT-OS-ROLLOUT-PR.md, vercel.json",
+    sourceHint: "README.md, vercel.json, src/app/admin/manual/page.tsx",
   },
   {
     id: "github_platform",
@@ -87,9 +87,9 @@ const adminManualKnowledgeBase: AdminManualKnowledgeEntry[] = [
     id: "openai_platform",
     title: "OpenAI platform responsibilities",
     body:
-      "OpenAI powers chatbot and assistant responses when OPENAI_API_KEY is configured. Model choice is controlled by environment variables such as AI_CHAT_MODEL and feature-specific model overrides. Fallback responses are used when AI is unavailable.",
+      "OpenAI features in Extrasure require OPENAI_API_KEY and optional AI_CHAT_MODEL overrides. If keys are missing or invalid, chat and triage surfaces may use deterministic fallback behavior. During AI incidents, verify key configuration per environment, then inspect endpoint-specific logs before adjusting prompts or model settings.",
     tags: ["openai", "ai", "model", "fallback", "api-key"],
-    sourceHint: "src/app/api/ai/chat/route.ts, src/app/api/ai/triage/route.ts",
+    sourceHint: "README.md, docs/ENABLE-REAL-AI.md, src/app/api/ai/chat/route.ts, src/app/api/ai/triage/route.ts",
   },
   {
     id: "postgres_platform",
@@ -111,33 +111,33 @@ const adminManualKnowledgeBase: AdminManualKnowledgeEntry[] = [
     id: "env_variables",
     title: "Important environment variables and purpose",
     body:
-      "Key variables include OPENAI_API_KEY for AI calls, AI_CHAT_MODEL for model defaults, DATABASE_URL for PostgreSQL, STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET for Stripe operations, and CUSTOMER_AUTH_SECRET or ADMIN_AUTH_SECRET for login session signing.",
+      "Critical runtime variables include DATABASE_URL, ADMIN_AUTH_SECRET, CUSTOMER_AUTH_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BILLING_ACCESS_SECRET, OPENAI_API_KEY, and AI_CHAT_MODEL. Validate environment values in the active Vercel environment before changing code when behavior differs between local and production.",
     tags: ["env", "secrets", "openai", "stripe", "database", "auth"],
-    sourceHint: "src/lib/admin-auth.ts, src/app/api/ai/chat/route.ts, src/app/api/ai/triage/route.ts",
+    sourceHint: "README.md, src/lib/admin-auth.ts, src/app/api/ai/chat/route.ts, src/app/api/ai/triage/route.ts",
   },
   {
     id: "incident_response_basics",
     title: "Incident response basics",
     body:
-      "First stabilize customer impact, then identify blast radius, then collect logs and timestamps. For outage incidents check Vercel deploy status and rollback path. For payment incidents check Stripe webhook delivery and replay. For auth incidents verify secrets and OAuth callback configuration.",
+      "Use the admin manual sequence: stabilize customer impact, identify affected surfaces, collect timestamps, then choose platform-specific checks. For outages check Vercel deployment status and rollback target. For billing incidents verify Stripe webhook delivery and replay. For admin sign-in issues confirm ADMIN_AUTH_SECRET or OAuth callback configuration.",
     tags: ["incident", "outage", "rollback", "payments", "auth"],
-    sourceHint: "src/app/admin/manual/page.tsx",
+    sourceHint: "src/app/admin/manual/page.tsx, README.md",
   },
   {
     id: "dns_and_domain_basics",
     title: "DNS and domain basics",
     body:
-      "DNS maps your domain name to the hosting provider. If domain records are incorrect, users cannot reach the expected deployment. For production outages, confirm domain records point to the correct Vercel project and that SSL certificates are valid.",
+      "For Extrasure production routing, validate domain settings in Vercel first, then apply only the exact required records at your DNS provider. Confirm root and www records point to the active Vercel project alias, verify SSL is issued, and cross-check SITE_URL or NEXT_PUBLIC_SITE_URL so links and redirects stay aligned after propagation.",
     tags: ["dns", "domain", "ssl", "routing", "vercel"],
-    sourceHint: "Vercel project domain settings",
+    sourceHint: "README.md, vercel project domain settings",
   },
   {
     id: "major_behavior_locations",
     title: "Where major behavior lives in the codebase",
     body:
-      "Public pages are in src/app, admin dashboard pages are in src/app/admin, API endpoints are in src/app/api, payment UI and admin controls are in src/components and src/components/admin, and core workflows are in src/lib.",
+      "Public pages are under src/app and owner operations are under src/app/admin. Admin assistant behavior is in src/app/api/admin/manual-assistant/route.ts. Payment orchestration sits in src/app/api/admin/payments/route.ts and src/lib/stripe-billing.ts. Core authorization and operational helpers live in src/lib.",
     tags: ["paths", "codebase", "location", "api", "admin"],
-    sourceHint: "src/app, src/app/admin, src/app/api, src/components, src/lib",
+    sourceHint: "src/app, src/app/admin, src/app/api/admin, src/lib",
   },
   {
     id: "audit_and_compliance",
@@ -229,8 +229,7 @@ export function buildAdminManualKnowledgeContext(query: string) {
   if (!matches.length) {
     return {
       confidence: "low" as const,
-      contextText:
-        "No direct internal manual match found. Ask the operator to clarify whether the question is about website behavior, admin workflows, deployment, or platform credentials.",
+      contextText: "",
       sourceTitles: [] as string[],
     };
   }
