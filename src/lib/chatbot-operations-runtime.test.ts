@@ -5,12 +5,12 @@ describe("chatbot-operations-runtime", () => {
     delete process.env.NEXT_PUBLIC_AI_CHATBOT_OPERATIONS_ENABLED;
   });
 
-  it("enables operations UI by default", () => {
+  it("keeps operations UI disabled by default", () => {
     delete process.env.NEXT_PUBLIC_AI_CHATBOT_OPERATIONS_ENABLED;
-    expect(isChatbotOperationsUiEnabled()).toBe(true);
+    expect(isChatbotOperationsUiEnabled()).toBe(false);
   });
 
-  it("disables operations UI for off-like values", () => {
+  it("keeps operations UI disabled for off-like values", () => {
     process.env.NEXT_PUBLIC_AI_CHATBOT_OPERATIONS_ENABLED = "off";
     expect(isChatbotOperationsUiEnabled()).toBe(false);
 
@@ -23,6 +23,9 @@ describe("chatbot-operations-runtime", () => {
 
   it("keeps operations UI enabled for explicit true values", () => {
     process.env.NEXT_PUBLIC_AI_CHATBOT_OPERATIONS_ENABLED = "true";
+    expect(isChatbotOperationsUiEnabled()).toBe(true);
+
+    process.env.NEXT_PUBLIC_AI_CHATBOT_OPERATIONS_ENABLED = "enabled";
     expect(isChatbotOperationsUiEnabled()).toBe(true);
   });
 });

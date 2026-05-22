@@ -406,6 +406,36 @@ const dashboardModules: DashboardModuleGuide[] = [
     ],
   },
   {
+    title: "Operations Console",
+    href: "/admin/chat-operations",
+    whoUsesIt: "Owner, dispatch",
+    whatItControls: "Admin-only AI-powered scheduling and technician operations with explicit confirmation safeguards.",
+    commonTasks: [
+      "Review appointments and technicians before making schedule changes.",
+      "Run schedule, reschedule, cancel, and assignment actions with confirmation.",
+      "Capture operation outcome details for support follow-up.",
+    ],
+    mistakesToAvoid: [
+      "Do not confirm write actions until customer details and timing are verified.",
+      "Do not use this module from shared or unattended sessions.",
+    ],
+  },
+  {
+    title: "Operations History",
+    href: "/admin/chat-operations/history",
+    whoUsesIt: "Owner, dispatch",
+    whatItControls: "Audit-aligned operation history including status, actor context, and detailed payload/result snapshots.",
+    commonTasks: [
+      "Filter operation outcomes by success, errors, and confirmation-required states.",
+      "Review details to diagnose failed operations quickly.",
+      "Use owner team scope view when coordinating incident investigations.",
+    ],
+    mistakesToAvoid: [
+      "Do not ignore repeated denied or failed actions without root-cause review.",
+      "Do not rely on memory when audit-backed history is available.",
+    ],
+  },
+  {
     title: "Security Settings",
     href: "/admin/settings",
     whoUsesIt: "Owner",

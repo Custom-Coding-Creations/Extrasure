@@ -110,6 +110,8 @@ describe("AdminManualPage", () => {
     expect(screen.getByTestId("section-Credential Vault Management")).not.toBeNull();
     expect(screen.getByTestId("glossary-index").textContent).toContain("Deployment");
     expect(screen.getByTestId("platform-operations").textContent).toContain("Vercel Hosting and Deployments");
+    expect(screen.getByText("Operations Console")).not.toBeNull();
+    expect(screen.getByText("Operations History")).not.toBeNull();
   });
 
   it("omits the owner credential section for non-owner sessions", async () => {

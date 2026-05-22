@@ -132,4 +132,28 @@ describe("POST /api/ai/chat operation mode", () => {
     );
     expect(executeChatbotOperation).not.toHaveBeenCalled();
   });
+
+  it("returns 401 when operation mode has no admin session", async () => {
+    requireAdminApiSession.mockResolvedValue(null);
+
+    const request = new Request("http://localhost/api/ai/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sessionId: "chat_4",
+        operation: {
+          action: "list_technicians",
+        },
+      }),
+    });
+
+    const response = await POST(request as never);
+    const payload = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(payload).toEqual({ error: "Unauthorized" });
+    expect(executeChatbotOperation).not.toHaveBeenCalled();
+  });
 });

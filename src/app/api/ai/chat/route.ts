@@ -321,6 +321,11 @@ export async function POST(request: NextRequest) {
     }
 
     const adminSession = await requireAdminApiSession();
+
+    if (!adminSession) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const operationOutcome = await executeChatbotOperation({
       operation,
       adminSession,
