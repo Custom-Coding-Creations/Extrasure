@@ -633,6 +633,10 @@ export default async function AdminManualPage() {
     >
       <ManualTopControls sections={navSections} />
 
+      <section aria-label="Operations assistant" className="mt-5 mb-6">
+        <AdminManualAssistant />
+      </section>
+
       <ManualSectionFrame
         id="quick-start"
         eyebrow="Orientation"
@@ -676,9 +680,6 @@ export default async function AdminManualPage() {
           </div>
           <div className="rounded-2xl border border-[#d6c8a4] bg-[#fff9eb] p-4">
             <AdminManualDiagrams />
-          </div>
-          <div className="rounded-2xl border border-[#d6c8a4] bg-[#fff9eb] p-4">
-            <AdminManualAssistant />
           </div>
         </div>
       </ManualSectionFrame>
