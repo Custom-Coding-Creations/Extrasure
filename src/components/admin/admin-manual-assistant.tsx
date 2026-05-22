@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, ReactNode, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 
 type ChatRole = "user" | "assistant";
 
@@ -21,6 +21,8 @@ type ManualAssistantApiResponse = {
     reason: string;
   };
 };
+
+const THINKING_STATUS_TEXT = ["Thinking", "Checking sources", "Drafting answer"];
 
 function createId() {
   return crypto.randomUUID();
@@ -262,6 +264,34 @@ export function AdminManualAssistant() {
   const [lastSourcePaths, setLastSourcePaths] = useState<string[]>([]);
   const [lastConfidence, setLastConfidence] = useState<"low" | "medium" | "high">("medium");
   const [lastScopeStatus, setLastScopeStatus] = useState<string>("in-scope");
+  const [thinkingStatusIndex, setThinkingStatusIndex] = useState(0);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    const endAnchor = messagesEndRef.current;
+    if (!container || !endAnchor) {
+      return;
+    }
+
+    endAnchor.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, sending]);
+
+  useEffect(() => {
+    if (!sending) {
+      setThinkingStatusIndex(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setThinkingStatusIndex((current) => (current + 1) % THINKING_STATUS_TEXT.length);
+    }, 1200);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [sending]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -350,7 +380,7 @@ export function AdminManualAssistant() {
         </div>
       </div>
 
-      <div className="mt-4 max-h-[360px] space-y-3 overflow-y-auto rounded-xl border border-[#deceb0] bg-[#fffdf6] p-4">
+      <div ref={messagesContainerRef} className="mt-4 max-h-[360px] space-y-3 overflow-y-auto rounded-xl border border-[#deceb0] bg-[#fffdf6] p-4">
         {messages.map((message) => (
           <article
             key={message.id}
@@ -370,6 +400,20 @@ export function AdminManualAssistant() {
             </div>
           </article>
         ))}
+        {sending ? (
+          <article className="mr-auto max-w-[92%] rounded-xl border border-[#d8c9ac] bg-gradient-to-br from-[#fff8e8] to-[#fff3d7] px-3 py-2 text-sm text-[#33443a] shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5d7267]">Assistant</p>
+            <div className="mt-2 flex items-center gap-2 text-[#4b5c53]">
+              <span className="text-sm">{THINKING_STATUS_TEXT[thinkingStatusIndex]}</span>
+              <div className="flex items-center gap-1" aria-hidden="true">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#5d7267] [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#5d7267] [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#5d7267] [animation-delay:300ms]" />
+              </div>
+            </div>
+          </article>
+        ) : null}
+        <div ref={messagesEndRef} aria-hidden="true" />
       </div>
 
       {error ? <p className="mt-3 rounded-lg border border-[#e9b2a0] bg-[#fff0ea] p-3 text-sm text-[#8a3d22]">{error}</p> : null}
