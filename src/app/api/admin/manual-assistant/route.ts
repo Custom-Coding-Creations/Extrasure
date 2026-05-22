@@ -434,16 +434,22 @@ export async function POST(request: NextRequest) {
   const isGrounded = knowledge.confidence !== "low" || hasStrongRetrieval;
   const effectiveScope = scope.inScope || topRetrievalScore >= DIRECT_RETRIEVAL_SCOPE_SCORE;
 
-  const aiAnswer = effectiveScope && isGrounded
-    ? await getOpenAiAnswer({
+  let aiAnswer: string | null = null;
+
+  if (effectiveScope && isGrounded) {
+    try {
+      aiAnswer = await getOpenAiAnswer({
         message,
         history,
         contextText: combinedContext,
         inScope: effectiveScope,
         sourceTitles: knowledge.sourceTitles,
         sourcePaths: retrieval.sourcePaths,
-      })
-    : null;
+      });
+    } catch (error) {
+      console.error("Manual assistant AI call failed:", error);
+    }
+  }
 
   const fallback = buildFallbackAnswer({
     message,

@@ -38,6 +38,8 @@ const { recordAdminManualAssistantResponseMode } = jest.requireMock("@/lib/admin
 };
 
 describe("POST /api/admin/manual-assistant", () => {
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
     delete process.env.OPENAI_API_KEY;
 
@@ -47,6 +49,11 @@ describe("POST /api/admin/manual-assistant", () => {
     });
 
     recordAdminManualAssistantResponseMode.mockClear();
+    global.fetch = originalFetch;
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
   });
 
   it("returns a balanced clarification when request is in-scope but weakly grounded", async () => {
@@ -218,6 +225,54 @@ describe("POST /api/admin/manual-assistant", () => {
     expect(payload.modeCount).toBe(0);
     expect(payload.totalResponses).toBe(0);
     expect(payload.modeCounts).toEqual({});
+  });
+
+  it("falls back cleanly when OpenAI request throws", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    global.fetch = jest.fn().mockRejectedValueOnce(new Error("network timeout")) as unknown as typeof fetch;
+
+    buildAdminManualKnowledgeContext.mockReturnValue({
+      confidence: "medium",
+      contextText: "1. System architecture overview\nSummary: Core routes are in src/app/api.",
+      sourceTitles: ["System architecture overview"],
+    });
+
+    retrieveAdminManualContext.mockResolvedValue({
+      matches: [
+        {
+          id: "docs/1",
+          path: "README.md",
+          title: "README.md",
+          text: "Admin API routes live under src/app/api/admin.",
+          score: 8,
+        },
+      ],
+      contextText: "1. [README.md] Admin API routes live under src/app/api/admin.",
+      sourcePaths: ["README.md"],
+    });
+
+    const req = new NextRequest("https://example.com/api/admin/manual-assistant", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: "Where do I find the code for admin API routes?",
+        history: [],
+      }),
+    });
+
+    const response = await POST(req);
+    const payload = (await response.json()) as {
+      ok: boolean;
+      answer: string;
+      mode: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.mode).toBe("grounded-fallback");
+    expect(payload.answer).toContain("Here is what the internal operations manual says");
   });
 
   it("uses Extrasure-specific clarification for DNS conversation and avoids generic registrar playbooks", async () => {
