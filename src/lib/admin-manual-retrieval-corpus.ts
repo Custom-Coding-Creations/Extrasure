@@ -505,37 +505,37 @@ export const retrievalCorpus: AdminManualRetrievalChunk[] = [
     "id": "src/app/admin/manual/page.tsx#1",
     "path": "src/app/admin/manual/page.tsx",
     "title": "page.tsx",
-    "text": "import { AdminShell } from \"@/components/admin/admin-shell\"; import { AdminManualAssistant } from \"@/components/admin/admin-manual-assistant\"; import { AdminManualDiagrams } from \"@/components/admin/admin-manual-diagrams\"; import { ManualSecretRevealButton } from \"@/components/admin/manual-secret-reveal-button\"; import { createManualSecretAction, deleteManualSecretAction, updateManualSecretAction, } from \"@/app/admin/manual/actions\"; import { getAdminSession } from \"@/lib/admin-auth\"; import { getManualCategories, listManualSecretsByCategory } from \"@/lib/admin-manual-store\";"
+    "text": "import { AdminShell } from \"@/components/admin/admin-shell\"; import { AdminManualAssistant } from \"@/components/admin/admin-manual-assistant\"; import { AdminManualDiagrams } from \"@/components/admin/admin-manual-diagrams\"; import { ManualGlossaryIndex } from \"@/components/admin/manual/manual-glossary-index\"; import { ManualSectionFrame } from \"@/components/admin/manual/manual-section-frame\"; import { ManualTopControls } from \"@/components/admin/manual/manual-top-controls\"; import { ManualPlatformOperations } from \"@/components/admin/manual/manual-platform-operations\"; import { ManualRoleWalkthroughs } from \"@/components/admin/manual/manual-role-walkthroughs\"; import { ManualSecretsByCategoryClient, PlatformSection } from \"@/components/admin/manual/manual-types\"; import { createManualSecretAction, deleteManualSecretAction, updateManualSecretAction, } from \"@/app/admin/manual/actions\"; import { getAdminSession } from \"@/lib/admin-auth\"; import { getManualCategories, listManualSecretsByCa"
   },
   {
     "id": "src/app/admin/manual/page.tsx#2",
     "path": "src/app/admin/manual/page.tsx",
     "title": "page.tsx",
-    "text": "type PlatformSection = { id: string; category: string; title: string; purpose: string; plainEnglish: string; whyItExists: string; links: Array<{ label: string; href: string }>; setupChecklist: string[]; dailyChecks: string[]; troubleshooting: string[]; };"
+    "text": "type DashboardModuleGuide = { title: string; href: string; whoUsesIt: string; whatItControls: string; commonTasks: string[]; mistakesToAvoid: string[]; };"
   },
   {
     "id": "src/app/admin/manual/page.tsx#3",
     "path": "src/app/admin/manual/page.tsx",
     "title": "page.tsx",
-    "text": "type DashboardModuleGuide = { title: string; href: string; whoUsesIt: string; whatItControls: string; commonTasks: string[]; mistakesToAvoid: string[]; };"
+    "text": "type RoleWalkthrough = { role: string; mission: string; firstFiveClicks: string[]; dailyWorkflow: string[]; emergencyPriority: string[]; };"
   },
   {
     "id": "src/app/admin/manual/page.tsx#4",
     "path": "src/app/admin/manual/page.tsx",
     "title": "page.tsx",
-    "text": "type RoleWalkthrough = { role: string; mission: string; firstFiveClicks: string[]; dailyWorkflow: string[]; emergencyPriority: string[]; };"
+    "text": "const platformSections: PlatformSection[] = [ { id: \"vercel\", category: \"vercel\", title: \"Vercel Hosting and Deployments\", purpose: \"Vercel hosts this website and publishes each new deployment.\", plainEnglish: \"Think of Vercel as the company that keeps your website running online 24/7. It handles publishing updates and gives logs when something fails.\", whyItExists: \"Without Vercel, visitors cannot reach the website and staff cannot access live API routes. It is the top-level runtime for your production app.\", links: [ { label: \"Vercel Dashboard\", href: \"https://vercel.com/dashboard\" }, { label: \"Project Settings\", href: \"https://vercel.com/dashboard\" }, { label: \"Vercel Documentation\", href: \"https://vercel.com/docs\" }, ], setupChecklist: [ \"Confirm the correct project is connected to the GitHub repository main branch.\", \"Verify production and preview environment variables are present and current.\", \"Confirm domain settings point to the expected production deployment.\", \"Validate buil"
   },
   {
     "id": "src/app/admin/manual/page.tsx#5",
     "path": "src/app/admin/manual/page.tsx",
     "title": "page.tsx",
-    "text": "const platformSections: PlatformSection[] = [ { id: \"vercel\", category: \"vercel\", title: \"Vercel Hosting and Deployments\", purpose: \"Vercel hosts this website and publishes each new deployment.\", plainEnglish: \"Think of Vercel as the company that keeps your website running online 24/7. It handles publishing updates and gives logs when something fails.\", whyItExists: \"Without Vercel, visitors cannot reach the website and staff cannot access live API routes. It is the top-level runtime for your production app.\", links: [ { label: \"Vercel Dashboard\", href: \"https://vercel.com/dashboard\" }, { label: \"Project Settings\", href: \"https://vercel.com/dashboard\" }, { label: \"Vercel Documentation\", href: \"https://vercel.com/docs\" }, ], setupChecklist: [ \"Confirm the correct project is connected to the GitHub repository main branch.\", \"Verify production and preview environment variables are present and current.\", \"Confirm domain settings point to the expected production deployment.\", \"Validate buil"
+    "text": "const dashboardModules: DashboardModuleGuide[] = [ { title: \"Overview\", href: \"/admin\", whoUsesIt: \"Owner, dispatch lead\", whatItControls: \"Business KPIs, current workload, and top-level operational health.\", commonTasks: [ \"Start every morning by checking this page for anomalies.\", \"Review failed payments and unresolved priority tasks.\", \"Use as launch point into other modules.\", ], mistakesToAvoid: [ \"Do not assume green KPIs mean payments webhooks are healthy.\", \"Do not skip reviewing failed items even when totals look normal.\", ], }, { title: \"CRM\", href: \"/admin/customers\", whoUsesIt: \"Dispatch, owner, accounting\", whatItControls: \"Customer records, lifecycle status, and contact details.\", commonTasks: [ \"Search and update customer contact information.\", \"Review lifecycle state before scheduling or invoicing.\", \"Validate payment preferences for billing operations.\", ], mistakesToAvoid: [ \"Do not create duplicate customers when updating existing records.\", \"Do not overwrite phone a"
   },
   {
     "id": "src/app/admin/manual/page.tsx#6",
     "path": "src/app/admin/manual/page.tsx",
     "title": "page.tsx",
-    "text": "const dashboardModules: DashboardModuleGuide[] = [ { title: \"Overview\", href: \"/admin\", whoUsesIt: \"Owner, dispatch lead\", whatItControls: \"Business KPIs, current workload, and top-level operational health.\", commonTasks: [ \"Start every morning by checking this page for anomalies.\", \"Review failed payments and unresolved priority tasks.\", \"Use as launch point into other modules.\", ], mistakesToAvoid: [ \"Do not assume green KPIs mean payments webhooks are healthy.\", \"Do not skip reviewing failed items even when totals look normal.\", ], }, { title: \"CRM\", href: \"/admin/customers\", whoUsesIt: \"Dispatch, owner, accounting\", whatItControls: \"Customer records, lifecycle status, and contact details.\", commonTasks: [ \"Search and update customer contact information.\", \"Review lifecycle state before scheduling or invoicing.\", \"Validate payment preferences for billing operations.\", ], mistakesToAvoid: [ \"Do not create duplicate customers when updating existing records.\", \"Do not overwrite phone a"
+    "text": "const incidentGuides: IncidentGuide[] = [ { title: \"Website is down\", symptom: \"Visitors cannot load the site or receive server errors.\", firstResponse: [ \"Open Vercel dashboard and check latest production deployment status.\", \"If latest deployment failed health checks, rollback to previous successful deployment.\", \"Check runtime logs for first fatal error and document timestamp.\", ], escalation: \"Escalate to developer after rollback and log capture if outage exceeds 15 minutes.\", }, { title: \"Payments are not updating\", symptom: \"Invoices remain open after customer pays.\", firstResponse: [ \"Check Stripe webhook deliveries for failures.\", \"Verify STRIPE_WEBHOOK_SECRET and endpoint URL in production settings.\", \"Confirm payment exists in Stripe dashboard and compare event timestamps.\", ], escalation: \"Escalate if webhook replay does not reconcile within 10 minutes.\", }, { title: \"Admin cannot sign in\", symptom: \"Owner login or OAuth flow fails or loops.\", firstResponse: [ \"Validate admi"
   },
   {
     "id": "src/app/admin/payments/page.tsx#1",
@@ -613,37 +613,37 @@ export const retrievalCorpus: AdminManualRetrievalChunk[] = [
     "id": "src/app/api/admin/manual-assistant/route.ts#1",
     "path": "src/app/api/admin/manual-assistant/route.ts",
     "title": "route.ts",
-    "text": "import { NextRequest, NextResponse } from \"next/server\"; import { requireAdminApiSession } from \"@/lib/admin-auth\"; import { buildAdminManualKnowledgeContext } from \"@/lib/admin-manual-knowledge\"; import { retrieveAdminManualContext } from \"@/lib/admin-manual-retrieval\";"
+    "text": "import { NextRequest, NextResponse } from \"next/server\"; import { requireAdminApiSession } from \"@/lib/admin-auth\"; import { buildAdminManualKnowledgeContext } from \"@/lib/admin-manual-knowledge\"; import { retrieveAdminManualContext } from \"@/lib/admin-manual-retrieval\"; import { recordAdminManualAssistantResponseMode } from \"@/lib/admin-manual-assistant-analytics\";"
   },
   {
     "id": "src/app/api/admin/manual-assistant/route.ts#2",
     "path": "src/app/api/admin/manual-assistant/route.ts",
     "title": "route.ts",
-    "text": "const inScopeKeywords = [ \"admin\", \"dashboard\", \"deploy\", \"deployment\", \"vercel\", \"github\", \"stripe\", \"openai\", \"oauth\", \"dns\", \"domain\", \"prisma\", \"database\", \"postgres\", \"invoice\", \"payment\", \"webhook\", \"environment\", \"env\", \"code\", \"codebase\", \"api\", \"route\", \"auth\", \"login\", \"incident\", \"rollback\", \"hosting\", \"build\", \"manual\", \"operations\", ];"
+    "text": "type AssistantResponseMode = | \"out-of-scope\" | \"dns-clarifier\" | \"dns-guided\" | \"deploy-clarifier\" | \"deploy-guided\" | \"billing-clarifier\" | \"billing-guided\" | \"auth-clarifier\" | \"auth-guided\" | \"generic-clarifier\" | \"grounded-fallback\" | \"grounded-ai\";"
   },
   {
     "id": "src/app/api/admin/manual-assistant/route.ts#3",
     "path": "src/app/api/admin/manual-assistant/route.ts",
     "title": "route.ts",
-    "text": "function classifyScope(message: string): ScopeDecision { const query = message.toLowerCase(); const inScope = inScopeKeywords.some((keyword) => query.includes(keyword));"
+    "text": "const operationsProfile = { hostingPlatform: \"Vercel\", sourceControl: \"GitHub (main branch deploy workflow)\", paymentsPlatform: \"Stripe webhook-driven reconciliation\", runtimeDatabase: \"Prisma with Postgres in production\", criticalEnvVars: [ \"SITE_URL or NEXT_PUBLIC_SITE_URL\", \"ADMIN_AUTH_SECRET\", \"CUSTOMER_AUTH_SECRET\", \"STRIPE_SECRET_KEY\", \"STRIPE_WEBHOOK_SECRET\", \"OPENAI_API_KEY\", ], };"
   },
   {
     "id": "src/app/api/admin/manual-assistant/route.ts#4",
     "path": "src/app/api/admin/manual-assistant/route.ts",
     "title": "route.ts",
-    "text": "function normalizeHistory(history: ManualAssistantMessage[] | undefined) { if (!Array.isArray(history)) { return [] as ManualAssistantMessage[]; }"
+    "text": "const inScopeKeywords = [ \"admin\", \"dashboard\", \"deploy\", \"deployment\", \"vercel\", \"github\", \"stripe\", \"openai\", \"oauth\", \"dns\", \"domain\", \"prisma\", \"database\", \"postgres\", \"invoice\", \"payment\", \"webhook\", \"environment\", \"env\", \"code\", \"codebase\", \"api\", \"route\", \"auth\", \"login\", \"incident\", \"rollback\", \"hosting\", \"build\", \"manual\", \"operations\", ];"
   },
   {
     "id": "src/app/api/admin/manual-assistant/route.ts#5",
     "path": "src/app/api/admin/manual-assistant/route.ts",
     "title": "route.ts",
-    "text": "return history .filter((entry) => entry && (entry.role === \"user\" || entry.role === \"assistant\") && typeof entry.content === \"string\") .map((entry) => ({ role: entry.role, content: entry.content.trim(), })) .filter((entry) => entry.content.length > 0) .slice(-8); }"
+    "text": "function classifyScope(message: string): ScopeDecision { const query = message.toLowerCase(); const inScope = inScopeKeywords.some((keyword) => query.includes(keyword));"
   },
   {
     "id": "src/app/api/admin/manual-assistant/route.ts#6",
     "path": "src/app/api/admin/manual-assistant/route.ts",
     "title": "route.ts",
-    "text": "function buildFallbackAnswer(args: { contextText: string; confidence: \"low\" | \"medium\" | \"high\"; inScope: boolean; grounded: boolean; }) { if (!args.inScope) { return [ \"That looks outside this assistant's scope.\", \"I can only answer questions about this website's admin operations, deployment, codebase structure, and connected platforms.\", \"Please ask a website-specific question, for example: 'How do I rollback in Vercel?' or 'Where is admin authentication handled in the codebase?'\", ].join(\" \"); }"
+    "text": "function normalizeHistory(history: ManualAssistantMessage[] | undefined) { if (!Array.isArray(history)) { return [] as ManualAssistantMessage[]; }"
   },
   {
     "id": "src/app/api/admin/payments/route.ts#1",

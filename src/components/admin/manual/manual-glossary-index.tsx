@@ -17,7 +17,15 @@ export function ManualGlossaryIndex({ items }: ManualGlossaryIndexProps) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
 
-  const categories = useMemo(() => ["All", ...Array.from(new Set(items.map((item) => item.category).filter(Boolean)))], [items]);
+  const categories = useMemo(
+    () => [
+      "All",
+      ...Array.from(
+        new Set(items.map((item) => item.category).filter((category): category is string => Boolean(category))),
+      ),
+    ],
+    [items],
+  );
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();

@@ -48,6 +48,20 @@ type DecisionTree = {
   noPath: string[];
 };
 
+function formatDate(value: Date | string) {
+  const parsed = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return String(value);
+  }
+
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 const platformSections: PlatformSection[] = [
   {
     id: "vercel",
