@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "admin-dashboard": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/home/obsidian/Projects/custom-coding-creations/mcp-admin-server/dist/index.js"],
+      "env": {
+        "ADMIN_API_URL": "https://www.customcodingcreations.com",
+        "ADMIN_API_KEY": "${env:ADMIN_API_KEY}",
+        "ADMIN_PROJECT_ID": "f9740f19-0e8a-450e-9a03-1b22a106b5a4"
+      }
+    }
+  }
+}
