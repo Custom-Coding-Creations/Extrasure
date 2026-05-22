@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 
 type ChatRole = "user" | "assistant";
 
@@ -24,6 +24,226 @@ type ManualAssistantApiResponse = {
 
 function createId() {
   return crypto.randomUUID();
+}
+
+function renderInlineMarkdown(content: string, keyPrefix: string): ReactNode[] {
+  const chunks: ReactNode[] = [];
+  const pattern = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let partIndex = 0;
+
+  while ((match = pattern.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      chunks.push(content.slice(lastIndex, match.index));
+    }
+
+    if (match[2] && match[3]) {
+      chunks.push(
+        <a
+          key={`${keyPrefix}-link-${partIndex}`}
+          href={match[3]}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-[#174e8a] underline decoration-[#174e8a]/45 underline-offset-4 hover:text-[#103c6a]"
+        >
+          {match[2]}
+        </a>,
+      );
+    } else if (match[4]) {
+      chunks.push(
+        <code
+          key={`${keyPrefix}-inline-code-${partIndex}`}
+          className="rounded bg-[#efe5cf] px-1.5 py-0.5 font-mono text-[0.85em] text-[#3f3728]"
+        >
+          {match[4]}
+        </code>,
+      );
+    } else if (match[5]) {
+      chunks.push(
+        <strong key={`${keyPrefix}-strong-${partIndex}`} className="font-semibold text-[#24352e]">
+          {match[5]}
+        </strong>,
+      );
+    } else if (match[6]) {
+      chunks.push(
+        <em key={`${keyPrefix}-em-${partIndex}`} className="italic text-[#354940]">
+          {match[6]}
+        </em>,
+      );
+    }
+
+    lastIndex = pattern.lastIndex;
+    partIndex += 1;
+  }
+
+  if (lastIndex < content.length) {
+    chunks.push(content.slice(lastIndex));
+  }
+
+  return chunks;
+}
+
+function renderMarkdownParagraphs(content: string, keyPrefix: string): ReactNode[] {
+  const blocks: ReactNode[] = [];
+  const lines = content.split("\n");
+  let index = 0;
+
+  while (index < lines.length) {
+    const currentLine = lines[index].trim();
+
+    if (!currentLine) {
+      index += 1;
+      continue;
+    }
+
+    const heading = currentLine.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const headingContent = renderInlineMarkdown(heading[2], `${keyPrefix}-heading-${index}`);
+      const headingClass =
+        level === 1
+          ? "text-base font-semibold text-[#1f3028]"
+          : level === 2
+            ? "text-[0.95rem] font-semibold text-[#24352d]"
+            : "text-[0.88rem] font-semibold uppercase tracking-[0.06em] text-[#4d6257]";
+
+      blocks.push(
+        <p key={`${keyPrefix}-h-${index}`} className={headingClass}>
+          {headingContent}
+        </p>,
+      );
+      index += 1;
+      continue;
+    }
+
+    if (/^>\s?/.test(currentLine)) {
+      const quoteLines: string[] = [];
+      while (index < lines.length && /^>\s?/.test(lines[index].trim())) {
+        quoteLines.push(lines[index].trim().replace(/^>\s?/, ""));
+        index += 1;
+      }
+
+      blocks.push(
+        <blockquote
+          key={`${keyPrefix}-q-${index}`}
+          className="rounded-r-lg border-l-4 border-[#cdb68f] bg-[#fef3dd] px-3 py-2 text-[#4a574e]"
+        >
+          {quoteLines.map((line, lineIndex) => (
+            <p key={`${keyPrefix}-q-${index}-${lineIndex}`}>{renderInlineMarkdown(line, `${keyPrefix}-q-inline-${lineIndex}`)}</p>
+          ))}
+        </blockquote>,
+      );
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(currentLine)) {
+      const listItems: string[] = [];
+      while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
+        listItems.push(lines[index].trim().replace(/^[-*]\s+/, ""));
+        index += 1;
+      }
+
+      blocks.push(
+        <ul key={`${keyPrefix}-ul-${index}`} className="ml-5 list-disc space-y-1 text-[#32433b] marker:text-[#6f5c3d]">
+          {listItems.map((item, itemIndex) => (
+            <li key={`${keyPrefix}-ul-item-${itemIndex}`}>{renderInlineMarkdown(item, `${keyPrefix}-ul-inline-${itemIndex}`)}</li>
+          ))}
+        </ul>,
+      );
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(currentLine)) {
+      const listItems: string[] = [];
+      while (index < lines.length && /^\d+\.\s+/.test(lines[index].trim())) {
+        listItems.push(lines[index].trim().replace(/^\d+\.\s+/, ""));
+        index += 1;
+      }
+
+      blocks.push(
+        <ol key={`${keyPrefix}-ol-${index}`} className="ml-5 list-decimal space-y-1 text-[#32433b] marker:font-semibold marker:text-[#6f5c3d]">
+          {listItems.map((item, itemIndex) => (
+            <li key={`${keyPrefix}-ol-item-${itemIndex}`}>{renderInlineMarkdown(item, `${keyPrefix}-ol-inline-${itemIndex}`)}</li>
+          ))}
+        </ol>,
+      );
+      continue;
+    }
+
+    const paragraphLines = [lines[index]];
+    index += 1;
+
+    while (index < lines.length) {
+      const nextLine = lines[index].trim();
+      if (!nextLine || /^(#{1,3})\s+/.test(nextLine) || /^>\s?/.test(nextLine) || /^[-*]\s+/.test(nextLine) || /^\d+\.\s+/.test(nextLine)) {
+        break;
+      }
+      paragraphLines.push(lines[index]);
+      index += 1;
+    }
+
+    const paragraph = paragraphLines.join(" ").trim();
+    if (paragraph) {
+      blocks.push(
+        <p key={`${keyPrefix}-p-${index}`} className="leading-relaxed text-[#32433b]">
+          {renderInlineMarkdown(paragraph, `${keyPrefix}-p-inline-${index}`)}
+        </p>,
+      );
+    }
+  }
+
+  return blocks;
+}
+
+function renderAssistantMarkdown(content: string): ReactNode {
+  const codeBlockRegex = /```([\w-]+)?\n?([\s\S]*?)```/g;
+  const rendered: ReactNode[] = [];
+  let last = 0;
+  let blockIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    const textBefore = content.slice(last, match.index);
+    if (textBefore.trim()) {
+      rendered.push(
+        <div key={`text-${blockIndex}`} className="space-y-2">
+          {renderMarkdownParagraphs(textBefore, `text-${blockIndex}`)}
+        </div>,
+      );
+    }
+
+    const language = match[1] || "text";
+    const code = match[2].replace(/\n$/, "");
+    rendered.push(
+      <figure key={`code-${blockIndex}`} className="overflow-hidden rounded-lg border border-[#d7c29a] bg-[#2f312f]">
+        <figcaption className="border-b border-[#454a46] bg-[#3d413d] px-3 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-[#efe6d7]">
+          {language}
+        </figcaption>
+        <pre className="max-h-72 overflow-auto p-3 text-xs text-[#f7f1e5]">
+          <code>{code}</code>
+        </pre>
+      </figure>,
+    );
+
+    last = codeBlockRegex.lastIndex;
+    blockIndex += 1;
+  }
+
+  const remainder = content.slice(last);
+  if (remainder.trim()) {
+    rendered.push(
+      <div key={`text-${blockIndex}`} className="space-y-2">
+        {renderMarkdownParagraphs(remainder, `text-${blockIndex}`)}
+      </div>,
+    );
+  }
+
+  if (rendered.length === 0) {
+    return <p className="leading-relaxed text-[#32433b]">{content}</p>;
+  }
+
+  return <div className="space-y-3">{rendered}</div>;
 }
 
 export function AdminManualAssistant() {
@@ -134,14 +354,20 @@ export function AdminManualAssistant() {
         {messages.map((message) => (
           <article
             key={message.id}
-            className={`max-w-[92%] rounded-xl border px-3 py-2 text-sm ${
+            className={`max-w-[92%] rounded-xl border px-3 py-2 text-sm shadow-sm ${
               message.role === "user"
-                ? "ml-auto border-[#35506b] bg-[#e8f0f8] text-[#1f3449]"
-                : "mr-auto border-[#d8c9ac] bg-[#fff8e8] text-[#33443a]"
+                ? "ml-auto border-[#35506b] bg-gradient-to-br from-[#e8f0f8] to-[#ddeaf8] text-[#1f3449]"
+                : "mr-auto border-[#d8c9ac] bg-gradient-to-br from-[#fff8e8] to-[#fff3d7] text-[#33443a]"
             }`}
           >
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5d7267]">{message.role === "user" ? "You" : "Assistant"}</p>
-            <p className="mt-1 whitespace-pre-wrap">{message.content}</p>
+            <div className="mt-2">
+              {message.role === "assistant" ? (
+                renderAssistantMarkdown(message.content)
+              ) : (
+                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              )}
+            </div>
           </article>
         ))}
       </div>
