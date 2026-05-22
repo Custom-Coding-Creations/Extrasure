@@ -1,7 +1,11 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AdminManualAssistant } from "@/components/admin/admin-manual-assistant";
 import { AdminManualDiagrams } from "@/components/admin/admin-manual-diagrams";
-import { ManualSecretRevealButton } from "@/components/admin/manual-secret-reveal-button";
+import { ManualSectionFrame } from "@/components/admin/manual/manual-section-frame";
+import { ManualTopControls } from "@/components/admin/manual/manual-top-controls";
+import { ManualPlatformOperations } from "@/components/admin/manual/manual-platform-operations";
+import { ManualRoleWalkthroughs } from "@/components/admin/manual/manual-role-walkthroughs";
+import { ManualSecretsByCategoryClient, PlatformSection } from "@/components/admin/manual/manual-types";
 import {
   createManualSecretAction,
   deleteManualSecretAction,
@@ -11,19 +15,6 @@ import { getAdminSession } from "@/lib/admin-auth";
 import { getManualCategories, listManualSecretsByCategory } from "@/lib/admin-manual-store";
 
 export const dynamic = "force-dynamic";
-
-type PlatformSection = {
-  id: string;
-  category: string;
-  title: string;
-  purpose: string;
-  plainEnglish: string;
-  whyItExists: string;
-  links: Array<{ label: string; href: string }>;
-  setupChecklist: string[];
-  dailyChecks: string[];
-  troubleshooting: string[];
-};
 
 type DashboardModuleGuide = {
   title: string;
@@ -602,231 +593,170 @@ const emergencyDecisionTrees: DecisionTree[] = [
   },
 ];
 
-const categoryAnchorOrder = [
-  "welcome",
-  "architecture",
-  "sop",
-  "admin-modules",
-  "vercel",
-  "github",
-  "stripe",
-  "openai",
-  "database",
-  "oauth",
-  "incidents",
-  "glossary",
-  "credentials",
-] as const;
-
-function formatDate(value: Date | null) {
-  if (!value) {
-    return "Not recorded";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
-}
-
-function formatAnchorLabel(anchor: string) {
-  if (anchor === "sop") {
-    return "Daily SOP";
-  }
-
-  if (anchor === "admin-modules") {
-    return "Dashboard Modules";
-  }
-
-  return anchor
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
+const manualNavSections = [
+  { id: "quick-start", label: "Quick Start", tags: ["crisis", "assistant", "diagrams"] },
+  { id: "operating-guides", label: "Operating Guides", tags: ["roles", "architecture", "sop"] },
+  { id: "admin-modules", label: "Dashboard Modules", tags: ["crm", "payments", "schedule"] },
+  { id: "platform-ops", label: "Platform Operations", tags: ["vercel", "github", "stripe", "oauth", "openai"] },
+  { id: "incidents", label: "Incidents and Recovery", tags: ["outage", "playbooks", "decision tree"] },
+  { id: "reference-security", label: "Reference and Security", tags: ["glossary", "credentials", "vault"] },
+];
 
 export default async function AdminManualPage() {
   const session = await getAdminSession();
   const secretsByCategory = await listManualSecretsByCategory();
   const categories = getManualCategories();
+  const platformSecretsForClient = categories.reduce<ManualSecretsByCategoryClient>((accumulator, category) => {
+    accumulator[category] = secretsByCategory[category].map((secret) => ({
+      id: secret.id,
+      title: secret.title,
+      platform: secret.platform,
+      category: secret.category,
+      portalUrl: secret.portalUrl,
+      username: secret.username,
+      notes: secret.notes,
+      isActive: secret.isActive,
+      lastRotatedAt: secret.lastRotatedAt ? secret.lastRotatedAt.toISOString() : null,
+      updatedAt: secret.updatedAt.toISOString(),
+    }));
+    return accumulator;
+  }, {});
+  const navSections =
+    session?.role === "owner"
+      ? [...manualNavSections, { id: "owner-credentials", label: "Owner Credentials", tags: ["vault", "secrets", "owner"] }]
+      : manualNavSections;
 
   return (
     <AdminShell
       title="Operations Manual and Credential Vault"
       subtitle="A complete plain-language guide to how the website is built, hosted, deployed, and managed, including secure credential handling."
     >
-      <section id="welcome" className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-        <h2 className="text-2xl text-[#1b2f25]">Executive Start Here</h2>
-        <p className="mt-3 text-sm text-[#445349]">
-          This is the full operational handbook for the website. It is written for non-technical operators and explains what every major system does,
-          where to manage it, which credentials to use, and what to do when things break.
-        </p>
-        <div className="mt-4 rounded-xl border border-[#b65d36] bg-[#fff1e8] p-4">
-          <h3 className="text-base font-semibold text-[#7a2f10]">First 30 Minutes in a Crisis</h3>
-          <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-[#6b3a22]">
-            <li>Stabilize customer impact first: confirm site up/down and payment availability.</li>
-            <li>Open Vercel, Stripe, and admin logs to identify first failure timestamp.</li>
-            <li>If deploy-related, rollback immediately to last known good deployment.</li>
-            <li>Assign one owner to incident lead and one to customer communication updates.</li>
-            <li>Use decision trees in this manual to avoid ad-hoc troubleshooting drift.</li>
-            <li>Document every action taken with time and operator name for auditability.</li>
-          </ol>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {categoryAnchorOrder.map((anchor) => (
-            <a
-              key={anchor}
-              href={`#${anchor}`}
-              className="rounded-full border border-[#35506b] px-3 py-1 text-xs font-semibold text-[#233d5a] transition hover:bg-[#233d5a] hover:text-white"
-            >
-              {formatAnchorLabel(anchor)}
-            </a>
-          ))}
-        </div>
-        <div className="mt-4 rounded-xl border border-[#deceb0] bg-[#fff4df] p-4 text-sm text-[#445349]">
-          <p className="font-semibold text-[#20372c]">How this website works in one sentence</p>
-          <p className="mt-2">
-            GitHub stores the code, Vercel deploys and hosts it, PostgreSQL stores business data, Stripe handles payments, OpenAI powers AI chat,
-            and OAuth providers control admin sign-in.
+      <ManualTopControls sections={navSections} />
+
+      <ManualSectionFrame
+        id="quick-start"
+        eyebrow="Orientation"
+        title="Executive Start Here"
+        defaultOpen
+        description="Start with crisis response, then use visual flows and assistant support to orient quickly."
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-[#445349]">
+            This is the full operational handbook for the website. It is written for non-technical operators and explains what every major system does,
+            where to manage it, which credentials to use, and what to do when things break.
           </p>
-        </div>
-        <div className="mt-4 rounded-xl border border-[#deceb0] bg-[#fff4df] p-4 text-sm text-[#445349]">
-          <p className="font-semibold text-[#20372c]">What to do first as a new operator</p>
-          <ol className="mt-2 list-inside list-decimal space-y-1">
-            <li>Review Dashboard Modules to learn where each business task is performed.</li>
-            <li>Open each Platform section and verify account access and credential entries exist.</li>
-            <li>Use Daily SOP checklists to establish your operating routine.</li>
-            <li>Read Incident Playbooks so emergency actions are familiar before an outage occurs.</li>
-          </ol>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-        <h2 className="text-2xl text-[#1b2f25]">See the Big Picture First</h2>
-        <p className="mt-2 text-sm text-[#445349]">
-          These visual flows explain architecture, deployment, and payment sync in plain language so you can quickly orient before running checklists.
-        </p>
-        <div className="mt-4">
-          <AdminManualDiagrams />
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-        <h2 className="text-2xl text-[#1b2f25]">Ask Questions in Plain English</h2>
-        <p className="mt-2 text-sm text-[#445349]">
-          Use this assistant for step-by-step explanations about admin workflows, deployment, credentials, incidents, and codebase behavior.
-        </p>
-        <div className="mt-4">
-          <AdminManualAssistant />
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-        <h2 className="text-2xl text-[#1b2f25]">Role-Based Guided Walkthroughs</h2>
-        <p className="mt-2 text-sm text-[#445349]">
-          Follow the guide for your role exactly in this order. These steps are designed for non-technical operators.
-        </p>
-        <div className="mt-4 space-y-4">
-          {roleWalkthroughs.map((walkthrough) => (
-            <article key={walkthrough.role} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-              <h3 className="text-lg font-semibold text-[#20372c]">{walkthrough.role} Walkthrough</h3>
-              <p className="mt-1 text-sm text-[#445349]"><span className="font-semibold text-[#2d4538]">Mission:</span> {walkthrough.mission}</p>
-              <div className="mt-3 grid gap-4 lg:grid-cols-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">First five clicks</p>
-                  <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-[#445349]">
-                    {walkthrough.firstFiveClicks.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ol>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Daily workflow</p>
-                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[#445349]">
-                    {walkthrough.dailyWorkflow.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#375044]">Emergency priority</p>
-                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[#445349]">
-                    {walkthrough.emergencyPriority.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section id="architecture" className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-        <h2 className="text-2xl text-[#1b2f25]">System Architecture and Data Flow</h2>
-        <p className="mt-2 text-sm text-[#445349]">
-          This section explains how requests move through the system from customer action to business outcome.
-        </p>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Website Construction Stack</h3>
-            <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-              <li>Next.js app with server and client routes.</li>
-              <li>Prisma ORM for database access and schema management.</li>
-              <li>PostgreSQL for persistent business data.</li>
-              <li>Stripe for payment collection, subscriptions, and refund operations.</li>
-              <li>OpenAI APIs for chatbot and AI-supported workflows.</li>
-            </ul>
-          </div>
-          <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Deployment and Hosting Path</h3>
-            <ol className="mt-3 list-inside list-decimal space-y-1 text-sm text-[#445349]">
-              <li>Code is merged to GitHub main.</li>
-              <li>Vercel pulls repository and runs production build.</li>
-              <li>Prisma client is generated and schema is synced for production.</li>
-              <li>Deployment is promoted and traffic is served from Vercel edge/runtime.</li>
-              <li>Payments, auth providers, and AI services are consumed via secured environment variables.</li>
+          <div className="rounded-xl border border-[#b65d36] bg-[#fff1e8] p-4">
+            <h3 className="text-base font-semibold text-[#7a2f10]">First 30 Minutes in a Crisis</h3>
+            <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-[#6b3a22]">
+              <li>Stabilize customer impact first: confirm site up/down and payment availability.</li>
+              <li>Open Vercel, Stripe, and admin logs to identify first failure timestamp.</li>
+              <li>If deploy-related, rollback immediately to last known good deployment.</li>
+              <li>Assign one owner to incident lead and one to customer communication updates.</li>
+              <li>Use decision trees in this manual to avoid ad-hoc troubleshooting drift.</li>
+              <li>Document every action taken with time and operator name for auditability.</li>
             </ol>
           </div>
-        </div>
-      </section>
-
-      <section id="sop" className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-        <h2 className="text-2xl text-[#1b2f25]">Daily, Weekly, and Monthly SOP</h2>
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Daily</h3>
-            <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-              <li>Check Overview page for failures and unusual spikes.</li>
-              <li>Review Payments for failed charges and webhook issues.</li>
-              <li>Confirm Schedule and Technician status is current.</li>
-              <li>Verify any urgent automation failures are resolved.</li>
-            </ul>
+          <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4 text-sm text-[#445349]">
+              <p className="font-semibold text-[#20372c]">How this website works in one sentence</p>
+              <p className="mt-2">
+                GitHub stores the code, Vercel deploys and hosts it, PostgreSQL stores business data, Stripe handles payments, OpenAI powers AI chat,
+                and OAuth providers control admin sign-in.
+              </p>
+            </div>
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4 text-sm text-[#445349]">
+              <p className="font-semibold text-[#20372c]">What to do first as a new operator</p>
+              <ol className="mt-2 list-inside list-decimal space-y-1">
+                <li>Review Dashboard Modules to learn where each business task is performed.</li>
+                <li>Open Platform Operations and verify account access and credential entries exist.</li>
+                <li>Use Daily SOP checklists to establish your operating routine.</li>
+                <li>Read Incident Playbooks so emergency actions are familiar before an outage occurs.</li>
+              </ol>
+            </div>
           </div>
-          <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Weekly</h3>
-            <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-              <li>Review Reporting trends and investigate anomalies.</li>
-              <li>Audit user access and remove stale admin accounts.</li>
-              <li>Review audit logs for sensitive actions and credential access events.</li>
-              <li>Validate backup readiness and platform health links.</li>
-            </ul>
+          <div className="rounded-2xl border border-[#d6c8a4] bg-[#fff9eb] p-4">
+            <AdminManualDiagrams />
           </div>
-          <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Monthly</h3>
-            <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-              <li>Rotate high-privilege credentials and document completion.</li>
-              <li>Reconfirm OAuth app settings and redirect URLs.</li>
-              <li>Review Stripe risk events, disputes, and refund policy adherence.</li>
-              <li>Run emergency response drill using incident playbooks.</li>
-            </ul>
+          <div className="rounded-2xl border border-[#d6c8a4] bg-[#fff9eb] p-4">
+            <AdminManualAssistant />
           </div>
         </div>
-      </section>
+      </ManualSectionFrame>
 
-      <section id="admin-modules" className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-        <h2 className="text-2xl text-[#1b2f25]">Admin Dashboard Module Manual</h2>
-        <p className="mt-2 text-sm text-[#445349]">Every module below explains who should use it, what it controls, and the most common safe workflows.</p>
-        <div className="mt-4 space-y-4">
+      <ManualSectionFrame
+        id="operating-guides"
+        eyebrow="Operations"
+        title="Role Guides and Core Operating Patterns"
+        description="Follow these role-specific flows, architecture cues, and recurring routines to run operations consistently."
+        defaultOpen={false}
+      >
+        <div className="space-y-4">
+          <ManualRoleWalkthroughs walkthroughs={roleWalkthroughs} />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">System Architecture and Data Flow</h3>
+              <p className="mt-2 text-sm text-[#445349]">This section explains how requests move through the system from customer action to business outcome.</p>
+              <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                <li>Next.js app with server and client routes.</li>
+                <li>Prisma ORM for database access and schema management.</li>
+                <li>PostgreSQL for persistent business data.</li>
+                <li>Stripe for payment collection, subscriptions, and refund operations.</li>
+                <li>OpenAI APIs for chatbot and AI-supported workflows.</li>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Deployment and Hosting Path</h3>
+              <ol className="mt-3 list-inside list-decimal space-y-1 text-sm text-[#445349]">
+                <li>Code is merged to GitHub main.</li>
+                <li>Vercel pulls repository and runs production build.</li>
+                <li>Prisma client is generated and schema is synced for production.</li>
+                <li>Deployment is promoted and traffic is served from Vercel edge/runtime.</li>
+                <li>Payments, auth providers, and AI services are consumed via secured environment variables.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Daily</h3>
+              <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                <li>Check Overview page for failures and unusual spikes.</li>
+                <li>Review Payments for failed charges and webhook issues.</li>
+                <li>Confirm Schedule and Technician status is current.</li>
+                <li>Verify any urgent automation failures are resolved.</li>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Weekly</h3>
+              <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                <li>Review Reporting trends and investigate anomalies.</li>
+                <li>Audit user access and remove stale admin accounts.</li>
+                <li>Review audit logs for sensitive actions and credential access events.</li>
+                <li>Validate backup readiness and platform health links.</li>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Monthly</h3>
+              <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                <li>Rotate high-privilege credentials and document completion.</li>
+                <li>Reconfirm OAuth app settings and redirect URLs.</li>
+                <li>Review Stripe risk events, disputes, and refund policy adherence.</li>
+                <li>Run emergency response drill using incident playbooks.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </ManualSectionFrame>
+
+      <ManualSectionFrame
+        id="admin-modules"
+        eyebrow="Execution"
+        title="Admin Dashboard Module Manual"
+        description="Each module summary explains who uses it, what it controls, and safe execution patterns."
+        defaultOpen={false}
+      >
+        <div className="grid gap-4 xl:grid-cols-2">
           {dashboardModules.map((module) => (
             <article key={module.href} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -858,102 +788,26 @@ export default async function AdminManualPage() {
             </article>
           ))}
         </div>
-      </section>
+      </ManualSectionFrame>
 
-      {platformSections.map((section) => {
-        const sectionSecrets = secretsByCategory[section.category as keyof typeof secretsByCategory] ?? [];
+      <ManualSectionFrame
+        id="platform-ops"
+        eyebrow="Platforms"
+        title="Platform Operations"
+        description="Focus on one platform at a time with tabbed views for setup, checks, troubleshooting, and credentials."
+        defaultOpen={false}
+      >
+        <ManualPlatformOperations sections={platformSections} secretsByCategory={platformSecretsForClient} />
+      </ManualSectionFrame>
 
-        return (
-          <section key={section.id} id={section.id} className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-            <h2 className="text-2xl text-[#1b2f25]">{section.title}</h2>
-            <p className="mt-2 text-sm text-[#2f4338]">{section.purpose}</p>
-            <p className="mt-2 text-sm text-[#445349]">{section.plainEnglish}</p>
-            <p className="mt-2 text-sm text-[#445349]"><span className="font-semibold text-[#2d4538]">Why this exists:</span> {section.whyItExists}</p>
-
-            <div className="mt-4 grid gap-4 lg:grid-cols-3">
-              <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-                <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">External Links</h3>
-                <ul className="mt-3 space-y-2 text-sm">
-                  {section.links.map((link) => (
-                    <li key={link.href}>
-                      <a href={link.href} target="_blank" rel="noreferrer" className="text-[#234a70] underline underline-offset-2">
-                        {link.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-                <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Setup Checklist</h3>
-                <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-                  {section.setupChecklist.map((task) => (
-                    <li key={task}>{task}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-                <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Daily Checks</h3>
-                <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-                  {section.dailyChecks.map((task) => (
-                    <li key={task}>{task}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Troubleshooting</h3>
-              <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-                {section.troubleshooting.map((task) => (
-                  <li key={task}>{task}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="mt-4 rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Stored Credentials (Usernames and Passwords)</h3>
-              <p className="mt-2 text-xs text-[#5d7267]">
-                Save each platform account username and password in this vault. Password values are encrypted at rest and masked on screen.
-              </p>
-              {sectionSecrets.length === 0 ? (
-                <p className="mt-3 text-sm text-[#566c60]">No credentials saved in this section yet.</p>
-              ) : (
-                <div className="mt-3 space-y-3">
-                  {sectionSecrets.map((secret) => (
-                    <article key={secret.id} className="rounded-lg border border-[#d3c3a5] bg-[#fff9ed] p-3">
-                      <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-                        <div>
-                          <p className="font-semibold text-[#20372c]">{secret.title}</p>
-                          <p className="text-xs text-[#5d7267]">Platform: {secret.platform}</p>
-                          <p className="text-xs text-[#5d7267]">Username: {secret.username ?? "Not set"}</p>
-                          <p className="text-xs text-[#5d7267]">Last rotated: {formatDate(secret.lastRotatedAt)}</p>
-                          <p className="text-xs text-[#5d7267]">Last updated: {formatDate(secret.updatedAt)}</p>
-                          {secret.portalUrl ? (
-                            <a
-                              href={secret.portalUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-1 inline-block text-xs text-[#234a70] underline underline-offset-2"
-                            >
-                              Open portal
-                            </a>
-                          ) : null}
-                          {secret.notes ? <p className="mt-2 text-xs text-[#445349]">{secret.notes}</p> : null}
-                        </div>
-                        <ManualSecretRevealButton secretId={secret.id} />
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        );
-      })}
-
-      <section id="incidents" className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-        <h2 className="text-2xl text-[#1b2f25]">Incident Playbooks and Escalation</h2>
-        <div className="mt-4 space-y-4">
+      <ManualSectionFrame
+        id="incidents"
+        eyebrow="Recovery"
+        title="Incident Playbooks and Escalation"
+        description="Use these guided response paths to stabilize service quickly and reduce improvisation during outages."
+        defaultOpen={false}
+      >
+        <div className="space-y-4">
           {incidentGuides.map((guide) => (
             <article key={guide.title} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
               <h3 className="text-lg font-semibold text-[#20372c]">{guide.title}</h3>
@@ -999,56 +853,66 @@ export default async function AdminManualPage() {
             ))}
           </div>
         </div>
-      </section>
+      </ManualSectionFrame>
 
-      <section id="glossary" className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-        <h2 className="text-2xl text-[#1b2f25]">Plain Language Glossary</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {[
-            ["Deployment", "A newly published version of the website."],
-            ["Webhook", "An automatic event message from one system to another."],
-            ["API key", "A secret passcode software uses to access an external service."],
-            ["Environment variable", "A hidden configuration value used at runtime."],
-            ["Prisma", "The tool this project uses to define and query database data."],
-            ["Schema", "The structure of database tables and fields."],
-            ["OAuth", "Sign-in using trusted accounts like Google or Microsoft."],
-            ["Rollback", "Switching back to a previously working deployment."],
-          ].map(([term, definition]) => (
-            <article key={term} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">
-              <p className="font-semibold text-[#20372c]">{term}</p>
-              <p className="mt-1 text-sm text-[#445349]">{definition}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <ManualSectionFrame
+        id="reference-security"
+        eyebrow="Reference"
+        title="Glossary and Credential Security"
+        description="Use these standards to keep account access consistent, auditable, and operationally safe."
+        defaultOpen={false}
+      >
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            {[
+              ["Deployment", "A newly published version of the website."],
+              ["Webhook", "An automatic event message from one system to another."],
+              ["API key", "A secret passcode software uses to access an external service."],
+              ["Environment variable", "A hidden configuration value used at runtime."],
+              ["Prisma", "The tool this project uses to define and query database data."],
+              ["Schema", "The structure of database tables and fields."],
+              ["OAuth", "Sign-in using trusted accounts like Google or Microsoft."],
+              ["Rollback", "Switching back to a previously working deployment."],
+            ].map(([term, definition]) => (
+              <article key={term} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-3">
+                <p className="font-semibold text-[#20372c]">{term}</p>
+                <p className="mt-1 text-sm text-[#445349]">{definition}</p>
+              </article>
+            ))}
+          </div>
 
-      <section id="credentials" className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
-        <h2 className="text-2xl text-[#1b2f25]">Credential Vault Standards</h2>
-        <div className="mt-3 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">What each entry should include</h3>
-            <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-              <li>Title that clearly identifies account purpose.</li>
-              <li>Platform name and portal URL.</li>
-              <li>Username or account email.</li>
-              <li>Password or secret value.</li>
-              <li>Notes for MFA process, recovery instructions, or owner contact.</li>
-            </ul>
-          </div>
-          <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Security operating rules</h3>
-            <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
-              <li>Use reveal and copy only when actively performing a task.</li>
-              <li>Rotate credentials after staff changes or suspected compromise.</li>
-              <li>Verify successful login after every rotation event.</li>
-              <li>Review audit logs for manual_secret_viewed events each week.</li>
-            </ul>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">What each entry should include</h3>
+              <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                <li>Title that clearly identifies account purpose.</li>
+                <li>Platform name and portal URL.</li>
+                <li>Username or account email.</li>
+                <li>Password or secret value.</li>
+                <li>Notes for MFA process, recovery instructions, or owner contact.</li>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#375044]">Security operating rules</h3>
+              <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-[#445349]">
+                <li>Use reveal and copy only when actively performing a task.</li>
+                <li>Rotate credentials after staff changes or suspected compromise.</li>
+                <li>Verify successful login after every rotation event.</li>
+                <li>Review audit logs for manual_secret_viewed events each week.</li>
+              </ul>
+            </div>
           </div>
         </div>
-      </section>
+      </ManualSectionFrame>
 
       {session?.role === "owner" ? (
-        <section className="rounded-2xl border border-[#d3c7ad] bg-[#fff9eb] p-5">
+        <ManualSectionFrame
+          id="owner-credentials"
+          eyebrow="Owner Only"
+          title="Credential Vault Management"
+          description="Add, update, and remove encrypted credentials used across external platforms."
+          defaultOpen={false}
+        >
           <h2 className="text-2xl text-[#1b2f25]">Credential Vault Management (Owner)</h2>
           <p className="mt-2 text-sm text-[#445349]">
             Add, update, and remove credentials stored for this manual. Enter each external platform account username and password here.
@@ -1077,43 +941,63 @@ export default async function AdminManualPage() {
             </button>
           </form>
 
-          <div className="mt-4 space-y-4">
-            {categories.flatMap((category) => secretsByCategory[category]).map((secret) => (
-              <article key={secret.id} className="rounded-xl border border-[#deceb0] bg-[#fff4df] p-4">
-                <form action={updateManualSecretAction} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <input type="hidden" name="secretId" value={secret.id} />
-                  <input name="title" defaultValue={secret.title} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                  <input name="platform" defaultValue={secret.platform} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                  <select name="category" defaultValue={secret.category} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]">
-                    {categories.map((categoryOption) => (
-                      <option key={categoryOption} value={categoryOption}>
-                        {categoryOption}
-                      </option>
-                    ))}
-                  </select>
-                  <input name="username" defaultValue={secret.username ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                  <input name="portalUrl" defaultValue={secret.portalUrl ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                  <input name="secretValue" placeholder="Leave blank to keep current password" className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                  <input name="notes" defaultValue={secret.notes ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
-                  <label className="flex items-center gap-2 rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]">
-                    <input name="isActive" type="checkbox" className="h-4 w-4" defaultChecked={secret.isActive} /> Active
-                  </label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button type="submit" className="rounded-full bg-[#163526] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#10271d]">
-                      Save
-                    </button>
+          <div className="mt-4 space-y-3">
+            {categories.map((category) => {
+              const entries = secretsByCategory[category];
+
+              return (
+                <details key={category} className="rounded-xl border border-[#d8caad] bg-[#fff4df]" open={entries.length > 0}>
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3">
+                    <span className="text-sm font-semibold capitalize text-[#20372c]">{category}</span>
+                    <span className="rounded-full border border-[#35506b] bg-[#fff9ed] px-2 py-0.5 text-[0.7rem] font-semibold text-[#233d5a]">
+                      {entries.length} stored
+                    </span>
+                  </summary>
+                  <div className="space-y-3 border-t border-[#d8caad] p-4">
+                    {entries.length === 0 ? (
+                      <p className="text-sm text-[#566c60]">No credentials stored in this category.</p>
+                    ) : (
+                      entries.map((secret) => (
+                        <article key={secret.id} className="rounded-xl border border-[#deceb0] bg-[#fff9ed] p-4">
+                          <form action={updateManualSecretAction} className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            <input type="hidden" name="secretId" value={secret.id} />
+                            <input name="title" defaultValue={secret.title} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                            <input name="platform" defaultValue={secret.platform} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                            <select name="category" defaultValue={secret.category} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]">
+                              {categories.map((categoryOption) => (
+                                <option key={categoryOption} value={categoryOption}>
+                                  {categoryOption}
+                                </option>
+                              ))}
+                            </select>
+                            <input name="username" defaultValue={secret.username ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                            <input name="portalUrl" defaultValue={secret.portalUrl ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                            <input name="secretValue" placeholder="Leave blank to keep current password" className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                            <input name="notes" defaultValue={secret.notes ?? ""} className="rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]" />
+                            <label className="flex items-center gap-2 rounded-lg border border-[#cbbd9f] bg-[#fffdf6] px-3 py-2 text-sm text-[#1d2f25]">
+                              <input name="isActive" type="checkbox" className="h-4 w-4" defaultChecked={secret.isActive} /> Active
+                            </label>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button type="submit" className="rounded-full bg-[#163526] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#10271d]">
+                                Save
+                              </button>
+                            </div>
+                          </form>
+                          <form action={deleteManualSecretAction} className="mt-2">
+                            <input type="hidden" name="secretId" value={secret.id} />
+                            <button type="submit" className="rounded-full border border-[#8a3d22] px-3 py-1 text-xs font-semibold text-[#8a3d22] transition hover:bg-[#8a3d22] hover:text-white">
+                              Delete Credential
+                            </button>
+                          </form>
+                        </article>
+                      ))
+                    )}
                   </div>
-                </form>
-                <form action={deleteManualSecretAction} className="mt-2">
-                  <input type="hidden" name="secretId" value={secret.id} />
-                  <button type="submit" className="rounded-full border border-[#8a3d22] px-3 py-1 text-xs font-semibold text-[#8a3d22] transition hover:bg-[#8a3d22] hover:text-white">
-                    Delete Credential
-                  </button>
-                </form>
-              </article>
-            ))}
+                </details>
+              );
+            })}
           </div>
-        </section>
+        </ManualSectionFrame>
       ) : null}
     </AdminShell>
   );
