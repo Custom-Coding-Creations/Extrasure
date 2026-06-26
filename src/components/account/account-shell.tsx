@@ -36,18 +36,18 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
 
   return (
     <div className="dashboard-shell mx-auto w-full max-w-7xl px-4 pb-28 pt-8 sm:px-6 lg:px-8 lg:pb-10 lg:pt-12">
-      <div className="account-hero-layer relative z-10 overflow-hidden rounded-3xl border border-[#d8ccb1] bg-[rgba(255,250,240,0.82)] p-5 backdrop-blur-sm dark:border-[#4c6651] dark:bg-[rgba(29,48,38,0.82)] sm:p-7">
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_12%_18%,rgba(212,133,52,0.24),transparent_56%),radial-gradient(circle_at_88%_6%,rgba(22,53,38,0.25),transparent_48%)]" />
+      <div className="account-hero-layer relative z-10 overflow-hidden rounded-3xl border p-5 backdrop-blur-sm sm:p-7" style={{ borderColor: "rgba(116, 243, 255, 0.34)", background: "rgba(19, 9, 33, 0.76)" }}>
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_12%_18%,rgba(255,61,184,0.24),transparent_56%),radial-gradient(circle_at_88%_6%,rgba(116,243,255,0.2),transparent_48%)]" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-[#426151] dark:text-[#c9bba0]">ExtraSure Home Platform</p>
-          <h1 className="mt-2 text-3xl text-[#15281f] dark:text-[#f3ead7] sm:text-4xl">{title}</h1>
-          <p className="mt-3 text-sm text-[#33453a] dark:text-[#d9ccb2] sm:text-base">{subtitle}</p>
+          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "rgba(116, 243, 255, 0.78)" }}>ExtraSure Home Platform</p>
+          <h1 className="mt-2 text-3xl sm:text-4xl" style={{ color: "#f2e9ff" }}>{title}</h1>
+          <p className="mt-3 text-sm sm:text-base" style={{ color: "rgba(238, 223, 255, 0.82)" }}>{subtitle}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <span className="rounded-full border border-[#cdbf9f] bg-[#fffaf0] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#2f473a] dark:border-[#546e58] dark:bg-[#243a2f] dark:text-[#e7dcc7]">
+            <span className="rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em]" style={{ background: "rgba(30, 12, 48, 0.8)", borderColor: "rgba(116, 243, 255, 0.34)", color: "rgba(116, 243, 255, 0.84)" }}>
               {unreadNotifications} active alert{unreadNotifications === 1 ? "" : "s"}
             </span>
-            <span className="rounded-full border border-[#cdbf9f] bg-[#fffaf0] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#2f473a] dark:border-[#546e58] dark:bg-[#243a2f] dark:text-[#e7dcc7]">
+            <span className="rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em]" style={{ background: "rgba(30, 12, 48, 0.8)", borderColor: "rgba(116, 243, 255, 0.34)", color: "rgba(116, 243, 255, 0.84)" }}>
               {(shellQuickActions ?? []).length} smart shortcut{(shellQuickActions ?? []).length === 1 ? "" : "s"}
             </span>
           </div>
@@ -63,7 +63,8 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
           <form action={logoutAction}>
             <button
               type="submit"
-              className="elevated-action rounded-full border border-[#163526] bg-[#fffaf0] px-5 py-2 text-sm font-semibold text-[#163526] transition hover:bg-[#163526] hover:text-white dark:border-[#7f9d89] dark:bg-[#1f3328] dark:text-[#e9dfc9]"
+                className="elevated-action rounded-full border px-5 py-2 text-sm font-semibold transition"
+                style={{ borderColor: "rgba(116, 243, 255, 0.5)", background: "rgba(116, 243, 255, 0.12)", color: "#74f3ff" }}
             >
               Sign Out
             </button>
@@ -86,9 +87,10 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
               aria-current={active ? "page" : undefined}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:focus-ring ${
                 active
-                  ? "bg-[#163526] text-white"
-                  : "border border-[#d8cbaf] bg-[#fffdf6] text-[#163526] hover:bg-[#f4ebd5] dark:border-[#4f6953] dark:bg-[#20352a] dark:text-[#e8dfca] dark:hover:bg-[#2b4335]"
+                  ? "text-[#130923]"
+                  : "border hover:bg-[#291043]"
               }`}
+              style={active ? { background: "#74f3ff" } : { borderColor: "rgba(116, 243, 255, 0.34)", background: "rgba(18, 8, 31, 0.74)", color: "#d7cbff" }}
             >
               {link.label}
             </Link>
@@ -99,8 +101,8 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
       {mobileQuickActions.length ? (
         <section className="relative z-10 mt-4 lg:hidden" aria-label="Mobile smart shortcuts">
           <div className="mb-2 flex items-center justify-between gap-3 px-1">
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[#60776a] dark:text-[#c7bba1]">Smart shortcuts</p>
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-[#71877b] dark:text-[#bfae90]">Thumb-ready actions</p>
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em]" style={{ color: "rgba(116, 243, 255, 0.76)" }}>Smart shortcuts</p>
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em]" style={{ color: "rgba(255, 61, 184, 0.72)" }}>Thumb-ready actions</p>
           </div>
           <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {mobileQuickActions.map((action) => (
@@ -109,8 +111,8 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
                 href={action.href}
                 className="premium-card min-w-[15.5rem] snap-start rounded-[1.4rem] px-4 py-3"
               >
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-[#697f72] dark:text-[#c8bca1]">Quick action</p>
-                <p className="mt-2 text-sm font-semibold text-[#173126] dark:text-[#f0e6d1]">{action.label}</p>
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.15em]" style={{ color: "rgba(116, 243, 255, 0.74)" }}>Quick action</p>
+                <p className="mt-2 text-sm font-semibold" style={{ color: "#f0e7ff" }}>{action.label}</p>
               </Link>
             ))}
           </div>
@@ -133,9 +135,10 @@ export function AccountShell({ title, subtitle, activePath, children, logoutActi
               aria-current={active ? "page" : undefined}
               className={`min-w-0 flex-1 rounded-xl px-2 py-2 text-center text-[0.64rem] font-semibold uppercase tracking-[0.08em] focus-visible:focus-ring ${
                 active
-                  ? "bg-[#163526] text-white"
-                  : "text-[#163526] dark:text-[#ecdcc0]"
+                  ? "text-[#130923]"
+                  : ""
               }`}
+              style={active ? { background: "#74f3ff" } : { color: "#d7cbff" }}
             >
               {link.shortLabel}
             </Link>
