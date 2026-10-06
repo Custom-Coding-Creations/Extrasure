@@ -43,21 +43,29 @@ function run(command) {
   execSync(command, { stdio: "inherit" });
 }
 
+const databaseUrl = resolveDatabaseUrl();
 const schemaPath = resolveSchemaPath();
 const isVercelBuild = process.env.VERCEL === "1";
-const shouldPushSchema =
-  process.env.PRISMA_DB_PUSH_ON_BUILD === "true" ||
-  (isVercelBuild && process.env.DISABLE_PRISMA_DB_PUSH_ON_BUILD !== "true");
+
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = "postgresql://placeholder:placeholder@localhost:5432/extrasure";
+}
 
 console.log(`[prisma] Using schema: ${schemaPath}`);
 run(`npx prisma generate --schema ${schemaPath}`);
+
+const shouldPushSchema =
+  (process.env.PRISMA_DB_PUSH_ON_BUILD === "true" ||
+  (isVercelBuild && process.env.DISABLE_PRISMA_DB_PUSH_ON_BUILD !== "true")) &&
+  Boolean(databaseUrl);
 
 if (shouldPushSchema) {
   console.log("[prisma] Applying schema with prisma db push");
   run(`npx prisma db push --skip-generate --accept-data-loss --schema ${schemaPath}`);
 }
 
-if (isVercelBuild && process.env.PRISMA_RUN_PRODUCTION_SEED_ON_BUILD === "true") {
+if (isVercelBuild && process.env.PRISMA_RUN_PRODUCTION_SEED_ON_BUILD === "true" && Boolean(databaseUrl)) {
   console.log("[prisma] PRISMA_RUN_PRODUCTION_SEED_ON_BUILD=true, running production seed");
   run("npx tsx prisma/seed-production.ts");
 }
+
